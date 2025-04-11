@@ -1,0 +1,18 @@
+- Will need to have another dialog to assign an exisiting or new property to an exisiting owner. Currently we can only link owners and properties by entering them in the intialise property tab.
+
+- NEXT ITEM: 
+  1. Success popup (shinywidget) and safe db writing.
+  2. Data frame viewer module.
+  3. Create GitHub repo (add to issues/new features)
+  4. Get feeback from Bonnie re the "closing year field"
+  5. Validation rules for phone number format (123-456-7788)
+  6. Make the DNC a toggle button maybe?
+  7. Clean up and annotate code. See if validation can be shipped into a function?
+  8. Home page with stats (total properties that are high securement, total labelled high ecological value)
+  9. Download buttons not working for data table.
+  10. Auto-populate project region field (spatial operation)
+  11. 
+  
+  
+  
+  
