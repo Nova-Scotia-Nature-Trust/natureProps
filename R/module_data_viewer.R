@@ -12,8 +12,8 @@ module_data_viewer_ui <- function(id) {
           label = "Select Data Frame View",
           choices = list(
               "PIDs" = "pid_view_01",
-              "Landowner Details" = "landowner_details",
-              "Communication History" = "communication_data"
+              "Landowner Details" = "landowner_details_view",
+              "Communication History" = "communication_data_view"
           ),
           selected = "pid_view_01"
         )
@@ -44,7 +44,7 @@ module_data_viewer_server <- function(id, db_con) {
       selected_view <- view_scenario()
       
       # Different processing for each view type
-      if (selected_view == "landowner_details") {
+      if (selected_view == "landowner_details_view") {
         # Process landowner details data
         lan_own_details <- dbReadTable(db_con, "landowner_details")
         
@@ -104,12 +104,12 @@ module_data_viewer_server <- function(id, db_con) {
         ) |>
           as_tibble()
         
-        # Process lookup tables if needed
+        
+        ## Change this to select needed columns rather than exclude others
         join_lookup_fields <- df_views |>
           filter(!!sym(selected_view) == TRUE) |>
           filter(!is.na(lookup_table)) |>
-          select(-c(df_name, db_name, pid_view_01, pid_view_02, pid_view_03, df))
-        
+          select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
 
           # Load lookup tables
           db_lookup_tables <- list(
@@ -150,9 +150,7 @@ module_data_viewer_server <- function(id, db_con) {
         # Add ordering attribute
         attr(data, "order_column") <- 1
         attr(data, "order_direction") <- "desc"
-      } else if (selected_view == "communication_data"){
-        
-        # Map database names to display names
+      } else if (selected_view == "communication_data_view"){
         
         raw_df <- dbGetQuery(
           db_con,
@@ -162,41 +160,55 @@ module_data_viewer_server <- function(id, db_con) {
           )
         ) |>
           as_tibble()
-        
-        print(raw_df)
-        
+
         map_name_ref <- read_xlsx("inputs/field and function mapping tables/db_to_df_fields.xlsx") |>
-          filter(group == "landowner_communication") |> 
+          filter(group == "landowner_communication") |>
           filter(db_name %in% names(raw_df))
-        
+
         df_named_list <- map_name_ref |>
           select(df_name, db_name) |>
           deframe()
+
+        join_lookup_fields <- df_views |>
+          filter(!!sym(selected_view) == TRUE) |>
+          filter(!is.na(lookup_table)) |>
+          select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
         
-        print(str(df_named_list))
+        # Load lookup tables
+        db_lookup_tables <- list(
+          communication_purpose = dbReadTable(db_con, "communication_purpose"),
+          communication_method = dbReadTable(db_con, "communication_method")
+        )
         
-        comm_purpose <- dbReadTable(db_con, "communication_purpose")
-        comm_method <- dbReadTable(db_con, "communication_method")
+        # Lookup join function (scoping issues means the function needs to be called here because I'm using NSE in the function)
+        join_lookup <- function(lookup_table_name, df_key, lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
+          lookup_table <- db_lookup_tables[[lookup_table_name]]
+          
+          output <- df |>
+            left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
+            rename(!!new_col_name := !!sym(lookup_value)) |>
+            select(-all_of(df_key)) |>
+            select(id, !!new_col_name)
+          
+          return(output)
+        }
         
+        # Apply all lookups
+        lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
         
-        ## Adapt this to use the lookup function and input table
-        data <- raw_df |> 
-          left_join(comm_purpose, 
-                    join_by(communication_purpose_id == id)) |> 
-          select(-communication_purpose_id) |> 
-          rename(communication_purpose_id = purpose_value) |> 
-          left_join(comm_method, 
-                    join_by(communication_method_id == id)) |> 
-          select(-communication_method_id) |> 
-          rename(communication_method_id = method_value) |> 
-          select(names(raw_df))
-        
-        data <- data |> 
+        # Combine all lookup results
+        join_dfs <- function(x, y) left_join(x, y, by = join_by(id))
+        lookup_combined <- purrr::reduce(lookup_results, join_dfs) |>
+          rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
+
+        # Combine with main dataframe
+        data <- raw_df |>
+          select(-all_of(setdiff(names(lookup_combined), "id"))) |>
+          left_join(lookup_combined, join_by(id)) |>
           select(all_of(df_named_list))
-        
+
         attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
-        
         
       }
       
