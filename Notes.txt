@@ -11,7 +11,7 @@
   8. Home page with stats (total properties that are high securement, total labelled high ecological value)
   9. Download buttons not working for data table.
   10. Auto-populate project region field (spatial operation)
-  11. 
+  11. Add size of PID to PID View_01 (join from PRD)
   
   
   

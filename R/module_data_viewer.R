@@ -11,16 +11,16 @@ module_data_viewer_ui <- function(id) {
           inputId = ns("data_view_input"),
           label = "Select Data Frame View",
           choices = list(
-              "PIDs" = "pid_view_01",
-              "Landowner Details" = "landowner_details_view",
-              "Communication History" = "communication_data_view"
+            "PIDs" = "pid_view_01",
+            "Landowner Details" = "landowner_details_view",
+            "Communication History" = "communication_data_view"
           ),
           selected = "pid_view_01"
         )
       ),
       card_body(
         style = "height: calc(100vh - 265px); padding: 0.5rem 1rem;", # Set explicit height and remove padding
-        dataTableOutput(outputId = ns("view_df"), height = "100%") # Set output height to 100%
+        DTOutput(outputId = ns("view_df"), height = "100%") # Set output height to 100%
       )
     )
   )
@@ -29,72 +29,65 @@ module_data_viewer_ui <- function(id) {
 
 module_data_viewer_server <- function(id, db_con) {
   moduleServer(id, function(input, output, session) {
+    ## Load data view metadata table (parameters and attribute names)
+    # Change name to df_views_meta
+    df_view_meta <- read_xlsx("inputs/field and function mapping tables/df_views.xlsx")
     
-    # Load mapping tables
-    df_views <- read_xlsx("inputs/field and function mapping tables/df_views.xlsx")
-    
-    # Reactive to capture the selected view
+    ## Reactive to capture the selected view
     view_scenario <- reactive({
       input$data_view_input
     })
-    
-    # Process different datasets based on selection
-    processed_data <- reactive({
-      # Get the selected view
+
+    ## Create a data frame to render with DT
+    output_view_data <- reactive({
+      ## Access the selected view
       selected_view <- view_scenario()
-      
-      # Different processing for each view type
+
+      ## Landowner details view ----
       if (selected_view == "landowner_details_view") {
-        # Process landowner details data
-        lan_own_details <- dbReadTable(db_con, "landowner_details")
-        
-        lo_pids <- dbGetQuery(
+        ## Get landowner details DB data
+        land_own_details <- dbReadTable(db_con, "landowner_details")
+
+        ## Get PIDs associated with each landowner
+        lan_own_pids <- dbGetQuery(
           db_con,
           statement = glue_sql(
-            "SELECT pid, landowner_contact_id FROM parcels WHERE landowner_contact_id IN ({lan_own_details$id*});",
+            "SELECT pid, landowner_contact_id FROM parcels WHERE landowner_contact_id IN ({land_own_details$id*});",
             .con = db_con
-          )
-        ) |>
-          as_tibble() |> 
-          group_by(landowner_contact_id) |> 
+          ) ) |>  
+          group_by(landowner_contact_id) |>
           summarise(landowner_pids = paste(pid, collapse = ", "))
-        
-        lan_own_df <- lan_own_details |> 
-          left_join(lo_pids, join_by(id == landowner_contact_id)) |> 
+
+        ## Update the contact details with associated PIDs
+        land_own_details <- land_own_details |>
+          left_join(lan_own_pids, join_by(id == landowner_contact_id)) |>
           relocate(landowner_pids, .before = dnc)
-        
-        map_name_ref <- read_xlsx("inputs/field and function mapping tables/db_to_df_fields.xlsx") |>
+
+        ## Transform to pretty column names
+        pretty_col_names <- df_view_meta |> 
           filter(group == "landowner_contact_details") |> 
-          filter(db_name %in% names(lan_own_df))
-        
-        df_named_list <- map_name_ref |>
+          filter(db_name %in% names(land_own_details)) |> 
           select(df_name, db_name) |>
           deframe()
-        
-        data <- lan_own_df |> 
-          select(all_of(df_named_list))
-        
-        # Add ordering attribute
+
+        ## Assign result to 'data' object
+        data <- land_own_details |>
+          select(all_of(pretty_col_names))
+
+        ## Add ordering attribute for DT table
         attr(data, "order_column") <- 1
         attr(data, "order_direction") <- "asc"
-        
+
+        ## PID view 01 ----
       } else if (selected_view == "pid_view_01") {
-        # Process PID view types
-        fields_to_fetch <- df_views |>
+        
+        ## Get list of parcel table fields needed for view 
+        fields_to_fetch <- df_view_meta |>
           filter(!!sym(selected_view) == TRUE) |>
           select(db_name) |>
           pull()
-        
-        # Map database names to display names
-        map_name_ref <- read_xlsx("inputs/field and function mapping tables/db_to_df_fields.xlsx") |>
-          filter(group == "parcels") |> 
-          filter(db_name %in% fields_to_fetch)
-        
-        df_named_list <- map_name_ref |>
-          select(df_name, db_name) |>
-          deframe()
-        
-        # Fetch raw data
+
+        ## Fetch raw parcel data
         raw_df <- dbGetQuery(
           db_con,
           statement = glue_sql(
@@ -103,55 +96,70 @@ module_data_viewer_server <- function(id, db_con) {
           )
         ) |>
           as_tibble()
+
+        ## Create a list of lookup tables
+        db_lookup_tables <- list(
+          phase = dbReadTable(db_con, "phase"),
+          ranking = dbReadTable(db_con, "ranking"),
+          acquisition_type = dbReadTable(db_con, "acquisition_type"),
+          properties = dbReadTable(db_con, "properties")
+        )
         
-        
-        ## Change this to select needed columns rather than exclude others
-        join_lookup_fields <- df_views |>
+        ## Get the lookup function mapping data from metadata file
+        join_lookup_fields <- df_view_meta |>
           filter(!!sym(selected_view) == TRUE) |>
           filter(!is.na(lookup_table)) |>
           select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
 
-          # Load lookup tables
-          db_lookup_tables <- list(
-            phase = dbReadTable(db_con, "phase"),
-            ranking = dbReadTable(db_con, "ranking"),
-            acquisition_type = dbReadTable(db_con, "acquisition_type"),
-            properties = dbReadTable(db_con, "properties")
-          )
+        ## Define the join lookup function (NSE issues mean it can't be sourced in global)
+        ## Note this function takes "pid" in last select
+        join_lookup <- function(lookup_table_name, df_key, lookup_key, 
+                                lookup_value, new_col_name, 
+                                df, db_lookup_tables) {
           
-          # Lookup join function (scoping issues means the function needs to be called here beacuse I'm using NSE in the function)
-          join_lookup <- function(lookup_table_name, df_key, lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
-            lookup_table <- db_lookup_tables[[lookup_table_name]]
+          lookup_table <- db_lookup_tables[[lookup_table_name]]
 
-            output <- df |>
-              left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
-              rename(!!new_col_name := !!sym(lookup_value)) |>
-              select(-all_of(df_key)) |>
-              select(pid, !!new_col_name)
+          output <- df |>
+            left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
+            rename(!!new_col_name := !!sym(lookup_value)) |>
+            select(-all_of(df_key)) |>
+            select(pid, !!new_col_name)
 
-            return(output)
-          }
-          
-          # Apply all lookups
-          lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
-          
-          # Combine all lookup results
-          join_dfs <- function(x, y) left_join(x, y, by = join_by(pid))
-          lookup_combined <- purrr::reduce(lookup_results, join_dfs) |>
-            rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
-          
-          # Combine with main dataframe
-          data <- raw_df |>
-            select(-all_of(setdiff(names(lookup_combined), "pid"))) |>
-            left_join(lookup_combined, join_by(pid)) |>
-            select(all_of(fields_to_fetch)) |>
-            select(all_of(df_named_list))
+          return(output)
+        }
+
+        ## Iterate the function over lookup fields in parcels table
+        ## "raw_df" & "db_lookup_tables" are constants in pmap
+        lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
+
+        ## Combine all lookup function results & rename fields
+        join_dfs <- function(x, y) left_join(x, y, by = join_by(pid))
+        lookup_combined <- purrr::reduce(lookup_results, join_dfs) |>
+          rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
+
+        ## Transform to pretty column names
+        pretty_col_names <- df_view_meta |> 
+          filter(group == "parcels") |> 
+          filter(db_name %in% fields_to_fetch) |> 
+          select(df_name, db_name) |>
+          deframe()
         
-        # Add ordering attribute
+        ## Combine the lookup columns with the non-lookup data
+        ## Rename fields
+        ## Assign result to 'data' object
+        data <- raw_df |>
+          select(-all_of(setdiff(names(lookup_combined), "pid"))) |>
+          left_join(lookup_combined, join_by(pid)) |>
+          select(all_of(pretty_col_names))
+
+        ## Add ordering attribute for DT table
         attr(data, "order_column") <- 1
         attr(data, "order_direction") <- "desc"
-      } else if (selected_view == "communication_data_view"){
+
+        ## Communication data view ----
+      } else if (selected_view == "communication_data_view") {
         
+        ## Fetch raw landowner communication data
         raw_df <- dbGetQuery(
           db_con,
           statement = glue_sql(
@@ -161,83 +169,84 @@ module_data_viewer_server <- function(id, db_con) {
         ) |>
           as_tibble()
 
-        map_name_ref <- read_xlsx("inputs/field and function mapping tables/db_to_df_fields.xlsx") |>
-          filter(group == "landowner_communication") |>
-          filter(db_name %in% names(raw_df))
-
-        df_named_list <- map_name_ref |>
-          select(df_name, db_name) |>
-          deframe()
-
-        join_lookup_fields <- df_views |>
-          filter(!!sym(selected_view) == TRUE) |>
-          filter(!is.na(lookup_table)) |>
-          select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
-        
-        # Load lookup tables
+        ## Create a list of lookup tables
         db_lookup_tables <- list(
           communication_purpose = dbReadTable(db_con, "communication_purpose"),
           communication_method = dbReadTable(db_con, "communication_method")
         )
-        
-        # Lookup join function (scoping issues means the function needs to be called here because I'm using NSE in the function)
+
+       ## Get the lookup function mapping data from metadata file
+        join_lookup_fields <- df_view_meta |>
+          filter(!!sym(selected_view) == TRUE) |>
+         filter(!is.na(lookup_table)) |>
+          select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
+       
+        ## Define the join lookup function (NSE issues mean it can't be sourced in global)
+        ## Note this function takes "id" in last select
         join_lookup <- function(lookup_table_name, df_key, lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
           lookup_table <- db_lookup_tables[[lookup_table_name]]
-          
+
           output <- df |>
             left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
             rename(!!new_col_name := !!sym(lookup_value)) |>
             select(-all_of(df_key)) |>
             select(id, !!new_col_name)
-          
+
           return(output)
         }
-        
-        # Apply all lookups
+
+        ## Iterate the function over lookup fields in parcels table
+        ## "raw_df" & "db_lookup_tables" are constants in pmap
         lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
-        
-        # Combine all lookup results
+
+        ## Combine all lookup function results & rename fields
         join_dfs <- function(x, y) left_join(x, y, by = join_by(id))
         lookup_combined <- purrr::reduce(lookup_results, join_dfs) |>
           rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
+
+        ## Transform to pretty column names
+        pretty_col_names <- df_view_meta |> 
+          filter(group == "landowner_communication") |> 
+          filter(db_name %in% names(raw_df)) |> 
+          select(df_name, db_name) |>
+          deframe()
 
         # Combine with main dataframe
         data <- raw_df |>
           select(-all_of(setdiff(names(lookup_combined), "id"))) |>
           left_join(lookup_combined, join_by(id)) |>
-          select(all_of(df_named_list))
+          select(all_of(pretty_col_names))
 
         attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
-        
       }
-      
+
       return(data)
     })
-    
+
     # Setup table layout
     dom_layout <- "
     <'row'<'col-sm-9'l><'col-sm-3 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
     "
-    
+
     # Get ordering information
     table_order <- reactive({
       list(list(
-        attr(processed_data(), "order_column"), 
-        attr(processed_data(), "order_direction")
+        attr(output_view_data(), "order_column"),
+        attr(output_view_data(), "order_direction")
       ))
     })
-    
+
     # Render the datatable
     output$view_df <- renderDT({
       datatable(
-        processed_data(),
+        output_view_data(),
         options = list(
           pageLength = 10,
-          scrollX = TRUE, 
+          scrollX = TRUE,
           dom = dom_layout,
           buttons = list(
-            "copy", "csv", "excel", "pdf", "print"
+            "copy", "excel", "pdf", "print"
           ),
           order = table_order(),
           stateSave = FALSE
