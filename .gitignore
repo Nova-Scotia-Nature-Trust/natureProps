@@ -47,3 +47,15 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Input files
+inputs/field and function mapping tables/Reference_File.txt
+inputs/field and function mapping tables/pmap_list_action_items.xlsx
+inputs/field and function mapping tables/nsprd_field_names.xlsx
+inputs/field and function mapping tables/pmap_list_lu_tables.xlsx
+inputs/field and function mapping tables/ss_to_db_fields.xlsx
+
+*.Rproj
+
+
+
