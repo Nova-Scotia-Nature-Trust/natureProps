@@ -32,7 +32,7 @@ module_data_viewer_server <- function(id, db_con) {
     ## Load data view metadata table (parameters and attribute names)
     # Change name to df_views_meta
     df_view_meta <- read_xlsx("inputs/field and function mapping tables/df_views.xlsx")
-    
+
     ## Reactive to capture the selected view
     view_scenario <- reactive({
       input$data_view_input
@@ -54,7 +54,8 @@ module_data_viewer_server <- function(id, db_con) {
           statement = glue_sql(
             "SELECT pid, landowner_contact_id FROM parcels WHERE landowner_contact_id IN ({land_own_details$id*});",
             .con = db_con
-          ) ) |>  
+          )
+        ) |>
           group_by(landowner_contact_id) |>
           summarise(landowner_pids = paste(pid, collapse = ", "))
 
@@ -64,9 +65,9 @@ module_data_viewer_server <- function(id, db_con) {
           relocate(landowner_pids, .before = dnc)
 
         ## Transform to pretty column names
-        pretty_col_names <- df_view_meta |> 
-          filter(group == "landowner_contact_details") |> 
-          filter(db_name %in% names(land_own_details)) |> 
+        pretty_col_names <- df_view_meta |>
+          filter(group == "landowner_contact_details") |>
+          filter(db_name %in% names(land_own_details)) |>
           select(df_name, db_name) |>
           deframe()
 
@@ -80,8 +81,7 @@ module_data_viewer_server <- function(id, db_con) {
 
         ## PID view 01 ----
       } else if (selected_view == "pid_view_01") {
-        
-        ## Get list of parcel table fields needed for view 
+        ## Get list of parcel table fields needed for view
         fields_to_fetch <- df_view_meta |>
           filter(!!sym(selected_view) == TRUE) |>
           select(db_name) |>
@@ -94,8 +94,7 @@ module_data_viewer_server <- function(id, db_con) {
             "SELECT {`fields_to_fetch`*} FROM parcels;",
             .con = db_con
           )
-        ) |>
-          as_tibble()
+        )
 
         ## Create a list of lookup tables
         db_lookup_tables <- list(
@@ -104,7 +103,7 @@ module_data_viewer_server <- function(id, db_con) {
           acquisition_type = dbReadTable(db_con, "acquisition_type"),
           properties = dbReadTable(db_con, "properties")
         )
-        
+
         ## Get the lookup function mapping data from metadata file
         join_lookup_fields <- df_view_meta |>
           filter(!!sym(selected_view) == TRUE) |>
@@ -113,10 +112,9 @@ module_data_viewer_server <- function(id, db_con) {
 
         ## Define the join lookup function (NSE issues mean it can't be sourced in global)
         ## Note this function takes "pid" in last select
-        join_lookup <- function(lookup_table_name, df_key, lookup_key, 
-                                lookup_value, new_col_name, 
+        join_lookup <- function(lookup_table_name, df_key, lookup_key,
+                                lookup_value, new_col_name,
                                 df, db_lookup_tables) {
-          
           lookup_table <- db_lookup_tables[[lookup_table_name]]
 
           output <- df |>
@@ -138,19 +136,37 @@ module_data_viewer_server <- function(id, db_con) {
           rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
 
         ## Transform to pretty column names
-        pretty_col_names <- df_view_meta |> 
-          filter(group == "parcels") |> 
-          filter(db_name %in% fields_to_fetch) |> 
+        pretty_col_names <- df_view_meta |>
+          filter(group == "parcels") |>
+          filter(db_name %in% fields_to_fetch) |>
           select(df_name, db_name) |>
           deframe()
-        
+
         ## Combine the lookup columns with the non-lookup data
         ## Rename fields
-        ## Assign result to 'data' object
         data <- raw_df |>
           select(-all_of(setdiff(names(lookup_combined), "pid"))) |>
           left_join(lookup_combined, join_by(pid)) |>
           select(all_of(pretty_col_names))
+
+        ## Query to get PID sizes for
+        pid_size <- dbGetQuery(
+          db_con,
+          statement = '
+            SELECT pa.pid AS "PID",
+                  info.area_ha AS "Size (ha)",
+                  ROUND(info.area_ha * 2.47105, 2) AS "Size (acre)"
+            FROM parcels AS pa
+            LEFT JOIN parcel_info AS info ON pa.id = info.parcel_id;
+          '
+        ) |>
+          as_tibble()
+
+        ## Add PID sizes
+        ## Assign result to 'data' object
+        data <- data |>
+          left_join(pid_size, join_by(PID)) |>
+          relocate(contains("size"), .after = `Date Updated`)
 
         ## Add ordering attribute for DT table
         attr(data, "order_column") <- 1
@@ -158,7 +174,6 @@ module_data_viewer_server <- function(id, db_con) {
 
         ## Communication data view ----
       } else if (selected_view == "communication_data_view") {
-        
         ## Fetch raw landowner communication data
         raw_df <- dbGetQuery(
           db_con,
@@ -175,15 +190,16 @@ module_data_viewer_server <- function(id, db_con) {
           communication_method = dbReadTable(db_con, "communication_method")
         )
 
-       ## Get the lookup function mapping data from metadata file
+        ## Get the lookup function mapping data from metadata file
         join_lookup_fields <- df_view_meta |>
           filter(!!sym(selected_view) == TRUE) |>
-         filter(!is.na(lookup_table)) |>
+          filter(!is.na(lookup_table)) |>
           select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
-       
+
         ## Define the join lookup function (NSE issues mean it can't be sourced in global)
         ## Note this function takes "id" in last select
-        join_lookup <- function(lookup_table_name, df_key, lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
+        join_lookup <- function(lookup_table_name, df_key,
+                                lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
           lookup_table <- db_lookup_tables[[lookup_table_name]]
 
           output <- df |>
@@ -205,9 +221,9 @@ module_data_viewer_server <- function(id, db_con) {
           rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
 
         ## Transform to pretty column names
-        pretty_col_names <- df_view_meta |> 
-          filter(group == "landowner_communication") |> 
-          filter(db_name %in% names(raw_df)) |> 
+        pretty_col_names <- df_view_meta |>
+          filter(group == "landowner_communication") |>
+          filter(db_name %in% names(raw_df)) |>
           select(df_name, db_name) |>
           deframe()
 
