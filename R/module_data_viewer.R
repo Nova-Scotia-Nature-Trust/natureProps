@@ -13,7 +13,8 @@ module_data_viewer_ui <- function(id) {
           choices = list(
             "PIDs" = "pid_view_01",
             "Landowner Details" = "landowner_details_view",
-            "Communication History" = "communication_data_view"
+            "Communication History" = "communication_data_view",
+            "Action Items" = "pid_view_02"
           ),
           selected = "pid_view_01"
         )
@@ -79,8 +80,8 @@ module_data_viewer_server <- function(id, db_con) {
         attr(data, "order_column") <- 1
         attr(data, "order_direction") <- "asc"
 
-        ## PID view 01 ----
-      } else if (selected_view == "pid_view_01") {
+        ## PID view 01/02 ----
+      } else if (selected_view %in% c("pid_view_01", "pid_view_02")) {
         ## Get list of parcel table fields needed for view
         fields_to_fetch <- df_view_meta |>
           filter(!!sym(selected_view) == TRUE) |>
@@ -101,7 +102,8 @@ module_data_viewer_server <- function(id, db_con) {
           phase = dbReadTable(db_con, "phase"),
           ranking = dbReadTable(db_con, "ranking"),
           acquisition_type = dbReadTable(db_con, "acquisition_type"),
-          properties = dbReadTable(db_con, "properties")
+          properties = dbReadTable(db_con, "properties"),
+          action_item_status = dbReadTable(db_con, "action_item_status")
         )
 
         ## Get the lookup function mapping data from metadata file
@@ -111,7 +113,7 @@ module_data_viewer_server <- function(id, db_con) {
           select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
 
         ## Define the join lookup function (NSE issues mean it can't be sourced in global)
-        ## Note this function takes "pid" in last select
+        ##!! *** Note this function takes "pid" in last select *** !!##
         join_lookup <- function(lookup_table_name, df_key, lookup_key,
                                 lookup_value, new_col_name,
                                 df, db_lookup_tables) {
@@ -149,28 +151,39 @@ module_data_viewer_server <- function(id, db_con) {
           left_join(lookup_combined, join_by(pid)) |>
           select(all_of(pretty_col_names))
 
-        ## Query to get PID sizes for
-        pid_size <- dbGetQuery(
-          db_con,
-          statement = '
-            SELECT pa.pid AS "PID",
-                  info.area_ha AS "Size (ha)",
-                  ROUND(info.area_ha * 2.47105, 2) AS "Size (acre)"
-            FROM parcels AS pa
-            LEFT JOIN parcel_info AS info ON pa.id = info.parcel_id;
-          '
-        ) |>
-          as_tibble()
-
-        ## Add PID sizes
-        ## Assign result to 'data' object
-        data <- data |>
-          left_join(pid_size, join_by(PID)) |>
-          relocate(contains("size"), .after = `Date Updated`)
-
-        ## Add ordering attribute for DT table
-        attr(data, "order_column") <- 1
-        attr(data, "order_direction") <- "desc"
+        
+        if(selected_view == "pid_view_01"){
+          
+          ## Query to get PID sizes for
+          pid_size <- dbGetQuery(
+            db_con,
+            statement = '
+              SELECT pa.pid AS "PID",
+                    info.area_ha AS "Size (ha)",
+                    ROUND(info.area_ha * 2.47105, 2) AS "Size (acre)"
+              FROM parcels AS pa
+              LEFT JOIN parcel_info AS info ON pa.id = info.parcel_id;
+            '
+          ) |>
+            as_tibble()
+          
+          ## Add PID sizes
+          ## Assign result to 'data' object
+          data <- data |>
+            left_join(pid_size, join_by(PID)) |>
+            relocate(contains("size"), .after = `Date Updated`)
+          
+          ## Add ordering attribute for DT table
+          attr(data, "order_column") <- 1
+          attr(data, "order_direction") <- "desc"
+          
+        } else if (selected_view == "pid_view_02"){
+          
+          ## Add ordering attribute for DT table
+          attr(data, "order_column") <- 2
+          attr(data, "order_direction") <- "desc"          
+          
+        }
 
         ## Communication data view ----
       } else if (selected_view == "communication_data_view") {
