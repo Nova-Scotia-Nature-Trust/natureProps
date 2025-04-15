@@ -12,6 +12,7 @@
   9. Download buttons not working for data table.
   10. Auto-populate project region field (spatial operation)
   11. Add size of PID to PID View_01 (join from PRD)
+  12. Need to add a UI in Initialise PID that brings up dropdown of selected PIDs, one of which must then be selected as the CORE PID. 
   
   
   

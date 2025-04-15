@@ -9,9 +9,9 @@ module_data_viewer_ui <- function(id) {
       card_header(
         selectInput(
           inputId = ns("data_view_input"),
-          label = "Select Data Frame View",
+          label = "Data Table View",
           choices = list(
-            "Select a view" = "",
+            "Select a view from the list" = "",
             "PIDs" = "pid_view_01",
             "Landowner Details" = "landowner_details_view",
             "Communication History" = "communication_data_view",

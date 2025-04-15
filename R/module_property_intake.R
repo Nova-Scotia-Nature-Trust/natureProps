@@ -1,10 +1,11 @@
 module_property_intake_ui <- function(id) {
   ns <- NS(id)
 
-  nav_panel(
-    title = "Initialise PID",
+  div(
+    style = "height: 100%; display: flex; flex-direction: column;",
     card(
       full_screen = TRUE,
+      height = "100%", # Make card fill available space
       layout_sidebar(
         sidebar = sidebar(
           "Sidebar",
@@ -13,97 +14,248 @@ module_property_intake_ui <- function(id) {
           actionButton(inputId = ns("submit_landowner"), label = "Add Landowner Contact"),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
         ),
-        layout_columns(
-          card(
-            h2("Property Details"),
-            selectizeInput(
-              inputId = ns("pid_input"),
-              label = "Enter PID(s):",
-              choices = NULL, multiple = TRUE,
-              options = list(create = TRUE, placeholder = "Type PID and press Enter")
-            ),
-            # verbatimTextOutput(ns("id_output")),
-            dateInput(
-              inputId = ns("date_added_input"),
-              label = "Date Added",
-              value = today()
-            ),
-            textInput(
-              inputId = ns("property_name_input"),
-              label = "Property Name",
-              value = "North Cove (Henry) - V4"
-            ),
-            selectInput(
-              inputId = ns("phase_id_input"),
-              label = "Phase",
-              choices = NULL,
-              selected = character(0)
-            ),
-            textInput(
-              inputId = ns("focus_area_internal_input"),
-              label = "Focus Area (Internal)",
-              value = "Henry Watershed"
-            ),
-            selectInput(
-              inputId = ns("acquisition_type_input"),
-              label = "Acquisition Type",
-              choices = NULL,
-              selected = character(0)
-            ),
-            textInput(
-              inputId = ns("property_description_input"),
-              label = "Property Description",
-              value = "Looks like a good one!"
-            )
-          ),
-          card(
-            h2("Landowner Contact Details"),
-            selectizeInput(
-              inputId = ns("pid_input_landowner"),
-              label = "Select PID(s):",
-              choices = NULL, multiple = TRUE,
-              options = list(
-                create = FALSE,
-                plugins = list("remove_button"),
-                placeholder = "Select PIDs associated with owner"
+        # Main layout
+        div(
+          style = "height: 100%; display: flex; flex-direction: column;",
+          layout_columns(
+            height = "100%",
+            col_widths = c(6, 6),
+            # First card
+            card(
+              height = "100%",
+              card_header(h5("Property Details")),
+              card_body(
+                div(
+                  style = "display: flex; flex-direction: column; gap: 15px;",
+                  layout_columns(
+                    col_widths = c(7, 5),
+                    selectizeInput(
+                      inputId = ns("pid_input"),
+                      label = "Enter PID(s):",
+                      choices = NULL, multiple = TRUE,
+                      options = list(create = TRUE, placeholder = "Type PID and press Enter")
+                    ),
+                    dateInput(
+                      inputId = ns("date_added_input"),
+                      label = "Date Added",
+                      value = today()
+                    )
+                  ),
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    textInput(
+                      inputId = ns("property_name_input"),
+                      label = "Property Name",
+                      value = "North Cove (Henry) - V4"
+                    ),
+                    textInput(
+                      inputId = ns("focus_area_internal_input"),
+                      label = "Focus Area (Internal)",
+                      value = "Henry Watershed"
+                    )
+                  ),
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    selectInput(
+                      inputId = ns("phase_id_input"),
+                      label = "Phase",
+                      choices = NULL,
+                      selected = character(0)
+                    ),
+                    selectInput(
+                      inputId = ns("acquisition_type_input"),
+                      label = "Acquisition Type",
+                      choices = NULL,
+                      selected = character(0)
+                    )
+                  ),
+                  # TextArea on its own row with controlled spacing (span entire row)
+                  div(
+                    style = "width: 100%;", # Ensure it spans the full width
+                    textAreaInput(
+                      ns("property_description_input"),
+                      "Property Description", "",
+                      height = "100px", width = "100%"
+                    )
+                  ),
+                  # Add a spacer div to prevent pushing everything to bottom
+                  div(style = "flex-grow: 1;")
+                )
               )
             ),
-            textInput(
-              inputId = ns("name_first_input"),
-              label = "First Name",
-              value = ""
-            ),
-            textInput(
-              inputId = ns("name_last_input"),
-              label = "Last Name",
-              value = ""
-            ),
-            textInput(
-              inputId = ns("email_input"),
-              label = "Email",
-              value = ""
-            ),
-            textInput(
-              inputId = ns("phone_home_input"),
-              label = "Home Phone",
-              value = ""
-            ),
-            textInput(
-              inputId = ns("phone_cell_input"),
-              label = "Cell Phone",
-              value = ""
-            ),
-            selectInput(
-              inputId = ns("dnc_input"),
-              label = "Do Not Contact",
-              choices = list("TRUE" = TRUE, "FALSE" = FALSE),
-              selected = "FALSE"
+            # Second card
+            card(
+              height = "100%",
+              card_header(h5("Landowner Details")),
+              card_body(
+                div(
+                  style = "display: flex; flex-direction: column; gap: 15px;",
+                  selectizeInput(
+                    inputId = ns("pid_input_landowner"),
+                    label = "Select PID(s):",
+                    choices = NULL, multiple = TRUE,
+                    options = list(
+                      create = FALSE,
+                      plugins = list("remove_button"),
+                      placeholder = "Select PIDs associated with owner"
+                    )
+                  ),
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    textInput(
+                      inputId = ns("name_first_input"),
+                      label = "First Name",
+                      value = ""
+                    ),
+                    textInput(
+                      inputId = ns("name_last_input"),
+                      label = "Last Name",
+                      value = ""
+                    )
+                  ),
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    textInput(
+                      inputId = ns("email_input"),
+                      label = "Email",
+                      value = ""
+                    ),
+                    selectInput(
+                      inputId = ns("dnc_input"),
+                      label = "Do Not Contact",
+                      choices = list("TRUE" = TRUE, "FALSE" = FALSE),
+                      selected = "FALSE"
+                    )
+                  ),
+                  layout_columns(
+                    col_width = c(6, 6),
+                    textInput(
+                      inputId = ns("phone_home_input"),
+                      label = "Home Phone",
+                      value = ""
+                    ),
+                    textInput(
+                      inputId = ns("phone_cell_input"),
+                      label = "Cell Phone",
+                      value = ""
+                    )
+                  ),
+                  # Add a spacer div to prevent pushing everything to bottom
+                  div(style = "flex-grow: 1;")
+                )
+              )
             )
           )
         )
       )
     )
   )
+
+
+  #### OLD ----
+  # nav_panel(
+  #   title = "Initialise PID",
+  #   card(
+  #     full_screen = TRUE,
+  #     layout_sidebar(
+  #       sidebar = sidebar(
+  #         "Sidebar",
+  #         open = TRUE,
+  #         actionButton(inputId = ns("submit_property"), label = "Add Property"),
+  #         actionButton(inputId = ns("submit_landowner"), label = "Add Landowner Contact"),
+  #         actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
+  #       ),
+  #       layout_columns(
+  #         card(
+  #           h2("Property Details"),
+  #           selectizeInput(
+  #             inputId = ns("pid_input"),
+  #             label = "Enter PID(s):",
+  #             choices = NULL, multiple = TRUE,
+  #             options = list(create = TRUE, placeholder = "Type PID and press Enter")
+  #           ),
+  #           # verbatimTextOutput(ns("id_output")),
+  #           dateInput(
+  #             inputId = ns("date_added_input"),
+  #             label = "Date Added",
+  #             value = today()
+  #           ),
+  #           textInput(
+  #             inputId = ns("property_name_input"),
+  #             label = "Property Name",
+  #             value = "North Cove (Henry) - V4"
+  #           ),
+  #           selectInput(
+  #             inputId = ns("phase_id_input"),
+  #             label = "Phase",
+  #             choices = NULL,
+  #             selected = character(0)
+  #           ),
+  #           textInput(
+  #             inputId = ns("focus_area_internal_input"),
+  #             label = "Focus Area (Internal)",
+  #             value = "Henry Watershed"
+  #           ),
+  #           selectInput(
+  #             inputId = ns("acquisition_type_input"),
+  #             label = "Acquisition Type",
+  #             choices = NULL,
+  #             selected = character(0)
+  #           ),
+  #           textInput(
+  #             inputId = ns("property_description_input"),
+  #             label = "Property Description",
+  #             value = "Looks like a good one!"
+  #           )
+  #         ),
+  #         card(
+  #           h2("Landowner Contact Details"),
+  #           selectizeInput(
+  #             inputId = ns("pid_input_landowner"),
+  #             label = "Select PID(s):",
+  #             choices = NULL, multiple = TRUE,
+  #             options = list(
+  #               create = FALSE,
+  #               plugins = list("remove_button"),
+  #               placeholder = "Select PIDs associated with owner"
+  #             )
+  #           ),
+  #           textInput(
+  #             inputId = ns("name_first_input"),
+  #             label = "First Name",
+  #             value = ""
+  #           ),
+  #           textInput(
+  #             inputId = ns("name_last_input"),
+  #             label = "Last Name",
+  #             value = ""
+  #           ),
+  #           textInput(
+  #             inputId = ns("email_input"),
+  #             label = "Email",
+  #             value = ""
+  #           ),
+  #           textInput(
+  #             inputId = ns("phone_home_input"),
+  #             label = "Home Phone",
+  #             value = ""
+  #           ),
+  #           textInput(
+  #             inputId = ns("phone_cell_input"),
+  #             label = "Cell Phone",
+  #             value = ""
+  #           ),
+  #           selectInput(
+  #             inputId = ns("dnc_input"),
+  #             label = "Do Not Contact",
+  #             choices = list("TRUE" = TRUE, "FALSE" = FALSE),
+  #             selected = "FALSE"
+  #           )
+  #         )
+  #       )
+  #     )
+  #   )
+  # )
 }
 
 module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
@@ -146,8 +298,10 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         # Validate that each code is among the valid Property Record Database PIDs.
         invalid_codes <- codes[!codes %in% valid_pids]
         if (length(invalid_codes) > 0) {
-          return(sprintf("The following PID(s) are invalid (missing from PRD): %s", 
-                         paste(invalid_codes, collapse = ", ")))
+          return(sprintf(
+            "The following PID(s) are invalid (missing from PRD): %s",
+            paste(invalid_codes, collapse = ", ")
+          ))
         }
         # If all codes are valid, return NULL (indicating no error)
         NULL
@@ -234,7 +388,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       )
 
       print(new_parcel)
-      
+
       append_db_data("parcels", new_parcel, db_con)
       # Signal that data has changed
       db_updated(db_updated() + 1)
@@ -269,10 +423,10 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       print(glimpse(new_landowner))
 
       append_db_data("landowner_details", new_landowner, db_con)
-      
+
       # Signal that data has changed
       db_updated(db_updated() + 1)
-      
+
       landowner_contact_id <- new_landowner |>
         left_join(dbReadTable(db_con, "landowner_details")) |>
         pull(id)
