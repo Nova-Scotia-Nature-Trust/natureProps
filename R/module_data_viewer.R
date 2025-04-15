@@ -11,12 +11,13 @@ module_data_viewer_ui <- function(id) {
           inputId = ns("data_view_input"),
           label = "Select Data Frame View",
           choices = list(
+            "Select a view" = "",
             "PIDs" = "pid_view_01",
             "Landowner Details" = "landowner_details_view",
             "Communication History" = "communication_data_view",
             "Action Items" = "pid_view_02"
           ),
-          selected = "pid_view_01"
+          selected = ""
         )
       ),
       card_body(
@@ -28,7 +29,7 @@ module_data_viewer_ui <- function(id) {
 }
 
 
-module_data_viewer_server <- function(id, db_con) {
+module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ## Load data view metadata table (parameters and attribute names)
     # Change name to df_views_meta
@@ -39,8 +40,16 @@ module_data_viewer_server <- function(id, db_con) {
       input$data_view_input
     })
 
+  
     ## Create a data frame to render with DT
     output_view_data <- reactive({
+      
+      ## This ensures the reactive will re-execute when db_updated() value changes
+      ## Only use if data_changed is provided
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      
       ## Access the selected view
       selected_view <- view_scenario()
 
@@ -248,6 +257,10 @@ module_data_viewer_server <- function(id, db_con) {
 
         attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
+      } else if (selected_view == ""){
+        
+        data <- NULL
+        
       }
 
       return(data)

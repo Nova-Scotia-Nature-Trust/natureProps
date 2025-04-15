@@ -36,21 +36,36 @@ module_value_boxes_UI <- function(id) {
   )
 }
 
-module_property_stats_server <- function(id, db_con) {
+module_property_stats_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     eco_high <- reactive({
+      
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      
       dbGetQuery(db_con, "SELECT COUNT(*) FROM parcels
                WHERE priority_ecological_ranking_id = 1;") |>
         pull(count)
     })
 
     sec_high <- reactive({
+      
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      
       dbGetQuery(db_con, "SELECT COUNT(*) FROM parcels
                WHERE priority_securement_ranking_id = 1;") |>
         pull(count)
     })
 
     prop_2025 <- reactive({
+      
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      
       dbGetQuery(db_con, "SELECT COUNT(*) FROM parcels
                 WHERE date_added > '2024-12-31';") |>
         pull(count)

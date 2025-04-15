@@ -51,6 +51,9 @@ ui <- page_navbar(
     title = "Outreach",
     tabsetPanel(
       module_property_intake_ui("property_form"),
+      nav_panel(
+        title = "Commmunication & Outreach"
+      ),
       module_data_viewer_ui("records_view"),
       nav_panel(
         title = "Queries"
@@ -58,7 +61,12 @@ ui <- page_navbar(
     )
   ),
   nav_panel(
-    title = "Securement"
+    title = "Securement",
+    tabsetPanel(
+      nav_panel(
+        title = "Action Items"
+      )
+    )
   )
 )
 
@@ -69,9 +77,11 @@ server <- function(input, output, session) {
     toggle_dark_mode(if (input$dark_toggle) "dark" else "light")
   })
 
-  module_property_stats_server("home_page", db_con)
-  module_property_intake_server("property_form", db_con, prd_con)
-  module_data_viewer_server("records_view", db_con)
+  db_updated <- reactiveVal(0)
+  
+  module_property_stats_server("home_page", db_con, db_updated)
+  module_property_intake_server("property_form", db_con, prd_con, db_updated)
+  module_data_viewer_server("records_view", db_con, db_updated)
 }
 
 # Run the application

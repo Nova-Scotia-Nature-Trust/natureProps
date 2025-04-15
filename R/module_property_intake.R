@@ -106,7 +106,7 @@ module_property_intake_ui <- function(id) {
   )
 }
 
-module_property_intake_server <- function(id, db_con, prd_con) {
+module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
   moduleServer(id, function(input, output, session) {
     valid_pids <- dbGetQuery(prd_con, "SELECT DISTINCT(pid) FROM parcels;") |>
       pull(pid)
@@ -233,7 +233,11 @@ module_property_intake_server <- function(id, db_con, prd_con) {
         phase_id, property_id, acquisition_type_id
       )
 
+      print(new_parcel)
+      
       append_db_data("parcels", new_parcel, db_con)
+      # Signal that data has changed
+      db_updated(db_updated() + 1)
 
       ## Populate NSPRD data (addresses, landowner info, etc) ----
       populate_nsprd_tables(input$pid_input, prd_con, db_con)
@@ -265,7 +269,10 @@ module_property_intake_server <- function(id, db_con, prd_con) {
       print(glimpse(new_landowner))
 
       append_db_data("landowner_details", new_landowner, db_con)
-
+      
+      # Signal that data has changed
+      db_updated(db_updated() + 1)
+      
       landowner_contact_id <- new_landowner |>
         left_join(dbReadTable(db_con, "landowner_details")) |>
         pull(id)
