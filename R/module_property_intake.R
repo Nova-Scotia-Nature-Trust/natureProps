@@ -146,7 +146,8 @@ module_property_intake_server <- function(id, db_con, prd_con) {
         # Validate that each code is among the valid Property Record Database PIDs.
         invalid_codes <- codes[!codes %in% valid_pids]
         if (length(invalid_codes) > 0) {
-          return(sprintf("The following PID(s) are invalid (missing from PRD): %s", paste(invalid_codes, collapse = ", ")))
+          return(sprintf("The following PID(s) are invalid (missing from PRD): %s", 
+                         paste(invalid_codes, collapse = ", ")))
         }
         # If all codes are valid, return NULL (indicating no error)
         NULL

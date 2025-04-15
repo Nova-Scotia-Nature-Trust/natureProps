@@ -255,7 +255,7 @@ module_data_viewer_server <- function(id, db_con) {
 
     # Setup table layout
     dom_layout <- "
-    <'row'<'col-sm-9'l><'col-sm-3 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
+    <'row'<'col-sm-10'l><'col-sm-2 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
     "
 
     # Get ordering information
