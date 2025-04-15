@@ -79,7 +79,7 @@ module_action_item_tracking_ui <- function(id) {
 }
 
 
-module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) {
+module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     # Create reactive values to store the submitted values
     submitted_values <- reactiveValues(
@@ -89,19 +89,31 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
       has_submitted = FALSE
     )
     
+ 
+    # Define a reactive for PIDs that depends on db_updated, if provided
+    pids_reactive <- reactive({
+      # Only try to use db_updated if it is not NULL.
+      if (!is.null(db_updated)) {
+        db_updated()  # Creates the reactive dependency; ignore the return value.
+      }
+      # Query database for PIDs
+      dbGetQuery(db_con, "SELECT pid FROM parcels;") |> pull()
+    })
     
-    # Placeholder function to get PIDs from database
-    pids <- dbGetQuery(db_con, "SELECT pid FROM parcels;") |>
-      pull()
-    
-    # Placeholder function to get checklist fields from database
+    # Get checklist fields from database
     checklist_fields <- dbGetQuery(db_con, "SELECT column_name
                     FROM information_schema.columns
                     WHERE table_name = 'parcels';
-           ") |>
-      pull()
+           ") |> pull()
     
+    # Restrict checklist_fields to a subset of columns
+    ## *** Need some more robust selection here, possibly lookup table *** ##
     checklist_fields <- checklist_fields[14:37]
+    checklist_fields <- base::setdiff(
+      checklist_fields, 
+      c("appraisal_date","appraiser_name", 
+        "af_transaction", "llt_funding_id")
+      )
     
     action_item_names <- read_xlsx("inputs/field and function mapping tables/df_views.xlsx") |> 
       filter(db_name %in% checklist_fields) |> 
@@ -109,20 +121,19 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
     
     checklist_fields <- setNames(checklist_fields, action_item_names)
     
-    # Placeholder function to get action values from database
+    # Get action values from the database
     action_lu <- dbGetQuery(db_con, "SELECT * FROM action_item_status;")
     action_values <- setNames(action_lu$id, action_lu$action_value)
     
-    # Initialize the select inputs with data from DB
+    # Initialize the select inputs with data from the DB
     observe({
-      # Get PIDs
-      updateSelectizeInput(session, "pids", choices = pids, server = TRUE)
+      # Update the PIDs selectize input – this will update whenever pids_reactive() changes
+      updateSelectizeInput(session, "pids", choices = pids_reactive(), server = TRUE)
       
-      # Get checklist fields
+      # Update checklist fields selectize input
       updateSelectizeInput(session, "checklist_fields", choices = checklist_fields, server = TRUE)
       
-      # Get action values from the database
-      # Make sure action_values is not empty before updating
+      # Update action values select input if available
       if (length(action_values) > 0) {
         updateSelectInput(session, "action_value",
                           choices = action_values,
@@ -136,16 +147,13 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
       updateSelectizeInput(session, "pids", selected = character(0))
       updateSelectizeInput(session, "checklist_fields", selected = character(0))
       
-      # Reset action value dropdown to first value
+      # Reset action value dropdown to the first value
       if (length(action_values) > 0) {
         updateSelectizeInput(session, "action_value", selected = action_values[1])
       }
       
       # Clear the status message
       output$status_message <- renderUI(NULL)
-      
-      # Reset submitted flag
-      # submitted_values$has_submitted <- FALSE
     })
     
     # Update database when submit button is clicked
@@ -172,6 +180,7 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
         return()
       }
       
+      # Create a reactive expression to build the new actions tibble
       new_actions <- reactive({
         tibble(
           pid = rep(input$pids, each = length(input$checklist_fields)),
@@ -181,9 +190,9 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
           pivot_wider(names_from = action_field, values_from = action_value)
       })
       
-      
       print(new_actions())
       
+      # Update the database with the new actions
       dbx::dbxUpdate(
         db_con,
         table = "parcels",
@@ -191,13 +200,12 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
         where_cols = c("pid")
       )
       
-      # Store the values at the time of submission
+      # Save the submitted values
       submitted_values$pids <- input$pids
       submitted_values$checklist_fields <- input$checklist_fields
       submitted_values$action_value <- input$action_value
-      # submitted_values$has_submitted <- TRUE
       
-      # Create a static success message using the saved values
+      # Create and display a success message using the saved values
       success_message <- sprintf(
         "Successfully updated %d checklist items across %d properties with action value: %s",
         length(submitted_values$checklist_fields),
@@ -205,7 +213,6 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
         submitted_values$action_value
       )
       
-      # Show success message as a static text that won't change with input changes
       output$status_message <- renderUI({
         div(
           class = "alert alert-success mt-3",
@@ -213,7 +220,7 @@ module_action_item_tracking_server <- function(id, db_con, prd_con, db_updated) 
         )
       })
       
-      # Log the action (in a real app, you might want to store this in a log table)
+      # Log the action
       message(sprintf(
         "Updated %d checklist items for %d properties to status '%s'",
         length(submitted_values$checklist_fields),
