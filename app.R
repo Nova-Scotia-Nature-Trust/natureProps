@@ -68,7 +68,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Data Viewer",
-        module_data_viewer_ui("records_view")
+        module_data_viewer_ui("records_view", panel_id = "panel_01")
       ),
       nav_panel(
         title = "Queries"
@@ -77,9 +77,18 @@ ui <- page_navbar(
   ),
   nav_panel(
     title = "Securement",
-    tabsetPanel(
+    navset_card_tab(
+      height = "100%",
       nav_panel(
-        title = "Action Items"
+        title = "Action Items",
+        module_action_item_tracking_ui("action_items")
+      ),
+      nav_panel(
+        title = "Data Viewer",
+        module_data_viewer_ui("securement_records_view", panel_id = "panel_02")
+      ),
+      nav_panel(
+        title = "Queries"
       )
     )
   ),
@@ -113,6 +122,9 @@ server <- function(input, output, session) {
   module_property_stats_server("home_page", db_con, db_updated)
   module_property_intake_server("property_form", db_con, prd_con, db_updated)
   module_data_viewer_server("records_view", db_con, db_updated)
+  module_action_item_tracking_server("action_items", db_con, db_updated)
+  module_data_viewer_server("securement_records_view", db_con, db_updated)
+  
 }
 
 # Run the application

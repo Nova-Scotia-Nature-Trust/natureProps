@@ -1,6 +1,22 @@
-module_data_viewer_ui <- function(id) {
+module_data_viewer_ui <- function(id, panel_id) {
   ns <- NS(id)
 
+  # Define choices based on panel_type
+  choices_list <- if (panel_id == "panel_01") {
+    list(
+      "Select a view from the list" = "",
+      "PIDs" = "pid_view_01",
+      "Landowner Details" = "landowner_details_view",
+      "Communication History" = "communication_data_view"
+    )
+  } else if (panel_id == "panel_02") {
+    # Default choices for panel1 or any other panel
+    list(
+      "Select a view from the list" = "",
+      "Action Items" = "pid_view_02"
+    )
+  }
+  
   nav_panel(
     title = "Data Viewer",
     card(
@@ -10,13 +26,7 @@ module_data_viewer_ui <- function(id) {
         selectInput(
           inputId = ns("data_view_input"),
           label = "Data Table View",
-          choices = list(
-            "Select a view from the list" = "",
-            "PIDs" = "pid_view_01",
-            "Landowner Details" = "landowner_details_view",
-            "Communication History" = "communication_data_view",
-            "Action Items" = "pid_view_02"
-          ),
+          choices = choices_list,
           selected = ""
         )
       ),
