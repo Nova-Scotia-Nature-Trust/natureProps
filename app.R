@@ -48,7 +48,7 @@ ui <- page_navbar(
     actionButton(inputId = "myButton", label = "Do action!"),
     hr(),
     h4("App Info"),
-    p("Version: 1.0.0")
+    p("Version: 0.0.1")
   ),
   nav_panel(
     title = "Home",
@@ -57,6 +57,7 @@ ui <- page_navbar(
   ),
   nav_panel(
     title = "Outreach",
+    icon = bs_icon("person-lines-fill"),
     navset_card_tab(
       height = "100%",
       nav_panel(
@@ -77,6 +78,7 @@ ui <- page_navbar(
   ),
   nav_panel(
     title = "Securement",
+    icon = bs_icon("geo-alt"),
     navset_card_tab(
       height = "100%",
       nav_panel(
@@ -106,13 +108,12 @@ ui <- page_navbar(
 
 # Server logic
 server <- function(input, output, session) {
-  
   # Toggle sidebar when gear icon is clicked
   observeEvent(input$toggle_sidebar, {
     # Use toggle_sidebar with the correct sidebar ID
     bslib::toggle_sidebar(id = "main_sidebar")
   })
-  
+
   observeEvent(input$dark_toggle, {
     toggle_dark_mode(if (input$dark_toggle) "dark" else "light")
   })
@@ -124,7 +125,6 @@ server <- function(input, output, session) {
   module_data_viewer_server("records_view", db_con, db_updated)
   module_action_item_tracking_server("action_items", db_con, db_updated)
   module_data_viewer_server("securement_records_view", db_con, db_updated)
-  
 }
 
 # Run the application

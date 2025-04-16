@@ -1,3 +1,4 @@
+# UI ----
 module_property_intake_ui <- function(id) {
   ns <- NS(id)
 
@@ -20,7 +21,7 @@ module_property_intake_ui <- function(id) {
           layout_columns(
             height = "100%",
             col_widths = c(6, 6),
-            # First card
+            ## Card :: Property ----
             card(
               height = "100%",
               card_header(h5("Property Details")),
@@ -33,7 +34,10 @@ module_property_intake_ui <- function(id) {
                       inputId = ns("pid_input"),
                       label = "Enter PID(s):",
                       choices = NULL, multiple = TRUE,
-                      options = list(create = TRUE, placeholder = "Type PID and press Enter")
+                      options = list(
+                        create = TRUE,
+                        placeholder = "Type PID and press Enter"
+                      )
                     ),
                     dateInput(
                       inputId = ns("date_added_input"),
@@ -46,12 +50,16 @@ module_property_intake_ui <- function(id) {
                     textInput(
                       inputId = ns("property_name_input"),
                       label = "Property Name",
-                      value = "North Cove (Henry) - V4"
+                      value = "North Cove (Hendrix) - VX"
                     ),
-                    textInput(
+                    selectizeInput(
                       inputId = ns("focus_area_internal_input"),
                       label = "Focus Area (Internal)",
-                      value = "Henry Watershed"
+                      choices = NULL, multiple = FALSE,
+                      options = list(
+                        create = TRUE,
+                        placeholder = "Select or add new focal area"
+                      )
                     )
                   ),
                   layout_columns(
@@ -69,7 +77,6 @@ module_property_intake_ui <- function(id) {
                       selected = character(0)
                     )
                   ),
-                  # TextArea on its own row with controlled spacing (span entire row)
                   div(
                     style = "width: 100%;", # Ensure it spans the full width
                     textAreaInput(
@@ -83,7 +90,7 @@ module_property_intake_ui <- function(id) {
                 )
               )
             ),
-            # Second card
+            ## Card :: Landowner details ----
             card(
               height = "100%",
               card_header(h5("Landowner Details")),
@@ -140,6 +147,14 @@ module_property_intake_ui <- function(id) {
                       value = ""
                     )
                   ),
+                  div(
+                    style = "width: 100%;",
+                    textAreaInput(
+                      ns("TBD"),
+                      "Notes", "",
+                      height = "100px", width = "100%"
+                    )
+                  ),
                   # Add a spacer div to prevent pushing everything to bottom
                   div(style = "flex-grow: 1;")
                 )
@@ -150,11 +165,12 @@ module_property_intake_ui <- function(id) {
       )
     )
   )
-
 }
 
+# Server ----
 module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
   moduleServer(id, function(input, output, session) {
+    ## Input validation ----
     valid_pids <- dbGetQuery(prd_con, "SELECT DISTINCT(pid) FROM parcels;") |>
       pull(pid)
 
@@ -164,81 +180,77 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
     iv$add_rule("phase_id_input", sv_required())
     iv$add_rule("acquisition_type_input", sv_required())
     iv$add_rule("focus_area_internal_input", sv_required())
-    iv$add_rule("email_input", sv_email())
-
-    enable_pid_check <- FALSE
-
-    if (enable_pid_check) {
-      iv$add_rule("pid_input", function(pid_input) {
-        # If there is no input, exit without error
-        if (is.null(pid_input) || length(pid_input) == 0 || all(pid_input == "")) {
-          return(NULL)
-        }
-        # If pid_input is of length 1 but contains commas or spaces, split it.
-        if (length(pid_input) == 1 && grepl("[,\\s]", pid_input)) {
-          codes <- unlist(strsplit(pid_input, "[,\\s]+"))
-        } else {
-          # Otherwise, assume that pid_input is already a vector of codes
-          codes <- pid_input
-        }
-        # Remove any accidental white space around each code
-        codes <- trimws(codes)
-        # Validate each code: Each must be exactly 8 characters and match 8 digits only
-        if (any(nchar(codes) != 8)) {
-          return("Each PID must be exactly 8 digits.")
-        }
-        if (any(!grepl("^[0-9]{8}$", codes))) {
-          return("Each PID must contain only digits (0-9).")
-        }
-        # Validate that each code is among the valid Property Record Database PIDs.
-        invalid_codes <- codes[!codes %in% valid_pids]
-        if (length(invalid_codes) > 0) {
-          return(sprintf(
-            "The following PID(s) are invalid (missing from PRD): %s",
-            paste(invalid_codes, collapse = ", ")
-          ))
-        }
-        # If all codes are valid, return NULL (indicating no error)
-        NULL
-      })
-    }
-
+    iv$add_rule("email_input", ~ if (. != "") sv_email()(.))
+    iv$add_rule("name_first_input", sv_required())
+    iv$add_rule("name_last_input", sv_required())
+    iv$add_rule("pid_input", ~ validate_pid_input(., valid_pids, enable_check = TRUE))
     iv$enable()
 
+    ## Populate UI inputs ----
     phase_choices <- reactive({
-      dbReadTable(db_con, "phase") |>
-        pull(phase_value)
+      dbReadTable(db_con, "phase")  %>%
+        {setNames(.$id, .$phase_value)} # Magic
     })
 
     acquisition_choices <- reactive({
-      dbReadTable(db_con, "acquisition_type") |>
-        pull(acquisition_value)
+      dbReadTable(db_con, "acquisition_type") %>%
+        {setNames(.$id, .$acquisition_value)} # Magic
     })
 
-    observe({
-      updateSelectInput(session, "phase_id_input", choices = phase_choices(), selected = character(0))
-      updateSelectInput(session, "acquisition_type_input", choices = acquisition_choices(), selected = character(0))
+    focus_area_choices <- reactive({
+      dbReadTable(db_con, "focus_area_internal")  |> 
+        arrange(internal_value) %>%
+        {setNames(.$id, .$internal_value)} # Magic
     })
 
     pid_choices <- reactive({
-      dbReadTable(db_con, "parcels") |>
-        pull(pid) |>
+      dbGetQuery(db_con, "SELECT pid FROM parcels;") |>
+        pull() |>
         sort()
     })
 
     observe({
-      updateSelectizeInput(session, inputId = "pid_input_landowner", choices = pid_choices(), server = TRUE)
+      updateSelectizeInput(session, "focus_area_internal_input",
+        choices = focus_area_choices(),
+        selected = character(0), server = TRUE
+      )
+      updateSelectInput(session, "phase_id_input",
+        choices = phase_choices(), selected = character(0)
+      )
+      updateSelectInput(session, "acquisition_type_input",
+        choices = acquisition_choices(), selected = character(0)
+      )
+      updateSelectizeInput(session,
+        inputId = "pid_input_landowner",
+        choices = pid_choices(), server = TRUE
+      )
     })
 
+    ## Event :: Submit property ----
     observeEvent(input$submit_property, {
-      ## Get focus area FK ----
+      req(input$pid_input)
+      req(input$date_added_input)
+      req(input$focus_area_internal_input)
+      req(input$property_name_input)
+      req(input$phase_id_input)
+      req(input$acquisition_type_input)
+
+      print(input$pid_input)
+      print(input$date_added_input)
+      print(input$focus_area_internal_input)
+      print(input$property_name_input)
+      print(input$phase_id_input)
+      print(input$acquisition_type_input)
+      
+      ### Focus area (internal) ----
       focus_area_check <- dbReadTable(db_con, "focus_area_internal") |>
         filter(internal_value == input$focus_area_internal_input) |>
         pull(id)
 
       if (length(focus_area_check) == 0) {
         new_focus_area <- tibble(internal_value = input$focus_area_internal_input)
-        append_db_data("focus_area_internal", new_focus_area, db_con)
+        append_db_data("focus_area_internal", new_focus_area, db_con, silent = TRUE)
+        print("FOCUS AREA ADDED TO DATABASE")
       } else {
         print("FOCUS AREA ALEADY IN DATABASE")
       }
@@ -247,7 +259,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         filter(internal_value == input$focus_area_internal_input) |>
         pull(id)
 
-      ## Add property name if it doesn't exist ----
+      ### Property name & ID -----
       property_check <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name_input) |>
         pull(property_name)
@@ -258,54 +270,57 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
           focus_area_internal_id,
           property_description = input$property_description_input
         )
-        append_db_data("properties", new_property, db_con)
+        append_db_data("properties", new_property, db_con, silent = TRUE)
+        print("NEW PROPERTY ADDED TO DATABASE")
       } else {
         print("PROPERTY ALEADY IN DATABASE")
       }
 
-      ## Get lookup table IDs ----
       property_id <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name_input) |>
         pull(id)
-
-      phase_id <- dbReadTable(db_con, "phase") |>
-        filter(phase_value == input$phase_id_input) |>
-        pull(id)
-
-      acquisition_type_id <- dbReadTable(db_con, "acquisition_type") |>
-        filter(acquisition_value == input$acquisition_type_input) |>
-        pull(id)
-
-      ## Write new parcel(s) ----
+      
+      ### Write new parcel(s) ----
       new_parcel <- tibble(
-        pid = input$pid_input, date_added = input$date_added_input,
-        phase_id, property_id, acquisition_type_id
+        pid = input$pid_input,
+        date_added = input$date_added_input,
+        phase_id = input$phase_id_input,
+        property_id,
+        acquisition_type_id = input$acquisition_type_input
       )
-
+      
       print(new_parcel)
 
-      append_db_data("parcels", new_parcel, db_con)
-      # Signal that data has changed
-      db_updated(db_updated() + 1)
+      tryCatch(
+        {
+          ## Write to database
+          append_db_data("parcels", new_parcel, db_con, silent = FALSE)
+          ## Signal that data has changed
+          db_updated(db_updated() + 1)
+          ## Populate NSPRD data (addresses, landowner info, etc)
+          populate_nsprd_tables(input$pid_input, prd_con, db_con)
+          ## Update PID list for landowner from DB
+          pid_choices <- dbGetQuery(db_con, "SELECT pid FROM parcels;") |>
+            pull() |>
+            sort()
 
-      ## Populate NSPRD data (addresses, landowner info, etc) ----
-      populate_nsprd_tables(input$pid_input, prd_con, db_con)
-
-      ## Update PID list from DB ----
-      pid_choices <- dbReadTable(db_con, "parcels") |>
-        pull(pid) |>
-        sort()
-
-      updateSelectizeInput(session, inputId = "pid_input_landowner", choices = pid_choices, server = TRUE)
-
-      shinyalert(
-        title = "Success!",
-        text = "Property added to database!",
-        type = "success"
+          updateSelectizeInput(
+            session,
+            inputId = "pid_input_landowner",
+            choices = pid_choices, server = TRUE
+          )
+        },
+        error = function(e) {
+          print(paste("Database error:", e$message))
+        }
       )
     })
 
+    ## Event :: Submit landowner contact details ----
     observeEvent(input$submit_landowner, {
+      req(input$name_first_input)
+      req(input$name_last_input)
+
       new_landowner <- tibble(
         name_last = input$name_last_input,
         name_first = input$name_first_input,
@@ -317,15 +332,15 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
 
       print(glimpse(new_landowner))
 
-      append_db_data("landowner_details", new_landowner, db_con)
-
-      # Signal that data has changed
+      append_db_data("landowner_details", new_landowner, db_con, silent = FALSE)
       db_updated(db_updated() + 1)
 
+      ## Get new landowner ID
       landowner_contact_id <- new_landowner |>
         left_join(dbReadTable(db_con, "landowner_details")) |>
         pull(id)
 
+      ## Assign the landowner ID to relevant PIDs
       if (length(input$pid_input_landowner) > 0) {
         dbx::dbxUpdate(
           db_con,
@@ -336,14 +351,9 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       } else {
         print("NO PID ASSOCIATED WITH LANDOWNER CONTACT")
       }
-
-      shinyalert(
-        title = "Success!",
-        text = "Landowner added to database!",
-        type = "success"
-      )
     })
 
+    ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(session, "pid_input", selected = character(0))
       updateDateInput(session, "date_added_input", value = Sys.Date())
@@ -352,17 +362,12 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateTextInput(session, "focus_area_internal_input", value = "")
       updateSelectInput(session, "acquisition_type_input", selected = character(0))
       updateTextInput(session, "property_description_input", value = "")
-
+      updateSelectizeInput(session, "pid_input_landowner", selected = character(0), server = TRUR)
       updateTextInput(session, "name_last_input", value = "")
       updateTextInput(session, "name_first_input", value = "")
       updateTextInput(session, "email_input", value = "")
       updateTextInput(session, "phone_home_input", value = "")
       updateTextInput(session, "phone_cell_input", value = "")
-      updateSelectizeInput(session, "pid_input_landowner", selected = character(0))
-    })
-
-    output$id_output <- renderPrint({
-      input$pid_input
     })
   })
 }
