@@ -65,7 +65,7 @@ ui <- page_navbar(
         module_property_intake_ui("property_form")
       ),
       nav_panel(
-        title = "Commmunication & Outreach",
+        title = "Outreach & Communication",
         module_landowner_communication_ui("landowner_communication")
       ),
       nav_panel(
