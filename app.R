@@ -65,7 +65,8 @@ ui <- page_navbar(
         module_property_intake_ui("property_form")
       ),
       nav_panel(
-        title = "Commmunication & Outreach"
+        title = "Commmunication & Outreach",
+        module_landowner_communication_ui("landowner_communication")
       ),
       nav_panel(
         title = "Data Viewer",
@@ -125,6 +126,7 @@ server <- function(input, output, session) {
   module_data_viewer_server("records_view", db_con, db_updated)
   module_action_item_tracking_server("action_items", db_con, db_updated)
   module_data_viewer_server("securement_records_view", db_con, db_updated)
+  module_landowner_communication_server("landowner_communication", db_con, db_updated)
 }
 
 # Run the application

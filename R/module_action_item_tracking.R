@@ -40,8 +40,6 @@ module_action_item_tracking_ui <- function(id) {
                     multiple = TRUE,
                     width = "80%"
                   ),
-
-                  # Dropdown without initial values
                   selectizeInput(
                     ns("action_value"),
                     "Select Action Value",

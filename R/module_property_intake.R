@@ -188,19 +188,25 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
 
     ## Populate UI inputs ----
     phase_choices <- reactive({
-      dbReadTable(db_con, "phase")  %>%
-        {setNames(.$id, .$phase_value)} # Magic
+      dbReadTable(db_con, "phase") %>%
+        {
+          setNames(.$id, .$phase_value)
+        } # Magic
     })
 
     acquisition_choices <- reactive({
       dbReadTable(db_con, "acquisition_type") %>%
-        {setNames(.$id, .$acquisition_value)} # Magic
+        {
+          setNames(.$id, .$acquisition_value)
+        } # Magic
     })
 
     focus_area_choices <- reactive({
-      dbReadTable(db_con, "focus_area_internal")  |> 
+      dbReadTable(db_con, "focus_area_internal") |>
         arrange(internal_value) %>%
-        {setNames(.$id, .$internal_value)} # Magic
+        {
+          setNames(.$id, .$internal_value)
+        } # Magic
     })
 
     pid_choices <- reactive({
@@ -241,7 +247,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       print(input$property_name_input)
       print(input$phase_id_input)
       print(input$acquisition_type_input)
-      
+
       ### Focus area (internal) ----
       focus_area_check <- dbReadTable(db_con, "focus_area_internal") |>
         filter(internal_value == input$focus_area_internal_input) |>
@@ -279,7 +285,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       property_id <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name_input) |>
         pull(id)
-      
+
       ### Write new parcel(s) ----
       new_parcel <- tibble(
         pid = input$pid_input,
@@ -288,7 +294,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         property_id,
         acquisition_type_id = input$acquisition_type_input
       )
-      
+
       print(new_parcel)
 
       tryCatch(

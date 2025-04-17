@@ -15,6 +15,7 @@
   12. Need to add a UI in Initialise PID that brings up dropdown of selected PIDs, one of which must then be selected as the CORE PID. 
   13. Add a "notes" field to the landowner_details table and add UI element for notes.
   14. Add asking price UI in "Property Details" card.
+  15. Need to do table join and add landowner name in the dataframe view for communications
   
   
   
