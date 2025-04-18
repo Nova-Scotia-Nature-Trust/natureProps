@@ -7,10 +7,10 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Select a view from the list" = "",
       "PIDs" = "pid_view_01",
       "Landowner Details" = "landowner_details_view",
-      "Communication History" = "communication_data_view"
+      "Communication History" = "communication_data_view",
+      "Outreach" = "outreach_view"
     )
   } else if (panel_id == "panel_02") {
-    # Default choices for panel1 or any other panel
     list(
       "Select a view from the list" = "",
       "Action Items" = "pid_view_02"
@@ -262,6 +262,72 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
+
+        ## Outreach data view ----
+      } else if (selected_view == "outreach_view") {
+        ## Fetch raw outreach data
+        raw_df <- dbGetQuery(
+          db_con,
+          statement = glue_sql(
+            "SELECT * FROM outreach;",
+            .con = db_con
+          )
+        ) |>
+          as_tibble()
+
+        ## Create a list of lookup tables
+        db_lookup_tables <- list(
+          communication_purpose = dbReadTable(db_con, "communication_purpose"),
+          communication_method = dbReadTable(db_con, "communication_method"),
+          # parcels = dbReadTable(db_con, "parcels")
+          parcels = dbGetQuery(db_con, "SELECT id, pid FROM parcels;")
+        )
+
+        ## Get the lookup function mapping data from metadata file
+        join_lookup_fields <- df_view_meta |>
+          filter(!!sym(selected_view) == TRUE) |>
+          filter(!is.na(lookup_table)) |>
+          select(lookup_table, df_key, lookup_key, lookup_value, new_col_name)
+
+        ## Define the join lookup function (NSE issues mean it can't be sourced in global)
+        ## Note this function takes "id" in last select
+        join_lookup <- function(lookup_table_name, df_key,
+                                lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
+          lookup_table <- db_lookup_tables[[lookup_table_name]]
+
+          output <- df |>
+            left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
+            rename(!!new_col_name := !!sym(lookup_value)) |>
+            select(-all_of(df_key)) |>
+            select(id, !!new_col_name)
+
+          return(output)
+        }
+
+        ## Iterate the function over lookup fields in parcels table
+        ## "raw_df" & "db_lookup_tables" are constants in pmap
+        lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
+
+        ## Combine all lookup function results & rename fields
+        join_dfs <- function(x, y) left_join(x, y, by = join_by(id))
+        lookup_combined <- purrr::reduce(lookup_results, join_dfs) |>
+          rename_with(~ str_replace(.x, "_value$", "_id"), ends_with("_value"))
+
+        ## Transform to pretty column names
+        pretty_col_names <- df_view_meta |>
+          filter(group == "outreach") |>
+          filter(db_name %in% names(raw_df)) |>
+          select(df_name, db_name) |>
+          deframe()
+
+        # Combine with main dataframe
+        data <- raw_df |>
+          select(-all_of(setdiff(names(lookup_combined), "id"))) |>
+          left_join(lookup_combined, join_by(id)) |>
+          select(all_of(pretty_col_names))
+
+        attr(data, "order_column") <- 4
+        attr(data, "order_direction") <- "desc"
       } else if (selected_view == "") {
         data <- NULL
       }

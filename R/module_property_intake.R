@@ -9,7 +9,7 @@ module_property_intake_ui <- function(id) {
       height = "100%", # Make card fill available space
       layout_sidebar(
         sidebar = sidebar(
-          "Sidebar",
+          "",
           open = TRUE,
           actionButton(inputId = ns("submit_property"), label = "Add Property"),
           actionButton(inputId = ns("submit_landowner"), label = "Add Landowner Contact"),
@@ -150,7 +150,7 @@ module_property_intake_ui <- function(id) {
                   div(
                     style = "width: 100%;",
                     textAreaInput(
-                      ns("TBD"),
+                      ns("landowner_description"),
                       "Notes", "",
                       height = "100px", width = "100%"
                     )
@@ -184,6 +184,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
     iv$add_rule("name_first_input", sv_required())
     iv$add_rule("name_last_input", sv_required())
     iv$add_rule("pid_input", ~ validate_pid_input(., valid_pids, enable_check = TRUE))
+    iv$add_rule("pid_input_landowner", sv_required())
     iv$enable()
 
     ## Populate UI inputs ----
@@ -326,14 +327,16 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
     observeEvent(input$submit_landowner, {
       req(input$name_first_input)
       req(input$name_last_input)
-
+      req(input$pid_input_landowner)
+      
       new_landowner <- tibble(
         name_last = input$name_last_input,
         name_first = input$name_first_input,
         email = input$email_input,
         phone_home = input$phone_home_input,
         phone_cell = input$phone_cell_input,
-        dnc = as.logical(input$dnc_input)
+        dnc = as.logical(input$dnc_input),
+        landowner_description = input$landowner_description
       )
 
       print(glimpse(new_landowner))
@@ -368,12 +371,13 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateTextInput(session, "focus_area_internal_input", value = "")
       updateSelectInput(session, "acquisition_type_input", selected = character(0))
       updateTextInput(session, "property_description_input", value = "")
-      updateSelectizeInput(session, "pid_input_landowner", selected = character(0), server = TRUR)
+      updateSelectizeInput(session, "pid_input_landowner", selected = character(0), server = TRUE)
       updateTextInput(session, "name_last_input", value = "")
       updateTextInput(session, "name_first_input", value = "")
       updateTextInput(session, "email_input", value = "")
       updateTextInput(session, "phone_home_input", value = "")
       updateTextInput(session, "phone_cell_input", value = "")
+      updateTextInput(session, "landowner_description", value = "")
     })
   })
 }

@@ -38,7 +38,7 @@ ui <- page_navbar(
     input_switch(
       id = "dark_toggle",
       label = "Dark Mode",
-      value = TRUE
+      value = FALSE
     ),
     selectInput(
       inputId = "mySelectInput",
@@ -94,6 +94,25 @@ ui <- page_navbar(
         title = "Queries"
       )
     )
+  ),
+  nav_panel(
+    
+    title = "Review",
+    icon = bs_icon("clipboard-data"),
+    navset_card_tab(
+      height = "100%",
+      nav_panel(
+        title = "Assign Priorities",
+        p("UI for assigning ecological and securement priority ranking to each property.")
+      ),
+      nav_panel(
+        title = "Data Viewer",
+      ),
+      nav_panel(
+        title = "Queries"
+      )
+    )
+    
   ),
   nav_spacer(),
   nav_item(

@@ -8,7 +8,7 @@ module_action_item_tracking_ui <- function(id) {
       height = "100%", # Make card fill available space
       layout_sidebar(
         sidebar = sidebar(
-          "Sidebar",
+          "",
           open = TRUE,
           actionButton(inputId = ns("submit_actions"), label = "Submit Actions"),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
