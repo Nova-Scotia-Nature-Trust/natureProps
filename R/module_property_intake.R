@@ -50,7 +50,7 @@ module_property_intake_ui <- function(id) {
                     textInput(
                       inputId = ns("property_name_input"),
                       label = "Property Name",
-                      value = "North Cove (Hendrix) - VX"
+                      value = ""
                     ),
                     selectizeInput(
                       inputId = ns("focus_area_internal_input"),
@@ -371,7 +371,8 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateTextInput(session, "focus_area_internal_input", value = "")
       updateSelectInput(session, "acquisition_type_input", selected = character(0))
       updateTextInput(session, "property_description_input", value = "")
-      updateSelectizeInput(session, "pid_input_landowner", selected = character(0), server = TRUE)
+      updateSelectizeInput(session, "pid_input_landowner", choices = pid_choices(),
+                           selected = character(0), server = TRUE)
       updateTextInput(session, "name_last_input", value = "")
       updateTextInput(session, "name_first_input", value = "")
       updateTextInput(session, "email_input", value = "")

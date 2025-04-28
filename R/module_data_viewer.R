@@ -43,13 +43,14 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ## Load data view metadata table (parameters and attribute names)
     # Change name to df_views_meta
-    df_view_meta <- read_xlsx("inputs/field and function mapping tables/df_views.xlsx")
+    df_view_meta <- read_xlsx(
+      "inputs/field and function mapping tables/df_views.xlsx"
+    )
 
     ## Reactive to capture the selected view
     view_scenario <- reactive({
       input$data_view_input
     })
-
 
     ## Create a data frame to render with DT
     output_view_data <- reactive({
@@ -132,13 +133,22 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         ## Define the join lookup function (NSE issues mean it can't be sourced in global)
         ## !! *** Note this function takes "pid" in last select *** !!##
-        join_lookup <- function(lookup_table_name, df_key, lookup_key,
-                                lookup_value, new_col_name,
-                                df, db_lookup_tables) {
+        join_lookup <- function(
+          lookup_table_name,
+          df_key,
+          lookup_key,
+          lookup_value,
+          new_col_name,
+          df,
+          db_lookup_tables
+        ) {
           lookup_table <- db_lookup_tables[[lookup_table_name]]
 
           output <- df |>
-            left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
+            left_join(
+              lookup_table,
+              by = join_by(!!sym(df_key) == !!sym(lookup_key))
+            ) |>
             rename(!!new_col_name := !!sym(lookup_value)) |>
             select(-all_of(df_key)) |>
             select(pid, !!new_col_name)
@@ -148,7 +158,12 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         ## Iterate the function over lookup fields in parcels table
         ## "raw_df" & "db_lookup_tables" are constants in pmap
-        lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
+        lookup_results <- pmap(
+          join_lookup_fields,
+          join_lookup,
+          raw_df,
+          db_lookup_tables
+        )
 
         ## Combine all lookup function results & rename fields
         join_dfs <- function(x, y) left_join(x, y, by = join_by(pid))
@@ -168,7 +183,6 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
           select(-all_of(setdiff(names(lookup_combined), "pid"))) |>
           left_join(lookup_combined, join_by(pid)) |>
           select(all_of(pretty_col_names))
-
 
         if (selected_view == "pid_view_01") {
           ## Query to get PID sizes for
@@ -225,12 +239,22 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         ## Define the join lookup function (NSE issues mean it can't be sourced in global)
         ## Note this function takes "id" in last select
-        join_lookup <- function(lookup_table_name, df_key,
-                                lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
+        join_lookup <- function(
+          lookup_table_name,
+          df_key,
+          lookup_key,
+          lookup_value,
+          new_col_name,
+          df,
+          db_lookup_tables
+        ) {
           lookup_table <- db_lookup_tables[[lookup_table_name]]
 
           output <- df |>
-            left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
+            left_join(
+              lookup_table,
+              by = join_by(!!sym(df_key) == !!sym(lookup_key))
+            ) |>
             rename(!!new_col_name := !!sym(lookup_value)) |>
             select(-all_of(df_key)) |>
             select(id, !!new_col_name)
@@ -240,7 +264,12 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         ## Iterate the function over lookup fields in parcels table
         ## "raw_df" & "db_lookup_tables" are constants in pmap
-        lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
+        lookup_results <- pmap(
+          join_lookup_fields,
+          join_lookup,
+          raw_df,
+          db_lookup_tables
+        )
 
         ## Combine all lookup function results & rename fields
         join_dfs <- function(x, y) left_join(x, y, by = join_by(id))
@@ -257,10 +286,58 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
         # Combine with main dataframe
         data <- raw_df |>
           select(-all_of(setdiff(names(lookup_combined), "id"))) |>
-          left_join(lookup_combined, join_by(id)) |>
-          select(all_of(pretty_col_names))
+          left_join(lookup_combined, join_by(id))
 
-        attr(data, "order_column") <- 0
+        landowner_ids <- data$landowner_contact_id
+
+        property_info <- dbGetQuery(
+          db_con,
+          statement = glue_sql(
+            "SELECT p.landowner_contact_id, p.pid, pr.property_name 
+            FROM parcels p
+            LEFT JOIN properties pr ON p.property_id = pr.id
+            WHERE p.landowner_contact_id IN ({landowner_ids*});",
+            .con = db_con
+          )
+        ) |>
+          as_tibble() |>
+          group_by(landowner_contact_id) |>
+          summarise(
+            pid = paste(pid, collapse = ", "),
+            property_id = paste(unique(property_name), collapse = ", "),
+            .groups = "drop"
+          )
+
+        # Add a column to the data frame with the matching PIDs
+        data <- data |>
+          left_join(property_info, by = "landowner_contact_id")
+
+        data <- data |>
+          select(all_of(pretty_col_names), pid, property_id) |>
+          rename(PIDs = pid, Property = property_id)
+
+        # Query the landowner_details table to get first and last names
+        landowner_details <- dbGetQuery(
+          db_con,
+          statement = glue_sql(
+            "SELECT id, name_first AS first_name, name_last AS last_name 
+            FROM landowner_details
+            WHERE id IN ({landowner_ids*});",
+            .con = db_con
+          )
+        ) |>
+          as_tibble()
+
+        data <- data |>
+          left_join(
+            landowner_details,
+            join_by(`Landowner Contact ID` == "id")
+          ) |>
+          relocate(first_name, last_name, .after = `Landowner Contact ID`) |>
+          rename(`First Name` = first_name, `Last Name` = last_name) |>
+          relocate(Property, .after = ID)
+
+        attr(data, "order_column") <- 1
         attr(data, "order_direction") <- "asc"
 
         ## Outreach data view ----
@@ -291,12 +368,22 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         ## Define the join lookup function (NSE issues mean it can't be sourced in global)
         ## Note this function takes "id" in last select
-        join_lookup <- function(lookup_table_name, df_key,
-                                lookup_key, lookup_value, new_col_name, df, db_lookup_tables) {
+        join_lookup <- function(
+          lookup_table_name,
+          df_key,
+          lookup_key,
+          lookup_value,
+          new_col_name,
+          df,
+          db_lookup_tables
+        ) {
           lookup_table <- db_lookup_tables[[lookup_table_name]]
 
           output <- df |>
-            left_join(lookup_table, by = join_by(!!sym(df_key) == !!sym(lookup_key))) |>
+            left_join(
+              lookup_table,
+              by = join_by(!!sym(df_key) == !!sym(lookup_key))
+            ) |>
             rename(!!new_col_name := !!sym(lookup_value)) |>
             select(-all_of(df_key)) |>
             select(id, !!new_col_name)
@@ -306,7 +393,12 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
 
         ## Iterate the function over lookup fields in parcels table
         ## "raw_df" & "db_lookup_tables" are constants in pmap
-        lookup_results <- pmap(join_lookup_fields, join_lookup, raw_df, db_lookup_tables)
+        lookup_results <- pmap(
+          join_lookup_fields,
+          join_lookup,
+          raw_df,
+          db_lookup_tables
+        )
 
         ## Combine all lookup function results & rename fields
         join_dfs <- function(x, y) left_join(x, y, by = join_by(id))
@@ -357,7 +449,10 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
           scrollX = TRUE,
           dom = dom_layout,
           buttons = list(
-            "copy", "excel", "pdf", "print"
+            "copy",
+            "excel",
+            "pdf",
+            "print"
           ),
           order = table_order(),
           stateSave = FALSE

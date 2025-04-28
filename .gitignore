@@ -39,8 +39,6 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# pkgdown site
-docs/
 
 # translation temp files
 po/*~
@@ -57,5 +55,6 @@ inputs/field and function mapping tables/ss_to_db_fields.xlsx
 
 *.Rproj
 
-
-
+.dockerignore
+/dev
+documents/natureProps TODOs.docx

@@ -11,17 +11,14 @@ library(shinyvalidate)
 library(shinyjs)
 library(shinyalert)
 library(dbx)
-
+conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
+
+options(browser = "C:/Program Files/Google/Chrome/Application/chrome.exe")
 
 # Create database connection
 db_con <- create_db_con("dummydb")
 prd_con <- create_db_con("nsprd")
-
-# Source modules
-source("R/module_property_intake.R")
-source("R/module_data_viewer.R")
-source("R/module_value_boxes.R")
 
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
@@ -73,7 +70,8 @@ ui <- page_navbar(
         module_data_viewer_ui("records_view", panel_id = "panel_01")
       ),
       nav_panel(
-        title = "Queries"
+        title = "Queries",
+        module_outreach_queries_ui("outreach_query")
       )
     )
   ),
@@ -96,14 +94,16 @@ ui <- page_navbar(
     )
   ),
   nav_panel(
-    
     title = "Review",
     icon = bs_icon("clipboard-data"),
     navset_card_tab(
       height = "100%",
       nav_panel(
         title = "Assign Priorities",
-        p("UI for assigning ecological and securement priority ranking to each property.")
+        p(
+          "UI for assigning ecological and securement 
+          priority ranking to each property."
+        )
       ),
       nav_panel(
         title = "Data Viewer",
@@ -112,7 +112,6 @@ ui <- page_navbar(
         title = "Queries"
       )
     )
-    
   ),
   nav_spacer(),
   nav_item(
@@ -145,7 +144,12 @@ server <- function(input, output, session) {
   module_data_viewer_server("records_view", db_con, db_updated)
   module_action_item_tracking_server("action_items", db_con, db_updated)
   module_data_viewer_server("securement_records_view", db_con, db_updated)
-  module_landowner_communication_server("landowner_communication", db_con, db_updated)
+  module_landowner_communication_server(
+    "landowner_communication",
+    db_con,
+    db_updated
+  )
+  module_outreach_queries_server("outreach_query", db_con, db_updated)
 }
 
 # Run the application

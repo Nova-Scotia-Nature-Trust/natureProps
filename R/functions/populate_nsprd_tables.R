@@ -1,3 +1,40 @@
+#' Populate NS Property Database Tables
+#'
+#' This function populates various tables in the NS Property Database by extracting data from a source database
+#' and transforming it to match the target schema.
+#'
+#' @param pid_list A vector of property IDs (PIDs) to process.
+#' @param prd_con A database connection object for the source database (e.g., PRD database).
+#' @param db_con A database connection object for the target database (e.g., NS Property Database).
+#'
+#' @details
+#' The function performs the following steps for each table:
+#' - Extracts raw data from the source database using SQL queries.
+#' - Maps the raw data fields to the target schema using a reference file.
+#' - Joins the data with the `parcels` table in the target database to retrieve parcel IDs.
+#' - Appends the transformed data to the corresponding table in the target database.
+#'
+#' The following tables are populated:
+#' - `parcel_info`: General parcel information.
+#' - `parcel_madd`: Mailing address information.
+#' - `parcel_padd`: Physical address information.
+#' - `landowners`: Landowner information.
+#'
+#' @examples
+#' # Example usage:
+#' pid_list <- c("12345", "67890")
+#' prd_con <- DBI::dbConnect(RPostgres::Postgres(), dbname = "prd_db")
+#' db_con <- DBI::dbConnect(RPostgres::Postgres(), dbname = "ns_property_db")
+#' populate_nsprd_tables(pid_list, prd_con, db_con)
+#' DBI::dbDisconnect(prd_con)
+#' DBI::dbDisconnect(db_con)
+#'
+#' @importFrom DBI dbGetQuery dbReadTable
+#' @importFrom dplyr as_tibble filter select left_join mutate
+#' @importFrom tidyr deframe
+#' @importFrom readxl read_xlsx
+#' @importFrom glue glue_sql
+#' @importFrom tibble glimpse
 populate_nsprd_tables <- function(pid_list, prd_con, db_con) {
   # pid_list = pid_input
 
