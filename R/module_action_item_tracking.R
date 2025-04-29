@@ -60,6 +60,13 @@ module_action_item_tracking_ui <- function(id) {
                     "Select action value",
                     choices = NULL
                   ),
+                  textAreaInput(
+                    ns("securement_notes"),
+                    "Securement action description",
+                    "",
+                    height = "150px",
+                    width = "100%"
+                  ),
                   layout_columns(),
                   layout_columns(),
                   layout_columns(),
@@ -73,23 +80,6 @@ module_action_item_tracking_ui <- function(id) {
               ns("action_item_viewer"),
               panel_id = "panel_02"
             )
-            # card(
-            #   height = "100%",
-            #   card_header(h5("Data viewer")),
-            #   card_body(
-            #     div(
-            #       style = "display: flex; flex-direction: column; gap: 15px;",
-            #       module_data_viewer_ui(
-            #         ns("action_item_viewer"),
-            #         panel_id = "panel_02"
-            #       ),
-            #       layout_columns(),
-            #       layout_columns(),
-            #       # Add a spacer div to prevent pushing everything to bottom
-            #       div(style = "flex-grow: 1;")
-            #     )
-            #   )
-            # )
           )
         )
       )
@@ -215,7 +205,9 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
             input$action_item_fields,
             times = length(input$pids)
           ),
-          action_value = input$action_item_value
+          action_value = input$action_item_value,
+          securement_action_notes = if (isTruthy(input$securement_notes))
+            input$securement_notes else as.character(0)
         ) |>
           pivot_wider(names_from = action_field, values_from = action_value)
       })
