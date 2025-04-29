@@ -114,7 +114,7 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
             "print"
           ),
           order = table_order(),
-          stateSave = FALSE
+          stateSave = TRUE
         ),
         filter = list(position = "top", clear = FALSE),
         rownames = FALSE,

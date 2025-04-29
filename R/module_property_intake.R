@@ -12,7 +12,10 @@ module_property_intake_ui <- function(id) {
           "",
           open = TRUE,
           actionButton(inputId = ns("submit_property"), label = "Add Property"),
-          actionButton(inputId = ns("submit_landowner"), label = "Add Landowner Contact"),
+          actionButton(
+            inputId = ns("submit_landowner"),
+            label = "Add Landowner Contact"
+          ),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
         ),
         # Main layout
@@ -33,7 +36,8 @@ module_property_intake_ui <- function(id) {
                     selectizeInput(
                       inputId = ns("pid_input"),
                       label = "Enter PID(s):",
-                      choices = NULL, multiple = TRUE,
+                      choices = NULL,
+                      multiple = TRUE,
                       options = list(
                         create = TRUE,
                         placeholder = "Type PID and press Enter"
@@ -55,7 +59,8 @@ module_property_intake_ui <- function(id) {
                     selectizeInput(
                       inputId = ns("focus_area_internal_input"),
                       label = "Focus Area (Internal)",
-                      choices = NULL, multiple = FALSE,
+                      choices = NULL,
+                      multiple = FALSE,
                       options = list(
                         create = TRUE,
                         placeholder = "Select or add new focal area"
@@ -81,8 +86,10 @@ module_property_intake_ui <- function(id) {
                     style = "width: 100%;", # Ensure it spans the full width
                     textAreaInput(
                       ns("property_description_input"),
-                      "Property Description", "",
-                      height = "100px", width = "100%"
+                      "Property Description",
+                      "",
+                      height = "100px",
+                      width = "100%"
                     )
                   ),
                   # Add a spacer div to prevent pushing everything to bottom
@@ -100,7 +107,8 @@ module_property_intake_ui <- function(id) {
                   selectizeInput(
                     inputId = ns("pid_input_landowner"),
                     label = "Select PID(s):",
-                    choices = NULL, multiple = TRUE,
+                    choices = NULL,
+                    multiple = TRUE,
                     options = list(
                       create = FALSE,
                       plugins = list("remove_button"),
@@ -151,8 +159,10 @@ module_property_intake_ui <- function(id) {
                     style = "width: 100%;",
                     textAreaInput(
                       ns("landowner_description"),
-                      "Notes", "",
-                      height = "100px", width = "100%"
+                      "Notes",
+                      "",
+                      height = "100px",
+                      width = "100%"
                     )
                   ),
                   # Add a spacer div to prevent pushing everything to bottom
@@ -178,12 +188,15 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
     iv$add_rule("date_added_input", sv_required())
     iv$add_rule("property_name_input", sv_required())
     iv$add_rule("phase_id_input", sv_required())
-    iv$add_rule("acquisition_type_input", sv_required())
+    # iv$add_rule("acquisition_type_input", sv_required())
     iv$add_rule("focus_area_internal_input", sv_required())
     iv$add_rule("email_input", ~ if (. != "") sv_email()(.))
     iv$add_rule("name_first_input", sv_required())
     iv$add_rule("name_last_input", sv_required())
-    iv$add_rule("pid_input", ~ validate_pid_input(., valid_pids, enable_check = TRUE))
+    iv$add_rule(
+      "pid_input",
+      ~ validate_pid_input(., valid_pids, enable_check = TRUE)
+    )
     iv$add_rule("pid_input_landowner", sv_required())
     iv$enable()
 
@@ -217,19 +230,30 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
     })
 
     observe({
-      updateSelectizeInput(session, "focus_area_internal_input",
+      updateSelectizeInput(
+        session,
+        "focus_area_internal_input",
         choices = focus_area_choices(),
-        selected = character(0), server = TRUE
+        selected = character(0),
+        server = TRUE
       )
-      updateSelectInput(session, "phase_id_input",
-        choices = phase_choices(), selected = character(0)
+      updateSelectInput(
+        session,
+        "phase_id_input",
+        choices = phase_choices(),
+        selected = character(0)
       )
-      updateSelectInput(session, "acquisition_type_input",
-        choices = acquisition_choices(), selected = character(0)
+      updateSelectInput(
+        session,
+        "acquisition_type_input",
+        choices = acquisition_choices(),
+        selected = character(0)
       )
-      updateSelectizeInput(session,
+      updateSelectizeInput(
+        session,
         inputId = "pid_input_landowner",
-        choices = pid_choices(), server = TRUE
+        choices = pid_choices(),
+        server = TRUE
       )
     })
 
@@ -255,8 +279,15 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         pull(id)
 
       if (length(focus_area_check) == 0) {
-        new_focus_area <- tibble(internal_value = input$focus_area_internal_input)
-        append_db_data("focus_area_internal", new_focus_area, db_con, silent = TRUE)
+        new_focus_area <- tibble(
+          internal_value = input$focus_area_internal_input
+        )
+        append_db_data(
+          "focus_area_internal",
+          new_focus_area,
+          db_con,
+          silent = TRUE
+        )
         print("FOCUS AREA ADDED TO DATABASE")
       } else {
         print("FOCUS AREA ALEADY IN DATABASE")
@@ -314,7 +345,8 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
           updateSelectizeInput(
             session,
             inputId = "pid_input_landowner",
-            choices = pid_choices, server = TRUE
+            choices = pid_choices,
+            server = TRUE
           )
         },
         error = function(e) {
@@ -328,7 +360,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       req(input$name_first_input)
       req(input$name_last_input)
       req(input$pid_input_landowner)
-      
+
       new_landowner <- tibble(
         name_last = input$name_last_input,
         name_first = input$name_first_input,
@@ -354,7 +386,10 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         dbx::dbxUpdate(
           db_con,
           table = "parcels",
-          records = tibble(pid = input$pid_input_landowner, landowner_contact_id),
+          records = tibble(
+            pid = input$pid_input_landowner,
+            landowner_contact_id
+          ),
           where_cols = c("pid")
         )
       } else {
@@ -369,10 +404,19 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateTextInput(session, "property_name_input", value = "")
       updateSelectInput(session, "phase_id_input", selected = character(0))
       updateTextInput(session, "focus_area_internal_input", value = "")
-      updateSelectInput(session, "acquisition_type_input", selected = character(0))
+      updateSelectInput(
+        session,
+        "acquisition_type_input",
+        selected = character(0)
+      )
       updateTextInput(session, "property_description_input", value = "")
-      updateSelectizeInput(session, "pid_input_landowner", choices = pid_choices(),
-                           selected = character(0), server = TRUE)
+      updateSelectizeInput(
+        session,
+        "pid_input_landowner",
+        choices = pid_choices(),
+        selected = character(0),
+        server = TRUE
+      )
       updateTextInput(session, "name_last_input", value = "")
       updateTextInput(session, "name_first_input", value = "")
       updateTextInput(session, "email_input", value = "")

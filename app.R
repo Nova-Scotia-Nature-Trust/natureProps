@@ -23,7 +23,7 @@ prd_con <- create_db_con("nsprd")
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
   id = "main_navbar",
-  selected = "Outreach",
+  selected = "Securement",
   collapsible = TRUE,
   theme = bs_theme(bootswatch = "united"),
   fillable = TRUE,

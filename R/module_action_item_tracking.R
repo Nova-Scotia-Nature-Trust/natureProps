@@ -1,10 +1,11 @@
+# UI ----
 module_action_item_tracking_ui <- function(id) {
   ns <- NS(id)
 
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
     card(
-      full_screen = TRUE,
+      full_screen = FALSE,
       height = "100%", # Make card fill available space
       layout_sidebar(
         sidebar = sidebar(
@@ -15,14 +16,18 @@ module_action_item_tracking_ui <- function(id) {
             label = "Submit Actions"
           ),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
+          actionButton(
+            inputId = ns("refresh_db"),
+            label = "Refresh Data Viewer"
+          )
         ),
         # Main layout
         div(
           style = "height: 100%; display: flex; flex-direction: column;",
           layout_columns(
             height = "100%",
-            col_widths = c(8, 4),
-            # First card
+            col_widths = c(3, 9),
+            ## Card :: Assign action items ----
             card(
               height = "100%",
               card_header(h5("Assign Action Items")),
@@ -31,7 +36,7 @@ module_action_item_tracking_ui <- function(id) {
                   style = "display: flex; flex-direction: column; gap: 15px;",
                   selectizeInput(
                     ns("property"),
-                    "Select Property",
+                    "Select property",
                     choices = NULL,
                     multiple = FALSE,
                     width = "80%"
@@ -44,18 +49,17 @@ module_action_item_tracking_ui <- function(id) {
                     width = "80%"
                   ),
                   selectizeInput(
-                    ns("checklist_fields"),
-                    "Select Checklist Fields",
+                    ns("action_item_fields"),
+                    "Select action item fields",
                     choices = NULL,
                     multiple = TRUE,
                     width = "80%"
                   ),
                   selectizeInput(
-                    ns("action_value"),
-                    "Select Action Value",
+                    ns("action_item_value"),
+                    "Select action value",
                     choices = NULL
                   ),
-                  uiOutput(ns("status_message")),
                   layout_columns(),
                   layout_columns(),
                   layout_columns(),
@@ -64,21 +68,28 @@ module_action_item_tracking_ui <- function(id) {
                 )
               )
             ),
-            # Second card
-            card(
-              height = "100%",
-              card_header(h5("Other things")),
-              card_body(
-                div(
-                  style = "display: flex; flex-direction: column; gap: 15px;",
-                  layout_columns(),
-                  layout_columns(),
-                  layout_columns(),
-                  # Add a spacer div to prevent pushing everything to bottom
-                  div(style = "flex-grow: 1;")
-                )
-              )
+            ## Card :: Data viewer for action items ----
+            module_data_viewer_ui(
+              ns("action_item_viewer"),
+              panel_id = "panel_02"
             )
+            # card(
+            #   height = "100%",
+            #   card_header(h5("Data viewer")),
+            #   card_body(
+            #     div(
+            #       style = "display: flex; flex-direction: column; gap: 15px;",
+            #       module_data_viewer_ui(
+            #         ns("action_item_viewer"),
+            #         panel_id = "panel_02"
+            #       ),
+            #       layout_columns(),
+            #       layout_columns(),
+            #       # Add a spacer div to prevent pushing everything to bottom
+            #       div(style = "flex-grow: 1;")
+            #     )
+            #   )
+            # )
           )
         )
       )
@@ -86,29 +97,29 @@ module_action_item_tracking_ui <- function(id) {
   )
 }
 
-
+# Server ----
 module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
-    # Create reactive values to store the submitted values
-    submitted_values <- reactiveValues(
-      pids = NULL,
-      checklist_fields = NULL,
-      action_value = NULL,
-      has_submitted = FALSE
-    )
+    ## Input validation ----
+    iv <- InputValidator$new()
+    iv$add_rule("property", sv_required())
+    iv$add_rule("pids", sv_required())
+    iv$add_rule("action_item_fields", sv_required())
+    iv$add_rule("action_item_value", sv_required())
+    iv$enable()
 
+    ## Property and PID reactives ----
     props_reactive <- reactive({
-      # Only try to use db_updated if it is not NULL.
       if (!is.null(db_updated)) {
         db_updated() # Creates the reactive dependency; ignore the return value.
       }
-      # Query database for PIDs
+      ## Get property list
       dbGetQuery(db_con, "SELECT property_name FROM properties;") |>
         pull() |>
         sort()
     })
 
-    # Define a reactive for PIDs that depends on db_updated, if provided
+    ## Reactive for PIDS based on input$property
     pids_reactive <- reactive({
       req(input$property)
 
@@ -127,42 +138,29 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       return(pid_list)
     })
 
-    # Get checklist fields from database
-    checklist_fields <- dbGetQuery(
-      db_con,
-      "SELECT column_name
-                    FROM information_schema.columns
-                    WHERE table_name = 'parcels';
-           "
-    ) |>
-      pull()
-
-    # Restrict checklist_fields to a subset of columns
-    ## *** Need some more robust selection here, possibly lookup table *** ##
-    checklist_fields <- checklist_fields[14:37]
-    checklist_fields <- base::setdiff(
-      checklist_fields,
-      c(
-        "appraisal_date",
-        "appraiser_name",
-        "af_transaction",
-        "llt_funding_id"
-      )
+    ## Action item fields and values ----
+    df_view_meta <- read_xlsx(
+      "inputs/field and function mapping tables/df_views.xlsx"
     )
 
-    action_item_names <- read_xlsx(
-      "inputs/field and function mapping tables/df_views.xlsx"
-    ) |>
-      filter(db_name %in% checklist_fields) |>
+    action_item_fields <- df_view_meta |>
+      filter(action_item_fields) |>
+      pull(db_name)
+
+    action_item_names <- df_view_meta |>
+      filter(action_item_fields) |>
       pull(df_name)
 
-    checklist_fields <- setNames(checklist_fields, action_item_names)
+    action_item_fields <- setNames(action_item_fields, action_item_names)
 
     # Get action values from the database
-    action_lu <- dbGetQuery(db_con, "SELECT * FROM action_item_status;")
-    action_values <- setNames(action_lu$id, action_lu$action_value)
+    action_item_lu <- dbGetQuery(db_con, "SELECT * FROM action_item_status;")
+    action_item_values <- setNames(
+      action_item_lu$id,
+      action_item_lu$action_value
+    )
 
-    # Initialize the property select input
+    ## Initialize inputs ----
     observe({
       updateSelectizeInput(
         session,
@@ -173,9 +171,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
-    # Update PIDs when property changes - separate observer for this dependency
     observe({
-      # This will ensure pids are only updated after property is selected
       pids <- pids_reactive()
 
       updateSelectizeInput(
@@ -187,87 +183,46 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
-    # Initialize other inputs
     observe({
-      # Update checklist fields selectize input
       updateSelectizeInput(
         session,
-        "checklist_fields",
-        choices = checklist_fields,
+        "action_item_fields",
+        choices = action_item_fields,
         server = TRUE
       )
 
       updateSelectizeInput(
         session,
-        "action_value",
-        choices = action_values,
+        "action_item_value",
+        choices = action_item_values,
         selected = character(0),
         server = TRUE
       )
     })
 
-    # Clear inputs when clear button is clicked
-    observeEvent(input$clear_inputs, {
-      updateSelectizeInput(
-        session,
-        "property",
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(session, "pids", selected = character(0))
-      updateSelectizeInput(session, "checklist_fields", selected = character(0))
-      updateSelectizeInput(session, "action_value", selected = character(0))
-
-      # Clear the status message
-      output$status_message <- renderUI(NULL)
-    })
-
-    # Update database when submit button is clicked
+    ## Event :: Update database action items ----
     observeEvent(input$submit_actions, {
-      # Validate inputs
-      if (length(input$pids) == 0) {
-        output$status_message <- renderUI({
-          div(
-            class = "alert alert-warning",
-            "Please select at least one PID."
-          )
-        })
-        return()
-      }
+      req(input$property)
+      req(input$pids)
+      req(input$action_item_fields)
+      req(input$action_item_value)
 
-      if (length(input$checklist_fields) == 0) {
-        output$status_message <- renderUI({
-          div(
-            class = "alert alert-warning",
-            "Please select at least one checklist field."
-          )
-        })
-        return()
-      }
-
-      if (is.null(input$action_value) || input$action_value == "") {
-        output$status_message <- renderUI({
-          div(class = "alert alert-warning", "Please select an action value.")
-        })
-        return()
-      }
-
-      # Create a reactive expression to build the new actions tibble
+      ### Build new actions table ----
       new_actions <- reactive({
         tibble(
-          pid = rep(input$pids, each = length(input$checklist_fields)),
+          pid = rep(input$pids, each = length(input$action_item_fields)),
           action_field = rep(
-            input$checklist_fields,
+            input$action_item_fields,
             times = length(input$pids)
           ),
-          action_value = input$action_value
+          action_value = input$action_item_value
         ) |>
           pivot_wider(names_from = action_field, values_from = action_value)
       })
 
       print(new_actions())
 
-      # Update the database with the new actions
+      ## Update the database ----
       dbx::dbxUpdate(
         db_con,
         table = "parcels",
@@ -276,35 +231,49 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
 
       ## Signal that data has changed
-      db_updated(db_updated() + 1)
+      # db_updated(db_updated() + 1)
 
-      # Save the submitted values
-      submitted_values$pids <- input$pids
-      submitted_values$checklist_fields <- input$checklist_fields
-      submitted_values$action_value <- input$action_value
-
-      # Create and display a success message using the saved values
-      success_message <- sprintf(
-        "Successfully updated %d checklist items across %d properties with action value: %s",
-        length(submitted_values$checklist_fields),
-        length(submitted_values$pids),
-        submitted_values$action_value
+      ## Alert message
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Action items for {input$property} have been successfully updated"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000 # Auto-close after 10 seconds
       )
-
-      output$status_message <- renderUI({
-        div(
-          class = "alert alert-success mt-3",
-          success_message
-        )
-      })
-
-      # Log the action
-      message(sprintf(
-        "Updated %d checklist items for %d properties to status '%s'",
-        length(submitted_values$checklist_fields),
-        length(submitted_values$pids),
-        submitted_values$action_value
-      ))
     })
+
+    ## Event :: Refresh DB ----
+    observeEvent(input$refresh_db, {
+      db_updated(db_updated() + 1)
+    })
+
+    ## Event :: Clear inputs ----
+    observeEvent(input$clear_inputs, {
+      updateSelectizeInput(
+        session,
+        "property",
+        choices = props_reactive(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(session, "pids", selected = character(0))
+      updateSelectizeInput(
+        session,
+        "action_item_fields",
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        "action_item_value",
+        selected = character(0)
+      )
+    })
+
+    ## Call data viewer module ----
+    module_data_viewer_server("action_item_viewer", db_con, db_updated)
   })
 }
