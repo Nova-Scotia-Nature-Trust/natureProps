@@ -10,7 +10,10 @@ module_action_item_tracking_ui <- function(id) {
         sidebar = sidebar(
           "",
           open = TRUE,
-          actionButton(inputId = ns("submit_actions"), label = "Submit Actions"),
+          actionButton(
+            inputId = ns("submit_actions"),
+            label = "Submit Actions"
+          ),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
         ),
         # Main layout
@@ -27,8 +30,15 @@ module_action_item_tracking_ui <- function(id) {
                 div(
                   style = "display: flex; flex-direction: column; gap: 15px;",
                   selectizeInput(
+                    ns("property"),
+                    "Select Property",
+                    choices = NULL,
+                    multiple = FALSE,
+                    width = "80%"
+                  ),
+                  selectizeInput(
                     ns("pids"),
-                    "Select Properties (PIDs)",
+                    "Select PIDs",
                     choices = NULL,
                     multiple = TRUE,
                     width = "80%"
@@ -87,24 +97,45 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       has_submitted = FALSE
     )
 
-
-    # Define a reactive for PIDs that depends on db_updated, if provided
-    pids_reactive <- reactive({
+    props_reactive <- reactive({
       # Only try to use db_updated if it is not NULL.
       if (!is.null(db_updated)) {
         db_updated() # Creates the reactive dependency; ignore the return value.
       }
       # Query database for PIDs
-      dbGetQuery(db_con, "SELECT pid FROM parcels;") |>
+      dbGetQuery(db_con, "SELECT property_name FROM properties;") |>
         pull() |>
         sort()
     })
 
+    # Define a reactive for PIDs that depends on db_updated, if provided
+    pids_reactive <- reactive({
+      req(input$property)
+
+      prop_ref <- dbGetQuery(db_con, "SELECT pid, property_id FROM parcels;") |>
+        as_tibble() |>
+        left_join(
+          dbGetQuery(db_con, "SELECT id, property_name FROM properties;") |>
+            as_tibble(),
+          join_by(property_id == id)
+        )
+
+      pid_list <- prop_ref |>
+        filter(property_name == input$property) |>
+        pull(pid)
+
+      return(pid_list)
+    })
+
     # Get checklist fields from database
-    checklist_fields <- dbGetQuery(db_con, "SELECT column_name
+    checklist_fields <- dbGetQuery(
+      db_con,
+      "SELECT column_name
                     FROM information_schema.columns
                     WHERE table_name = 'parcels';
-           ") |> pull()
+           "
+    ) |>
+      pull()
 
     # Restrict checklist_fields to a subset of columns
     ## *** Need some more robust selection here, possibly lookup table *** ##
@@ -112,12 +143,16 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     checklist_fields <- base::setdiff(
       checklist_fields,
       c(
-        "appraisal_date", "appraiser_name",
-        "af_transaction", "llt_funding_id"
+        "appraisal_date",
+        "appraiser_name",
+        "af_transaction",
+        "llt_funding_id"
       )
     )
 
-    action_item_names <- read_xlsx("inputs/field and function mapping tables/df_views.xlsx") |>
+    action_item_names <- read_xlsx(
+      "inputs/field and function mapping tables/df_views.xlsx"
+    ) |>
       filter(db_name %in% checklist_fields) |>
       pull(df_name)
 
@@ -127,32 +162,61 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     action_lu <- dbGetQuery(db_con, "SELECT * FROM action_item_status;")
     action_values <- setNames(action_lu$id, action_lu$action_value)
 
-    # Initialize the select inputs with data from the DB
+    # Initialize the property select input
     observe({
-      # Update the PIDs selectize input – this will update whenever pids_reactive() changes
-      updateSelectizeInput(session, "pids", choices = pids_reactive(), server = TRUE)
+      updateSelectizeInput(
+        session,
+        "property",
+        choices = props_reactive(),
+        selected = character(0),
+        server = TRUE
+      )
+    })
 
+    # Update PIDs when property changes - separate observer for this dependency
+    observe({
+      # This will ensure pids are only updated after property is selected
+      pids <- pids_reactive()
+
+      updateSelectizeInput(
+        session,
+        "pids",
+        choices = pids,
+        selected = pids,
+        server = TRUE
+      )
+    })
+
+    # Initialize other inputs
+    observe({
       # Update checklist fields selectize input
-      updateSelectizeInput(session, "checklist_fields", choices = checklist_fields, server = TRUE)
+      updateSelectizeInput(
+        session,
+        "checklist_fields",
+        choices = checklist_fields,
+        server = TRUE
+      )
 
-      # Update action values select input if available
-      if (length(action_values) > 0) {
-        updateSelectInput(session, "action_value",
-          choices = action_values,
-          selected = action_values[1]
-        )
-      }
+      updateSelectizeInput(
+        session,
+        "action_value",
+        choices = action_values,
+        selected = character(0),
+        server = TRUE
+      )
     })
 
     # Clear inputs when clear button is clicked
     observeEvent(input$clear_inputs, {
+      updateSelectizeInput(
+        session,
+        "property",
+        selected = character(0),
+        server = TRUE
+      )
       updateSelectizeInput(session, "pids", selected = character(0))
       updateSelectizeInput(session, "checklist_fields", selected = character(0))
-
-      # Reset action value dropdown to the first value
-      if (length(action_values) > 0) {
-        updateSelectizeInput(session, "action_value", selected = action_values[1])
-      }
+      updateSelectizeInput(session, "action_value", selected = character(0))
 
       # Clear the status message
       output$status_message <- renderUI(NULL)
@@ -163,14 +227,20 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       # Validate inputs
       if (length(input$pids) == 0) {
         output$status_message <- renderUI({
-          div(class = "alert alert-warning", "Please select at least one property (PID).")
+          div(
+            class = "alert alert-warning",
+            "Please select at least one PID."
+          )
         })
         return()
       }
 
       if (length(input$checklist_fields) == 0) {
         output$status_message <- renderUI({
-          div(class = "alert alert-warning", "Please select at least one checklist field.")
+          div(
+            class = "alert alert-warning",
+            "Please select at least one checklist field."
+          )
         })
         return()
       }
@@ -186,7 +256,10 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       new_actions <- reactive({
         tibble(
           pid = rep(input$pids, each = length(input$checklist_fields)),
-          action_field = rep(input$checklist_fields, times = length(input$pids)),
+          action_field = rep(
+            input$checklist_fields,
+            times = length(input$pids)
+          ),
           action_value = input$action_value
         ) |>
           pivot_wider(names_from = action_field, values_from = action_value)
@@ -201,6 +274,9 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         records = new_actions(),
         where_cols = c("pid")
       )
+
+      ## Signal that data has changed
+      db_updated(db_updated() + 1)
 
       # Save the submitted values
       submitted_values$pids <- input$pids

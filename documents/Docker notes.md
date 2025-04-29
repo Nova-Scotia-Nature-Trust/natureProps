@@ -53,11 +53,11 @@ CMD ["/usr/bin/shiny-server"]
    
 4. Once the image is built, test it locally by running `docker run -d --name nsnt-apps -p 3838:3838 nsnt-apps`. Access to the app will be through `localhost:3838/natureprops`. Note that the name of the container and image are the same (although they needn't be).
    
-5. The app files can be updated by copying local files to the running Docker container. The app will automatically restart when it detects new code files. To replace the `app.R` file for example, use `docker cp app.R nsnt-apps:/srv/shiny-server/natureprops/`.
+5. The app files can be updated by copying local files to the running Docker container. The app will automatically restart when it detects new code files. To replace the `app.R` file for example, use `docker cp app.R nsnt-apps:/srv/shiny-server/natureprops/`. To replace all files in the `natureprops` folder, use ` docker cp ./natureprops/. nsnt-apps:/srv/shiny-server/natureprops/` (note the trailing `.` indicates copy all files in the folder, not the folder itself).If files are copied to an existing container then the files need to be committed to the tagged version and then pushed to Docker Hub. Commit using `docker commit nsnt-apps domhenrynsnt/nsnt-apps:v1.0` after copying over files.
    
 6. To view files within the container open a bash terminal using `docker exec -it nsnt-apps bash`. The list files using `ls -al` in which folder you've navigated to. Use `exit` to exit the bash terminal. To view logs of the shiny server run `docker logs nsnt-apps`. The view logs of the app go into the bash terminal and navigate to the log directory using `cd /var/log/shiny-server`. Then view the logs for natureprops by using `cat natureprops.log` or `tail -f natureprops.log`  
    
-7. Once the app has been verified to be working, it can be pushed to DockerHub. First tag the version of the image using `docker tag nsnt-apps domhenrynsnt/nsnt-apps:latest`. Then push using `docker push domhenrynsnt/nsnt-apps:latest`.
+7. Once the app has been verified to be working, it can be pushed to DockerHub. First tag the version of the image using `docker tag nsnt-apps domhenrynsnt/nsnt-apps:latest`. Then push using `docker push domhenrynsnt/nsnt-apps:latest`. 
    
 8. The app container can then be started on the server using `ssh nsnt_admin@192.168.1.51` to get in, then `docker pull domhenrynsnt/nsnt-apps:latest` to pull latest version. Run container using `docker run -d --name nsnt-apps -p 3838:3838 domhenrynsnt/nsnt-apps:latest`.
 9. App can be accessed using `192.168.1.51:3838/natureprops`
