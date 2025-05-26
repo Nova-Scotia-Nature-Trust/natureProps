@@ -35,7 +35,7 @@ ui <- page_navbar(
     input_switch(
       id = "dark_toggle",
       label = "Dark Mode",
-      value = FALSE
+      value = TRUE
     ),
     selectInput(
       inputId = "mySelectInput",
@@ -138,10 +138,17 @@ server <- function(input, output, session) {
   })
 
   db_updated <- reactiveVal(0)
+  focal_pid_rv <- reactiveVal(NULL)
 
   module_property_stats_server("home_page", db_con, db_updated)
   module_property_intake_server("property_form", db_con, prd_con, db_updated)
-  module_data_viewer_server("records_view", db_con, db_updated)
+  module_data_viewer_server(
+    "records_view",
+    db_con,
+    db_updated,
+    prop_filter = NULL,
+    focal_pid_rv
+  )
   module_action_item_tracking_server("action_items", db_con, db_updated)
   module_data_viewer_server("securement_records_view", db_con, db_updated)
   module_landowner_communication_server(
@@ -149,7 +156,12 @@ server <- function(input, output, session) {
     db_con,
     db_updated
   )
-  module_outreach_queries_server("outreach_query", db_con, db_updated)
+  module_outreach_queries_server(
+    "outreach_query",
+    db_con,
+    db_updated,
+    focal_pid_rv
+  )
 }
 
 # Run the application

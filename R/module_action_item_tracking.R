@@ -16,10 +16,10 @@ module_action_item_tracking_ui <- function(id) {
             label = "Submit Actions"
           ),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
-          actionButton(
-            inputId = ns("refresh_db"),
-            label = "Refresh Data Viewer"
-          )
+          # actionButton(
+          #   inputId = ns("refresh_db"),
+          #   label = "Refresh Data Viewer"
+          # )
         ),
         # Main layout
         div(
@@ -100,9 +100,6 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
 
     ## Property and PID reactives ----
     props_reactive <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated() # Creates the reactive dependency; ignore the return value.
-      }
       ## Get property list
       dbGetQuery(db_con, "SELECT property_name FROM properties;") |>
         pull() |>
@@ -126,6 +123,26 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         pull(pid)
 
       return(pid_list)
+    })
+
+    ## Reactive for securement notes based on input$property
+    notes_reactive <- reactive({
+      req(input$property)
+
+      dbGetQuery(
+        db_con,
+        "SELECT securement_action_notes, property_id FROM parcels;"
+      ) |>
+        as_tibble() |>
+        left_join(
+          dbGetQuery(db_con, "SELECT id, property_name FROM properties;") |>
+            as_tibble(),
+          join_by(property_id == id)
+        ) |>
+        filter(property_name == input$property) |>
+        pull(securement_action_notes) |>
+        unique() |>
+        paste(collapse = " ")
     })
 
     ## Action item fields and values ----
@@ -188,6 +205,14 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         selected = character(0),
         server = TRUE
       )
+
+      observe({
+        updateTextAreaInput(
+          session,
+          "securement_notes",
+          value = notes_reactive()
+        )
+      })
     })
 
     ## Event :: Update database action items ----
@@ -223,7 +248,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
 
       ## Signal that data has changed
-      # db_updated(db_updated() + 1)
+      db_updated(db_updated() + 1)
 
       ## Alert message
       shinyalert(
@@ -239,9 +264,9 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     })
 
     ## Event :: Refresh DB ----
-    observeEvent(input$refresh_db, {
-      db_updated(db_updated() + 1)
-    })
+    # observeEvent(input$refresh_db, {
+    #   db_updated(db_updated() + 1)
+    # })
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
@@ -263,9 +288,15 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         "action_item_value",
         selected = character(0)
       )
+      updateTextAreaInput(session, "securement_notes", value = "")
     })
 
     ## Call data viewer module ----
-    module_data_viewer_server("action_item_viewer", db_con, db_updated)
+    module_data_viewer_server(
+      "action_item_viewer",
+      db_con,
+      db_updated,
+      prop_filter = reactive(input$property)
+    )
   })
 }

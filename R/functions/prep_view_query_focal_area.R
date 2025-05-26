@@ -1,15 +1,42 @@
-prep_view_pid <- function(df_view_meta, selected_view, db_con) {
-  ## Get list of parcel table fields needed for view
+prep_view_query_focal_area <- function(
+  df_view_meta,
+  selected_view,
+  db_con,
+  focal_area
+) {
+  focal_area_id <- dbGetQuery(
+    conn = db_con,
+    statement = glue_sql(
+      "SELECT id FROM focus_area_internal WHERE internal_value IN ({focal_area*})",
+      .con = db_con
+    )
+  )
+
+  focal_properties <- dbGetQuery(
+    conn = db_con,
+    statement = glue_sql(
+      "SELECT id, property_name FROM properties WHERE focus_area_internal_id IN ({focal_area_id*})",
+      .con = db_con
+    )
+  )
+
+  focal_pids <- dbGetQuery(
+    conn = db_con,
+    statement = glue_sql(
+      "SELECT id, pid, priority_securement_ranking_id FROM parcels WHERE property_id IN ({focal_properties$id*}) AND priority_securement_ranking_id <= 3;",
+      .con = db_con
+    )
+  )
+
   fields_to_fetch <- df_view_meta |>
     filter(!!sym(selected_view) == TRUE) |>
     select(db_name) |>
     pull()
 
-  ## Fetch raw parcel data
   raw_df <- dbGetQuery(
-    db_con,
+    conn = db_con,
     statement = glue_sql(
-      "SELECT {`fields_to_fetch`*} FROM parcels;",
+      "SELECT {`fields_to_fetch`*} FROM parcels WHERE pid IN ({focal_pids$pid*});",
       .con = db_con
     )
   )
@@ -58,34 +85,16 @@ prep_view_pid <- function(df_view_meta, selected_view, db_con) {
     left_join(lookup_combined, join_by(pid)) |>
     select(all_of(pretty_col_names))
 
-  if (selected_view %in% c("pid_view_01", "pid_view_04")) {
-    ## Query to get PID sizes for
-    pid_size <- dbGetQuery(
-      db_con,
-      statement = '
-              SELECT pa.pid AS "PID",
-                    info.area_ha AS "Size (ha)",
-                    ROUND(info.area_ha * 2.47105, 2) AS "Size (acre)"
-              FROM parcels AS pa
-              LEFT JOIN parcel_info AS info ON pa.id = info.parcel_id;
-            '
-    ) |>
-      as_tibble()
+  ## Add focal area to dataframe
+  focal_ref <- focal_area_from_prop_name(
+    prop_name_vec = data$`Property Name`,
+    db_con
+  )
 
-    ## Add PID sizes
-    ## Assign result to 'data' object
-    data <- data |>
-      left_join(pid_size, join_by(PID)) |>
-      relocate(contains("size"), .after = `Date Updated`)
+  data <- data |>
+    mutate(`Focal Area (Internal)` = focal_ref) |>
+    relocate(`Focal Area (Internal)`) |>
+    arrange(`Focal Area (Internal)`, `Property Name`)
 
-    ## Add ordering attribute for DT table
-    attr(data, "order_column") <- 1
-    attr(data, "order_direction") <- "desc"
-  } else if (selected_view == "pid_view_02") {
-    ## Add ordering attribute for DT table
-    attr(data, "order_column") <- 2
-    attr(data, "order_direction") <- "desc"
-  }
-
-  return(data)
+  return(list(df = data, focal_pids = focal_pids$pid))
 }

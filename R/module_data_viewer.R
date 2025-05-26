@@ -1,3 +1,4 @@
+# UI ----
 module_data_viewer_ui <- function(id, panel_id) {
   ns <- NS(id)
 
@@ -5,9 +6,12 @@ module_data_viewer_ui <- function(id, panel_id) {
   choices_list <- if (panel_id == "panel_01") {
     list(
       "Select a view from the list" = "",
-      "PIDs" = "pid_view_01",
-      "Landowner Details" = "landowner_details_view",
-      "Communication History" = "communication_data_view",
+      "PIDs (all)" = "pid_view_04",
+      "PIDs (filtered)" = "pid_view_01",
+      "Landowner Details (all)" = "landowner_details_view_all",
+      "Landowner Details (filtered)" = "landowner_details_view_filtered",
+      "Communication History" = "communication_data_view_all",
+      "Communication History (filtered)" = "communication_data_view_filtered",
       "Outreach" = "outreach_view"
     )
   } else if (panel_id == "panel_02") {
@@ -27,7 +31,7 @@ module_data_viewer_ui <- function(id, panel_id) {
           inputId = ns("data_view_input"),
           label = "Data Table View",
           choices = choices_list,
-          selected = ""
+          selected = ifelse(panel_id == "panel_02", "pid_view_02", "")
         )
       ),
       card_body(
@@ -38,8 +42,14 @@ module_data_viewer_ui <- function(id, panel_id) {
   )
 }
 
-
-module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
+# Server ----
+module_data_viewer_server <- function(
+  id,
+  db_con,
+  db_updated = NULL,
+  prop_filter = NULL,
+  focal_pid_rv
+) {
   moduleServer(id, function(input, output, session) {
     ## Load data view metadata table (parameters and attribute names)
     # Change name to df_views_meta
@@ -64,16 +74,59 @@ module_data_viewer_server <- function(id, db_con, db_updated = NULL) {
       selected_view <- view_scenario()
 
       ## Landowner details view ----
-      if (selected_view == "landowner_details_view") {
+      if (selected_view == "landowner_details_view_all") {
+        data <- prep_view_landowners(df_view_meta, db_con)
+      } else if (selected_view == "landowner_details_view_filtered") {
         data <- prep_view_landowners(df_view_meta, db_con)
 
-        ## PID view 01/02 ----
-      } else if (selected_view %in% c("pid_view_01", "pid_view_02")) {
+        if (!is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(str_detect(
+              `Landowner PIDs`,
+              str_c(focal_pid_rv(), collapse = "|")
+            ))
+        } else {
+          data <- data |>
+            filter(FALSE)
+        }
+      } else if (
+        selected_view %in% c("pid_view_01", "pid_view_02", "pid_view_04")
+      ) {
         data <- prep_view_pid(df_view_meta, selected_view, db_con)
 
+        if (!is.null(prop_filter)) {
+          data <- data |>
+            filter(`Property Name` == prop_filter())
+        }
+
+        if (selected_view == "pid_view_01") {
+          data <- data |>
+            filter(PID %in% focal_pid_rv())
+        }
+
         ## Communication data view ----
-      } else if (selected_view == "communication_data_view") {
-        data <- prep_view_communications(df_view_meta, selected_view, db_con)
+      } else if (selected_view == "communication_data_view_all") {
+        data <- prep_view_communications(
+          df_view_meta,
+          selected_view = "communication_data_view",
+          db_con
+        )
+
+        ## Outreach data view ----
+      } else if (selected_view == "communication_data_view_filtered") {
+        data <- prep_view_communications(
+          df_view_meta,
+          selected_view = "communication_data_view",
+          db_con
+        )
+
+        if (!is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(str_detect(PIDs, str_c(focal_pid_rv(), collapse = "|")))
+        } else {
+          data <- data |>
+            filter(FALSE)
+        }
 
         ## Outreach data view ----
       } else if (selected_view == "outreach_view") {
