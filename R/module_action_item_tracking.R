@@ -113,7 +113,10 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       prop_ref <- dbGetQuery(db_con, "SELECT pid, property_id FROM parcels;") |>
         as_tibble() |>
         left_join(
-          dbGetQuery(db_con, "SELECT id, property_name FROM properties;") |>
+          dbGetQuery(
+            db_con,
+            "SELECT id, property_name FROM properties;"
+          ) |>
             as_tibble(),
           join_by(property_id == id)
         )
@@ -135,7 +138,10 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       ) |>
         as_tibble() |>
         left_join(
-          dbGetQuery(db_con, "SELECT id, property_name FROM properties;") |>
+          dbGetQuery(
+            db_con,
+            "SELECT id, property_name FROM properties;"
+          ) |>
             as_tibble(),
           join_by(property_id == id)
         ) |>

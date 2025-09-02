@@ -2,7 +2,7 @@
 module_data_viewer_ui <- function(id, panel_id) {
   ns <- NS(id)
 
-  # Define choices based on panel_type
+  ## Choices for data views ----
   choices_list <- if (panel_id == "panel_01") {
     list(
       "Select a view from the list" = "",
@@ -12,7 +12,11 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Landowner Details (filtered)" = "landowner_details_view_filtered",
       "Communication History" = "communication_data_view_all",
       "Communication History (filtered)" = "communication_data_view_filtered",
-      "Outreach" = "outreach_view"
+      "Outreach" = "outreach_view",
+      "Land & Securement History (all)" = "land_secure_comms_all",
+      "Land & Securement History (filtered)" = "land_secure_comms_filtered",
+      "Property Descriptions (all)" = "property_descriptions_all",
+      "Property Descriptions (filtered)" = "property_descriptions_filtered"
     )
   } else if (panel_id == "panel_02") {
     list(
@@ -20,7 +24,7 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Action Items" = "pid_view_02"
     )
   }
-
+  ## Card :: Data viewer ----
   nav_panel(
     title = "Data Viewer",
     card(
@@ -31,7 +35,8 @@ module_data_viewer_ui <- function(id, panel_id) {
           inputId = ns("data_view_input"),
           label = "Data Table View",
           choices = choices_list,
-          selected = ifelse(panel_id == "panel_02", "pid_view_02", "")
+          selected = ifelse(panel_id == "panel_02", "pid_view_02", ""),
+          width = "350px"
         )
       ),
       card_body(
@@ -55,6 +60,15 @@ module_data_viewer_server <- function(
     # Change name to df_views_meta
     df_view_meta <- read_xlsx(
       "inputs/field and function mapping tables/df_views.xlsx"
+    )
+
+    ## WARNING THIS WILL NOT WORK IN DOCKER CONTAINER ##
+    ## NEED TO COPY THIS FILE TO FILE INPUTS ###
+    ## Load 'property database' spreadsheet data
+    parcels_path <- "C:/Users/dominic/OneDrive - Nova Scotia Nature Trust/Documents/Property database/inputs/reference files/23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx"
+
+    parcels_raw <- read_xlsx(
+      parcels_path
     )
 
     ## Reactive to capture the selected view
@@ -89,6 +103,7 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
+        ## PID view (multiple) ----
       } else if (
         selected_view %in% c("pid_view_01", "pid_view_02", "pid_view_04")
       ) {
@@ -104,15 +119,13 @@ module_data_viewer_server <- function(
             filter(PID %in% focal_pid_rv())
         }
 
-        ## Communication data view ----
+        # Communication data view ----
       } else if (selected_view == "communication_data_view_all") {
         data <- prep_view_communications(
           df_view_meta,
           selected_view = "communication_data_view",
           db_con
         )
-
-        ## Outreach data view ----
       } else if (selected_view == "communication_data_view_filtered") {
         data <- prep_view_communications(
           df_view_meta,
@@ -131,7 +144,24 @@ module_data_viewer_server <- function(
         ## Outreach data view ----
       } else if (selected_view == "outreach_view") {
         data <- prep_view_outreach(df_view_meta, selected_view, db_con)
-        ## Empty
+        ## Historical communications data view ----
+      } else if (selected_view == "land_secure_comms_all") {
+        data <- prep_view_historical_comms(parcels_raw, db_con)
+      } else if (selected_view == "land_secure_comms_filtered") {
+        data <- prep_view_historical_comms(parcels_raw, db_con) |>
+          filter(PID %in% focal_pid_rv())
+        ## Property descriptions data view ----
+      } else if (selected_view == "property_descriptions_all") {
+        data <- prep_view_property_descriptions(db_con)
+      } else if (selected_view == "property_descriptions_filtered") {
+        data <- prep_view_property_descriptions(db_con)
+        if (!is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(str_detect(PIDs, str_c(focal_pid_rv(), collapse = "|")))
+        } else {
+          data <- data |>
+            filter(FALSE)
+        }
       } else if (selected_view == "") {
         data <- NULL
       }

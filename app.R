@@ -11,10 +11,11 @@ library(shinyvalidate)
 library(shinyjs)
 library(shinyalert)
 library(dbx)
+library(janitor)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
-
-options(browser = "C:/Program Files/Google/Chrome/Application/chrome.exe")
+# walk(list.files("R", full.names = TRUE, pattern = "\\.R$"), source)
+# options(browser = "C:/Program Files/Google/Chrome/Application/chrome.exe")
 
 # Create database connection
 db_con <- create_db_con("dummydb")
@@ -23,7 +24,7 @@ prd_con <- create_db_con("nsprd")
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
   id = "main_navbar",
-  selected = "Outreach",
+  selected = "Securement",
   collapsible = TRUE,
   theme = bs_theme(bootswatch = "united"),
   fillable = TRUE,
@@ -89,7 +90,8 @@ ui <- page_navbar(
         module_data_viewer_ui("securement_records_view", panel_id = "panel_02")
       ),
       nav_panel(
-        title = "Queries"
+        title = "Queries",
+        module_securement_queries_ui("securement_query")
       )
     )
   ),
@@ -113,6 +115,23 @@ ui <- page_navbar(
       )
     )
   ),
+  nav_panel(
+    title = "Edit Records",
+    icon = bs_icon("pencil-square"),
+    navset_card_tab(
+      height = "100%",
+      nav_panel(
+        title = "Parcels",
+        module_edit_records_ui("edit_records")
+      ),
+      nav_panel(
+        title = "Tab 2",
+      ),
+      nav_panel(
+        title = "Tab 3"
+      )
+    )
+  ),
   nav_spacer(),
   nav_item(
     actionBttn(
@@ -125,7 +144,7 @@ ui <- page_navbar(
   )
 )
 
-# Server logic
+# Server logic ----
 server <- function(input, output, session) {
   # Toggle sidebar when gear icon is clicked
   observeEvent(input$toggle_sidebar, {
@@ -158,6 +177,13 @@ server <- function(input, output, session) {
   )
   module_outreach_queries_server(
     "outreach_query",
+    db_con,
+    db_updated,
+    focal_pid_rv
+  )
+  module_edit_records_server("edit_records", db_con, db_updated)
+  module_securement_queries_server(
+    "securement_query",
     db_con,
     db_updated,
     focal_pid_rv

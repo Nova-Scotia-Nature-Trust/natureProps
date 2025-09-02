@@ -1,0 +1,311 @@
+# UI ----
+module_securement_queries_ui <- function(id) {
+  ns <- NS(id)
+
+  div(
+    style = "height: 100%; display: flex; flex-direction: column;",
+    card(
+      full_screen = TRUE,
+      height = "100%",
+      layout_sidebar(
+        sidebar = sidebar(
+          open = TRUE,
+          width = 300,
+          # Container for all sidebar content with relative positioning
+          div(
+            style = "height: 100%; display: flex; flex-direction: column; min-height: 600px; position: relative;",
+            # Top section with inputs
+            div(
+              selectizeInput(
+                ns("query_choice"),
+                "Select query",
+                choices = c(
+                  "",
+                  "Insurance view",
+                  "Focal area properties",
+                  "Securement action"
+                ),
+                multiple = FALSE,
+                width = "100%"
+              ),
+              # Conditional UI for additional inputs
+              uiOutput(ns("conditional_contact_ui"))
+            ),
+            # Spacer to push content down
+            div(style = "flex: 1;"),
+            # Bottom section with buttons - positioned absolutely
+            div(
+              style = "position: absolute; bottom: 20px; left: 15px; right: 15px;", # Absolute positioning
+              div(
+                style = "display: flex; flex-direction: column; gap: 10px;",
+                actionButton(
+                  inputId = ns("run_query"),
+                  label = "Run query",
+                  width = "100%",
+                  class = "btn-primary"
+                ),
+                actionButton(
+                  inputId = ns("clear_inputs"),
+                  label = "Clear Inputs",
+                  width = "100%"
+                )
+              )
+            )
+          )
+        ),
+        # Main layout - results card
+        card(
+          height = "100%",
+          card_header(h5("Query Result")),
+          card_body(
+            DTOutput(outputId = ns("view_df"), height = "100%")
+          )
+        )
+      )
+    )
+  )
+}
+
+# Server ----
+module_securement_queries_server <- function(
+  id,
+  db_con,
+  db_updated = NULL,
+  focal_pids_rv
+) {
+  moduleServer(id, function(input, output, session) {
+    ## Read metadata file ----
+    df_view_meta <- read_xlsx(
+      "inputs/field and function mapping tables/df_views.xlsx"
+    )
+
+    # Add this reactive value to track table clearing
+    table_data <- reactiveVal(NULL)
+
+    ## Conditional UI (based on query select) ----
+    output$conditional_contact_ui <- renderUI({
+      ns <- session$ns
+
+      req(input$query_choice)
+
+      if (input$query_choice == "Focal area properties") {
+        selectizeInput(
+          ns("focal_area"),
+          "Select Focal Area",
+          choices = NULL,
+          multiple = TRUE,
+          options = list(
+            create = FALSE,
+            placeholder = "Select a focal area"
+          )
+        )
+      } else if (input$query_choice == "Securement action") {
+        div(
+          selectizeInput(
+            ns("closing_year"),
+            "Select Closing Year",
+            choices = NULL,
+            multiple = TRUE,
+            options = list(
+              create = FALSE,
+              placeholder = "Select a closing year"
+            )
+          ),
+          input_switch(
+            ns("prop_view"),
+            "Properties only",
+            value = FALSE
+          )
+        )
+      } else {
+        return(NULL)
+      }
+    })
+
+    ## Focal area reactive ----
+    # Define a reactive for Focal Areas that depends on db_updated, if provided
+    focal_areas_reactive <- reactive({
+      # Only try to use db_updated if it is not NULL.
+      if (!is.null(db_updated)) {
+        db_updated() # Creates the reactive dependency; ignore the return value.
+      }
+      # Query database for Focal Areas
+      dbGetQuery(
+        conn = db_con,
+        statement = glue_sql(
+          "SELECT DISTINCT fa.internal_value 
+          FROM focus_area_internal fa
+          INNER JOIN properties props ON fa.id = props.focus_area_internal_id
+          WHERE props.ownership_id != 9
+          ORDER BY fa.internal_value;",
+          .con = db_con
+        )
+      ) |>
+        pull()
+    })
+
+    closing_year_reactive <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      # Query database for Closing Years
+      dbGetQuery(
+        conn = db_con,
+        statement = "SELECT DISTINCT anticipated_closing_year FROM parcels;"
+      ) |>
+        pull()
+    })
+
+    ## Initialize inputs ----
+    observe({
+      req(input$query_choice)
+
+      # Update the focal area selectize input (update whenever focal_areas_reactive() changes)
+      updateSelectizeInput(
+        session,
+        inputId = "focal_area",
+        choices = focal_areas_reactive(),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "closing_year",
+        choices = closing_year_reactive(),
+        server = TRUE
+      )
+    })
+
+    # Event :: Run query ----
+    observeEvent(input$run_query, {
+      req(input$query_choice)
+
+      if (input$query_choice == "Focal area properties") {
+        focal_area <- input$focal_area
+
+        data <- prep_view_query_focal_props(
+          df_view_meta,
+          db_con,
+          focal_area
+        )
+
+        data <- data |>
+          mutate(across(is.numeric, ~ round(., 2)))
+      } else if (input$query_choice == "Insurance view") {
+        selected_view <- "insurance_view"
+
+        data <- prep_view_query_insurance(
+          df_view_meta,
+          selected_view,
+          db_con
+        )
+
+        data <- data |>
+          arrange(desc(`Date Closed`)) |>
+          mutate(`Size (acres)` = round(`Size (acres)`, 2))
+      } else if (input$query_choice == "Securement action") {
+        selected_view <- "pid_view_02"
+
+        data <- prep_view_pid(df_view_meta, selected_view, db_con) |>
+          as_tibble()
+
+        closing_year <- dbGetQuery(
+          conn = db_con,
+          statement = "SELECT pid, anticipated_closing_year
+                      FROM parcels;"
+        )
+
+        data <- data |>
+          left_join(closing_year, join_by(PID == pid))
+
+        data <- data |>
+          relocate(anticipated_closing_year) |>
+          rename(`Closing Year` = anticipated_closing_year)
+
+        data <- data |>
+          filter(`Closing Year` == input$closing_year) |>
+          arrange(`Property Name`)
+
+        if (input$prop_view == TRUE) {
+          data <- data |>
+            distinct(`Property Name`, .keep_all = TRUE)
+        }
+      }
+
+      table_data(data)
+    })
+
+    # Event :: Clear inputs ----
+    observeEvent(input$clear_inputs, {
+      updateSelectizeInput(
+        session,
+        inputId = "query_choice",
+        choices = c(
+          "",
+          "Insurance view",
+          "Focal area properties",
+          "Securement action"
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "focal_area",
+        choices = focal_areas_reactive(),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "closing_year",
+        choices = closing_year_reactive(),
+        server = TRUE
+      )
+
+      # Add this line to clear the table data
+      table_data(NULL)
+
+      # Clear reactive pids
+      focal_pids_rv(NULL)
+    })
+
+    # Render data table ----
+
+    # Setup table layout
+    dom_layout <- "
+    <'row'<'col-sm-10'l><'col-sm-2 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
+    "
+
+    output$view_df <- renderDT({
+      # Use req to make sure we only render when we have data
+      req(table_data())
+
+      datatable(
+        table_data(),
+        options = list(
+          pageLength = 10,
+          lengthMenu = list(
+            c(10, 25, 50, 100, -1),
+            c('10', '25', '50', '100', 'All')
+          ),
+          scrollX = TRUE,
+          dom = dom_layout,
+          buttons = list(
+            "copy",
+            "excel",
+            "pdf"
+          ),
+          # order = table_order(),
+          stateSave = FALSE
+        ),
+        filter = list(position = "top", clear = FALSE),
+        rownames = FALSE,
+        selection = "single",
+        extensions = c("Buttons")
+      )
+    })
+  })
+}

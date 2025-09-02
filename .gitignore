@@ -58,3 +58,15 @@ inputs/field and function mapping tables/ss_to_db_fields.xlsx
 .dockerignore
 /dev
 documents/natureProps TODOs.docx
+documents/Docker notes_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css
+documents/Docker notes_files/libs/bootstrap/bootstrap-icons.css
+documents/Docker notes_files/libs/bootstrap/bootstrap-icons.woff
+documents/Docker notes_files/libs/bootstrap/bootstrap.min.js
+documents/Docker notes_files/libs/clipboard/clipboard.min.js
+documents/Docker notes_files/libs/quarto-html/anchor.min.js
+documents/Docker notes_files/libs/quarto-html/popper.min.js
+documents/Docker notes_files/libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css
+documents/Docker notes_files/libs/quarto-html/quarto.js
+documents/Docker notes_files/libs/quarto-html/tippy.css
+documents/Docker notes_files/libs/quarto-html/tippy.umd.min.js
+documents/Docker notes_files/libs/quarto-html/tabsets/tabsets.js

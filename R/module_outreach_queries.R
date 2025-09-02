@@ -19,7 +19,7 @@ module_outreach_queries_ui <- function(id) {
           style = "height: 100%; display: flex; flex-direction: column;",
           layout_columns(
             height = "100%",
-            col_widths = c(3, 9),
+            col_widths = c(2, 10),
             ## Card :: Select query from list ----
             card(
               height = "100%",

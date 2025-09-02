@@ -1,5 +1,11 @@
 # Notes on deploying app with Docker
 
+Render file in the terminal: quarto render "Docker notes.md"
+
+Make sure the repository exisits on Docker Hub 
+Run `docker login` to double check you can push/pull to DockerHub
+
+## Deployment
 The Docker build needs to be done in a temporary folder that isn't synced with OneDrive. This is currently set to `C:\Users\dominic\deploy_docker_apps`. Apps are deployed using Shiny server, which allows for multiple apps to be deployed in a single container. 
 
 Follow these steps to deploy the app on Docker. 
@@ -53,7 +59,7 @@ CMD ["/usr/bin/shiny-server"]
    
 4. Once the image is built, test it locally by running `docker run -d --name nsnt-apps -p 3838:3838 nsnt-apps`. Access to the app will be through `localhost:3838/natureprops`. Note that the name of the container and image are the same (although they needn't be).
    
-5. The app files can be updated by copying local files to the running Docker container. The app will automatically restart when it detects new code files. To replace the `app.R` file for example, use `docker cp app.R nsnt-apps:/srv/shiny-server/natureprops/`. To replace all files in the `natureprops` folder, use ` docker cp ./natureprops/. nsnt-apps:/srv/shiny-server/natureprops/` (note the trailing `.` indicates copy all files in the folder, not the folder itself).If files are copied to an existing container then the files need to be committed to the tagged version and then pushed to Docker Hub. Commit using `docker commit nsnt-apps domhenrynsnt/nsnt-apps:v1.0` after copying over files.
+5. The app files can be updated by copying local files to the running Docker container. The app will automatically restart when it detects new code files. To replace the `app.R` file for example, use `docker cp app.R nsnt-apps:/srv/shiny-server/natureprops/`. To replace all files in the `natureprops` folder, use ` docker cp ./natureprops/. nsnt-apps:/srv/shiny-server/natureprops/` (note the trailing `.` indicates copy all files in the folder, not the folder itself). Note that the container should be stopped, then copy files, then start again to work reliably (it seems that files are not overwritten when the container is running). If files are copied to an existing container then the files need to be committed to the tagged version and then pushed to Docker Hub. Commit using `docker commit nsnt-apps domhenrynsnt/nsnt-apps:v1.0` after copying over files. 
    
 6. To view files within the container open a bash terminal using `docker exec -it nsnt-apps bash`. The list files using `ls -al` in which folder you've navigated to. Use `exit` to exit the bash terminal. To view logs of the shiny server run `docker logs nsnt-apps`. The view logs of the app go into the bash terminal and navigate to the log directory using `cd /var/log/shiny-server`. Then view the logs for natureprops by using `cat natureprops.log` or `tail -f natureprops.log`  
    
@@ -63,3 +69,17 @@ CMD ["/usr/bin/shiny-server"]
 9. App can be accessed using `192.168.1.51:3838/natureprops`
    
 10. Docker maintenance on server (due to limited space). Get images using `docker images -a`. Delete image using by first removing container `docker rm [CONTAINER NAME]`, then `docker rmi [IMAGE ID]`. Then look for dangling images using `docker images -f dangling=true`, then prune them using `docker image prune`
+
+## Debugging
+
+Use the following commands to view the logs within the Shiny Server
+
+View the available logs at a higher level: `docker logs -f nsnt-apps`.
+View the available logs for the shiny server: `docker exec -it nsnt-apps ls -la /var/log/shiny-server/`.
+
+This will then provide a list of logs for each app (these log files will change, so this is just an example). To open a log run: `docker exec -it nsnt-apps cat /var/log/shiny-server/natureprops-shiny-20250813-132812-39227.log`
+
+The generic command is `docker exec -it nsnt-apps cat /var/log/shiny-server/{LOG FILE NAME}.log`
+
+If logs aren't available try running the app directly using
+`docker exec -it nsnt-apps-test R -e "setwd('/srv/shiny-server/natureprops'); source('app.R')"` which will print outputs directly to the terminal.

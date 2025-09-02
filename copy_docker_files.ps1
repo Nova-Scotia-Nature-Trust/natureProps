@@ -12,7 +12,6 @@ if (!(Test-Path -Path $destination_path_01)) {
 
 # Copy necessary files
 Copy-Item -Path "$source_path\app.R" -Destination $destination_path_01 -Recurse -Force
-Copy-Item -Path "$source_path\Dockerfile" -Destination $destination_path_02 -Force
 Copy-Item -Path "$source_path\.dockerignore" -Destination $destination_path_02 -Force
 Copy-Item -Path "$source_path\renv.lock" -Destination $destination_path_01 -Force
 Copy-Item -Path "$source_path\inputs" -Destination $destination_path_01 -Recurse -Force
