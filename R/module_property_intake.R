@@ -100,7 +100,21 @@ module_property_intake_ui <- function(id) {
             ## Card :: Landowner details ----
             card(
               height = "100%",
-              card_header(h5("Landowner Details")),
+              card_header(
+                div(
+                  style = "display: flex; align-items: center; gap: 8px;",
+                  h5("Landowner Details"),
+                  popover(
+                    div(
+                      icon("question-circle"),
+                      style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
+                    ),
+                    "Explain why we're calling this 'Primary Property Contact'. Enter contact information for property owners. Select associated PIDs from the dropdown to link this contact to specific parcels.",
+                    title = "Landowner Details Help",
+                    placement = "right"
+                  )
+                )
+              ),
               card_body(
                 div(
                   style = "display: flex; flex-direction: column; gap: 15px;",
@@ -159,7 +173,7 @@ module_property_intake_ui <- function(id) {
                     style = "width: 100%;",
                     textAreaInput(
                       ns("landowner_description"),
-                      "Notes",
+                      "Landowner Description",
                       "",
                       height = "100px",
                       width = "100%"
@@ -310,7 +324,8 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         new_property <- tibble(
           property_name = input$property_name,
           focus_area_internal_id,
-          property_description = input$property_description
+          property_description = input$property_description,
+          phase_id = input$phase_id
         )
         append_db_data("properties", new_property, db_con, silent = TRUE)
         message("NEW PROPERTY ADDED TO DATABASE")
@@ -326,10 +341,13 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       new_parcel <- tibble(
         pid = input$pid,
         date_added = input$date_added,
-        phase_id = input$phase_id,
+        # phase_id = input$phase_id,
         property_id,
-        acquisition_type_id = if (isTruthy(input$acquisition_type))
-          input$acquisition_type else NA
+        acquisition_type_id = if (isTruthy(input$acquisition_type)) {
+          input$acquisition_type
+        } else {
+          NA
+        }
       )
 
       print(glimpse(new_parcel))

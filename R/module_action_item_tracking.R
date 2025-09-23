@@ -221,28 +221,34 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       })
     })
 
+    ## Reactive :: build new action item table ----
+    new_actions <- reactive({
+      req(input$pids)
+      req(input$action_item_fields)
+      req(input$action_item_value)
+
+      tibble(
+        pid = rep(input$pids, each = length(input$action_item_fields)),
+        action_field = rep(
+          input$action_item_fields,
+          times = length(input$pids)
+        ),
+        action_value = input$action_item_value,
+        securement_action_notes = if (isTruthy(input$securement_notes)) {
+          input$securement_notes
+        } else {
+          as.character(0)
+        }
+      ) |>
+        pivot_wider(names_from = action_field, values_from = action_value)
+    })
+
     ## Event :: Update database action items ----
     observeEvent(input$submit_actions, {
       req(input$property)
       req(input$pids)
       req(input$action_item_fields)
       req(input$action_item_value)
-
-      ### Build new actions table ----
-      new_actions <- reactive({
-        tibble(
-          pid = rep(input$pids, each = length(input$action_item_fields)),
-          action_field = rep(
-            input$action_item_fields,
-            times = length(input$pids)
-          ),
-          action_value = input$action_item_value,
-          securement_action_notes = if (isTruthy(input$securement_notes))
-            input$securement_notes else as.character(0)
-        ) |>
-          pivot_wider(names_from = action_field, values_from = action_value)
-      })
-
       print(new_actions())
 
       ## Update the database ----

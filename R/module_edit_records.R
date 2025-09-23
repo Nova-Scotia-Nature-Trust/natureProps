@@ -83,23 +83,20 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       Parcels = c(
         "property_id", # This should not be an editable field (just using for reference here)
         "acquisition_type_id",
-        "phase_id",
         "date_added",
         "date_updated",
         "priority_securement_ranking_id",
         "priority_ecological_ranking_id",
-        "anticipated_closing_year",
-        # "closing_probability_id", # Need to populate lookup table first
-        # "price_asking",
-        # "price_appraised",
-        "size_confirmed_ha",
-        "phase_id_description"
+        "size_confirmed_ha"
       ),
       Properties = c(
         "property_name",
         "property_name_public",
         "focus_area_internal_id",
-        "property_description"
+        "property_description",
+        "phase_id",
+        "anticipated_closing_year",
+        "phase_id_description"
       )
     )
 
@@ -233,15 +230,21 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
             dateInput(
               inputId = ns(paste0("edit_", field_name)),
               label = field_label,
-              value = if (!is.na(record[[field_name]]))
-                record[[field_name]] else ""
+              value = if (!is.na(record[[field_name]])) {
+                record[[field_name]]
+              } else {
+                ""
+              }
             )
           } else if (field_name %in% text_area_fields) {
             textAreaInput(
               inputId = ns(paste0("edit_", field_name)),
               label = field_label,
-              value = if (!is.na(record[[field_name]]))
-                record[[field_name]] else "",
+              value = if (!is.na(record[[field_name]])) {
+                record[[field_name]]
+              } else {
+                ""
+              },
               height = "200px",
               width = "100%"
             )
@@ -249,8 +252,11 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
             numericInput(
               inputId = ns(paste0("edit_", field_name)),
               label = field_label,
-              value = if (!is.na(record[[field_name]]))
-                record[[field_name]] else NA_real_
+              value = if (!is.na(record[[field_name]])) {
+                record[[field_name]]
+              } else {
+                NA_real_
+              }
             )
           } else if (field_name %in% lookup_fields) {
             # Access the relevant lookup table
@@ -373,7 +379,9 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       }
 
       # Signal update
-      if (!is.null(db_updated)) db_updated(db_updated() + 1)
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
 
       shinyalert(
         title = "Success",

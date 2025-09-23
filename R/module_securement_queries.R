@@ -151,7 +151,7 @@ module_securement_queries_server <- function(
       # Query database for Closing Years
       dbGetQuery(
         conn = db_con,
-        statement = "SELECT DISTINCT anticipated_closing_year FROM parcels;"
+        statement = "SELECT DISTINCT anticipated_closing_year FROM properties;"
       ) |>
         pull()
     })
@@ -181,6 +181,7 @@ module_securement_queries_server <- function(
       req(input$query_choice)
 
       if (input$query_choice == "Focal area properties") {
+        req(input$focal_area)
         focal_area <- input$focal_area
 
         data <- prep_view_query_focal_props(
@@ -204,6 +205,7 @@ module_securement_queries_server <- function(
           arrange(desc(`Date Closed`)) |>
           mutate(`Size (acres)` = round(`Size (acres)`, 2))
       } else if (input$query_choice == "Securement action") {
+        req(input$closing_year)
         selected_view <- "pid_view_02"
 
         data <- prep_view_pid(df_view_meta, selected_view, db_con) |>
@@ -211,8 +213,10 @@ module_securement_queries_server <- function(
 
         closing_year <- dbGetQuery(
           conn = db_con,
-          statement = "SELECT pid, anticipated_closing_year
-                      FROM parcels;"
+          statement = "SELECT par.pid, 
+                              prop.anticipated_closing_year
+                      FROM parcels par
+                      LEFT JOIN properties prop ON par.property_id = prop.id;"
         )
 
         data <- data |>

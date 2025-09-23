@@ -68,9 +68,9 @@ prep_view_query_focal_props <- function(
     as_tibble() |>
     mutate(price_per_acre = price_purchase / size_acres)
 
-  df_view_meta <- read_xlsx(
-    "inputs/field and function mapping tables/df_views.xlsx"
-  )
+  # df_view_meta <- read_xlsx(
+  #   "inputs/field and function mapping tables/df_views.xlsx"
+  # )
 
   focal_properties <- focal_properties |>
     left_join(focal_areas, join_by(focus_area_internal_id == id)) |>
