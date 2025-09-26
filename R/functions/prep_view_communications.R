@@ -3,7 +3,7 @@ prep_view_communications <- function(df_view_meta, selected_view, db_con) {
   raw_df <- dbGetQuery(
     db_con,
     statement = glue_sql(
-      "SELECT * FROM landowner_communication;",
+      "SELECT * FROM property_contact_communication;",
       .con = db_con
     )
   ) |>
@@ -38,7 +38,7 @@ prep_view_communications <- function(df_view_meta, selected_view, db_con) {
 
   ## Transform to pretty column names
   pretty_col_names <- df_view_meta |>
-    filter(group == "landowner_communication") |>
+    filter(group == "property_contact_communication") |>
     filter(db_name %in% names(raw_df)) |>
     select(df_name, db_name) |>
     deframe()
@@ -48,20 +48,20 @@ prep_view_communications <- function(df_view_meta, selected_view, db_con) {
     select(-all_of(setdiff(names(lookup_combined), "id"))) |>
     left_join(lookup_combined, join_by(id))
 
-  landowner_ids <- data$landowner_contact_id
+  property_contact_ids <- data$property_contact_id
 
   property_info <- dbGetQuery(
     db_con,
     statement = glue_sql(
-      "SELECT p.landowner_contact_id, p.pid, pr.property_name 
+      "SELECT p.property_contact_id, p.pid, pr.property_name 
             FROM parcels p
             LEFT JOIN properties pr ON p.property_id = pr.id
-            WHERE p.landowner_contact_id IN ({landowner_ids*});",
+            WHERE p.property_contact_id IN ({property_contact_ids*});",
       .con = db_con
     )
   ) |>
     as_tibble() |>
-    group_by(landowner_contact_id) |>
+    group_by(property_contact_id) |>
     summarise(
       pid = paste(pid, collapse = ", "),
       property_id = paste(unique(property_name), collapse = ", "),
@@ -70,7 +70,7 @@ prep_view_communications <- function(df_view_meta, selected_view, db_con) {
 
   # Add a column to the data frame with the matching PIDs
   data <- data |>
-    left_join(property_info, by = "landowner_contact_id")
+    left_join(property_info, by = "property_contact_id")
 
   data <- data |>
     select(all_of(pretty_col_names), pid, property_id) |>
@@ -81,8 +81,8 @@ prep_view_communications <- function(df_view_meta, selected_view, db_con) {
     db_con,
     statement = glue_sql(
       "SELECT id, name_first AS first_name, name_last AS last_name 
-            FROM landowner_details
-            WHERE id IN ({landowner_ids*});",
+            FROM property_contact_details
+            WHERE id IN ({property_contact_ids*});",
       .con = db_con
     )
   ) |>
@@ -91,9 +91,9 @@ prep_view_communications <- function(df_view_meta, selected_view, db_con) {
   data <- data |>
     left_join(
       landowner_details,
-      join_by(`Landowner Contact ID` == "id")
+      join_by(`Property Contact ID` == "id")
     ) |>
-    relocate(first_name, last_name, .after = `Landowner Contact ID`) |>
+    relocate(first_name, last_name, .after = `Property Contact ID`) |>
     rename(`First Name` = first_name, `Last Name` = last_name) |>
     relocate(Property, .after = ID)
 

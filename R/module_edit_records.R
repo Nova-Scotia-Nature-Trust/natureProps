@@ -96,7 +96,8 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         "property_description",
         "phase_id",
         "anticipated_closing_year",
-        "phase_id_description"
+        "phase_id_description",
+        "team_lead_id"
       )
     )
 
@@ -114,7 +115,8 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       "acquisition_type_id",
       "priority_securement_ranking_id",
       "priority_ecological_ranking_id",
-      "focus_area_internal_id"
+      "focus_area_internal_id",
+      "team_lead_id"
       # "closing_probability_id" # Need to updated database schema
     )
 
@@ -138,6 +140,10 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       focus_area_internal_id = list(
         table_name = "focus_area_internal",
         value_name = "internal_value"
+      ),
+      team_lead_id = list(
+        table_name = "team_lead",
+        value_name = "team_value"
       )
     )
 

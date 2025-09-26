@@ -13,8 +13,8 @@ module_property_intake_ui <- function(id) {
           open = TRUE,
           actionButton(inputId = ns("submit_property"), label = "Add Property"),
           actionButton(
-            inputId = ns("submit_landowner"),
-            label = "Add Landowner Contact"
+            inputId = ns("submit_property_contact"),
+            label = "Add Property Property Contact"
           ),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
         ),
@@ -97,20 +97,20 @@ module_property_intake_ui <- function(id) {
                 )
               )
             ),
-            ## Card :: Landowner details ----
+            ## Card :: Property Contact details ----
             card(
               height = "100%",
               card_header(
                 div(
                   style = "display: flex; align-items: center; gap: 8px;",
-                  h5("Landowner Details"),
+                  h5("Property Contact Details"),
                   popover(
                     div(
                       icon("question-circle"),
                       style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
                     ),
                     "Explain why we're calling this 'Primary Property Contact'. Enter contact information for property owners. Select associated PIDs from the dropdown to link this contact to specific parcels.",
-                    title = "Landowner Details Help",
+                    title = "Property Contact Details Help",
                     placement = "right"
                   )
                 )
@@ -119,14 +119,14 @@ module_property_intake_ui <- function(id) {
                 div(
                   style = "display: flex; flex-direction: column; gap: 15px;",
                   selectizeInput(
-                    inputId = ns("pid_input_landowner"),
+                    inputId = ns("pid_input_property_contact"),
                     label = "Select PID(s):",
                     choices = NULL,
                     multiple = TRUE,
                     options = list(
                       create = FALSE,
                       plugins = list("remove_button"),
-                      placeholder = "Select PIDs associated with owner"
+                      placeholder = "Select PIDs associated with property contact"
                     )
                   ),
                   layout_columns(
@@ -172,8 +172,8 @@ module_property_intake_ui <- function(id) {
                   div(
                     style = "width: 100%;",
                     textAreaInput(
-                      ns("landowner_description"),
-                      "Landowner Description",
+                      ns("property_contact_description"),
+                      "Property Contact Description",
                       "",
                       height = "100px",
                       width = "100%"
@@ -211,7 +211,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       "pid",
       ~ validate_pid_input(., valid_pids, enable_check = TRUE)
     )
-    iv$add_rule("pid_input_landowner", sv_required())
+    iv$add_rule("pid_input_property_contact", sv_required())
     iv$enable()
 
     ## Populate UI inputs ----
@@ -262,7 +262,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       )
       updateSelectizeInput(
         session,
-        inputId = "pid_input_landowner",
+        inputId = "pid_input_property_contact",
         choices = pid_choices(),
         server = TRUE
       )
@@ -367,7 +367,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
 
           updateSelectizeInput(
             session,
-            inputId = "pid_input_landowner",
+            inputId = "pid_input_property_contact",
             choices = pid_choices,
             server = TRUE
           )
@@ -378,44 +378,49 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       )
     })
 
-    ## Event :: Submit landowner contact details ----
-    observeEvent(input$submit_landowner, {
+    ## Event :: Submit property contact details ----
+    observeEvent(input$submit_property_contact, {
       req(input$name_first_input)
       req(input$name_last_input)
-      req(input$pid_input_landowner)
+      req(input$pid_input_property_contact)
 
-      new_landowner <- tibble(
+      new_property_contact <- tibble(
         name_last = input$name_last_input,
         name_first = input$name_first_input,
         email = input$email_input,
         phone_home = input$phone_home_input,
         phone_cell = input$phone_cell_input,
         dnc = as.logical(input$dnc_input),
-        landowner_description = input$landowner_description
+        property_contact_description = input$property_contact_description
       )
 
-      print(glimpse(new_landowner))
-      append_db_data("landowner_details", new_landowner, db_con, silent = FALSE)
+      print(glimpse(new_property_contact))
+      append_db_data(
+        "property_contact_details",
+        new_property_contact,
+        db_con,
+        silent = FALSE
+      )
       db_updated(db_updated() + 1)
 
       ## Get new landowner ID
-      landowner_contact_id <- new_landowner |>
-        left_join(dbReadTable(db_con, "landowner_details")) |>
+      property_contact_id <- new_property_contact |>
+        left_join(dbReadTable(db_con, "property_contact_details")) |>
         pull(id)
 
       ## Assign the landowner ID to relevant PIDs
-      if (length(input$pid_input_landowner) > 0) {
+      if (length(input$pid_input_property_contact) > 0) {
         dbx::dbxUpdate(
           db_con,
           table = "parcels",
           records = tibble(
-            pid = input$pid_input_landowner,
-            landowner_contact_id
+            pid = input$pid_input_property_contact,
+            property_contact_id
           ),
           where_cols = c("pid")
         )
       } else {
-        message("NO PID ASSOCIATED WITH LANDOWNER CONTACT")
+        message("NO PID ASSOCIATED WITH PROPERTY CONTACT")
       }
     })
 
@@ -434,7 +439,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateTextInput(session, "property_description", value = "")
       updateSelectizeInput(
         session,
-        "pid_input_landowner",
+        "pid_input_property_contact",
         choices = pid_choices(),
         selected = character(0),
         server = TRUE
@@ -444,7 +449,7 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateTextInput(session, "email_input", value = "")
       updateTextInput(session, "phone_home_input", value = "")
       updateTextInput(session, "phone_cell_input", value = "")
-      updateTextInput(session, "landowner_description", value = "")
+      updateTextInput(session, "property_contact_description", value = "")
     })
   })
 }

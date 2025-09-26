@@ -1,27 +1,27 @@
-prep_view_landowners <- function(df_view_meta, db_con) {
-  ## Get landowner details DB data
-  land_own_details <- dbReadTable(db_con, "landowner_details")
+prep_view_property_contacts <- function(df_view_meta, db_con) {
+  ## Get property contact details DB data
+  property_contact_details <- dbReadTable(db_con, "property_contact_details")
 
-  ## Get PIDs associated with each landowner
-  lan_own_pids <- dbGetQuery(
+  ## Get PIDs associated with each property contact
+  prop_con_pids <- dbGetQuery(
     db_con,
     statement = glue_sql(
-      "SELECT pid, landowner_contact_id FROM parcels WHERE landowner_contact_id IN ({land_own_details$id*});",
+      "SELECT pid, property_contact_id FROM parcels WHERE property_contact_id IN ({property_contact_details$id*});",
       .con = db_con
     )
   ) |>
-    group_by(landowner_contact_id) |>
-    summarise(landowner_pids = paste(pid, collapse = ", "))
+    group_by(property_contact_id) |>
+    summarise(property_contact_pids = paste(pid, collapse = ", "))
 
   ## Update the contact details with associated PIDs
-  land_own_details <- land_own_details |>
-    left_join(lan_own_pids, join_by(id == landowner_contact_id)) |>
-    relocate(landowner_pids, .before = dnc)
+  property_contact_details <- property_contact_details |>
+    left_join(prop_con_pids, join_by(id == property_contact_id)) |>
+    relocate(property_contact_pids, .before = dnc)
 
   prop_ref <- dbGetQuery(
     db_con,
     statement = glue_sql(
-      "SELECT landowner_contact_id, property_id FROM parcels WHERE landowner_contact_id IN ({land_own_details$id*});",
+      "SELECT property_contact_id, property_id FROM parcels WHERE property_contact_id IN ({property_contact_details$id*});",
       .con = db_con
     )
   ) |>
@@ -31,19 +31,19 @@ prep_view_landowners <- function(df_view_meta, db_con) {
       join_by(property_id == id)
     ) |>
     select(-property_id) |>
-    rename(id = landowner_contact_id) |>
+    rename(id = property_contact_id) |>
     group_by(id) |>
     summarise(property_name = paste(property_name, collapse = ", "))
 
   ## Transform to pretty column names
   pretty_col_names <- df_view_meta |>
-    filter(group == "landowner_contact_details") |>
-    filter(db_name %in% names(land_own_details)) |>
+    filter(group == "property_contact_details") |>
+    filter(db_name %in% names(property_contact_details)) |>
     select(df_name, db_name) |>
     deframe()
 
   ## Assign result to 'data' object
-  data <- land_own_details |>
+  data <- property_contact_details |>
     select(all_of(pretty_col_names))
 
   ## Add property name

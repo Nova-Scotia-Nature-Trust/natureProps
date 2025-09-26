@@ -42,7 +42,7 @@ Here is a list of all the functions found in the `./R/functions` directory along
 3. **`join_lookup_fn`**: Joins a lookup table with a data frame based on specified keys and renames the resulting column.
 4. **`populate_nsprd_tables`**: Populates various tables in the NS Property Database by extracting and transforming data from a source database.
 5. **`prep_view_communications`**: Prepares data for the communication view by fetching and transforming landowner communication data.
-6. **`prep_view_landowners`**: Prepares data for the landowner details view by combining landowner and parcel information.
+6. **`prep_view_property_contacts`**: Prepares data for the property contact details view by combining property contact and parcel information.
 7. **`prep_view_outreach`**: Prepares data for the outreach view by fetching and transforming outreach-related data.
 8. **`prep_view_pid`**: Prepares data for parcel views by fetching and transforming parcel-related data.
 9. **`validate_pid_input`**: Validates Parcel Identification Numbers (PIDs) against a list of valid PIDs.

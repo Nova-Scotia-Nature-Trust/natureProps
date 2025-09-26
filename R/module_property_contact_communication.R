@@ -1,5 +1,5 @@
 # UI ----
-module_landowner_communication_ui <- function(id) {
+module_property_contact_communication_ui <- function(id) {
   ns <- NS(id)
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
@@ -10,7 +10,10 @@ module_landowner_communication_ui <- function(id) {
         sidebar = sidebar(
           "",
           open = TRUE,
-          actionButton(inputId = ns("submit_communication"), label = "Submit Communication"),
+          actionButton(
+            inputId = ns("submit_communication"),
+            label = "Submit Communication"
+          ),
           actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
         ),
         # Main layout
@@ -19,10 +22,10 @@ module_landowner_communication_ui <- function(id) {
           layout_columns(
             height = "100%",
             col_widths = c(8, 4),
-            ## Card :: Landowner communication ----
+            ## Card :: Property Contact communication ----
             card(
               height = "100%",
-              card_header(h5("Outreach & Landowner Communication")),
+              card_header(h5("Outreach & Property Contact Communication")),
               card_body(
                 div(
                   style = "display: flex; flex-direction: column; gap: 15px;",
@@ -31,7 +34,11 @@ module_landowner_communication_ui <- function(id) {
                     selectInput(
                       ns("communication_type"),
                       "Select Type",
-                      choices = c("", "Landowner Communication", "Outreach"),
+                      choices = c(
+                        "",
+                        "Property Contact Communication",
+                        "Outreach"
+                      ),
                       selected = ""
                     ),
                     uiOutput(ns("conditional_contact_ui"))
@@ -66,8 +73,10 @@ module_landowner_communication_ui <- function(id) {
                     style = "width: 100%;",
                     textAreaInput(
                       ns("communication_description"),
-                      "Description", "",
-                      height = "200px", width = "100%"
+                      "Description",
+                      "",
+                      height = "200px",
+                      width = "100%"
                     )
                   ),
                   layout_columns(),
@@ -101,7 +110,11 @@ module_landowner_communication_ui <- function(id) {
 }
 
 # Server ----
-module_landowner_communication_server <- function(id, db_con, db_updated = NULL) {
+module_property_contact_communication_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
     iv <- InputValidator$new()
@@ -113,8 +126,8 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
 
     ## Conditionally add validation rules based on communication type
     observe({
-      if (input$communication_type == "Landowner Communication") {
-        iv$add_rule("landowner_contact_id", sv_required())
+      if (input$communication_type == "Property Contact Communication") {
+        iv$add_rule("property_contact_id", sv_required())
       } else {
         iv$add_rule("pid_input", sv_required())
       }
@@ -122,14 +135,17 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
 
     ## Populate UI inputs ----
 
-    # Define a reactive for landowners that depends on db_updated, if provided
-    landowner_ids <- reactive({
+    # Define a reactive for property contact that depends on db_updated, if provided
+    property_contact_ids <- reactive({
       # Only try to use db_updated if it is not NULL.
       if (!is.null(db_updated)) {
         db_updated() # Creates the reactive dependency; ignore the return value.
       }
-      # Query database for landowners
-      dbGetQuery(db_con, "SELECT id, name_last, name_first FROM landowner_details;") |>
+      # Query database for property contacts
+      dbGetQuery(
+        db_con,
+        "SELECT id, name_last, name_first FROM property_contact_details;"
+      ) |>
         mutate(name = str_glue("{name_first} {name_last} (ID:{id})")) |>
         arrange(name_last) %>%
         {
@@ -168,15 +184,15 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
 
       req(input$communication_type)
 
-      if (input$communication_type == "Landowner Communication") {
+      if (input$communication_type == "Property Contact Communication") {
         selectizeInput(
-          ns("landowner_contact_id"),
-          "Select Landowner ID",
+          ns("property_contact_id"),
+          "Select Property Contact ID",
           choices = NULL,
           multiple = FALSE,
           options = list(
             create = FALSE,
-            placeholder = "Select a landowner"
+            placeholder = "Select a property contact"
           )
         )
       } else if (input$communication_type == "Outreach") {
@@ -197,12 +213,12 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
     observe({
       req(input$communication_type)
 
-      if (input$communication_type == "Landowner Communication") {
-        # Only runs when landowner option is selected and the input exists
+      if (input$communication_type == "Property Contact Communication") {
+        # Only runs when property contact option is selected and the input exists
         updateSelectizeInput(
           session,
-          inputId = "landowner_contact_id",
-          choices = landowner_ids(),
+          inputId = "property_contact_id",
+          choices = property_contact_ids(),
           selected = character(0),
           server = TRUE
         )
@@ -221,12 +237,20 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
     # Initialize the select inputs with data from the DB
     observe({
       # Update the purpose and method inputs
-      updateSelectizeInput(session, "communication_purpose_id",
-        choices = purpose_choices(), server = TRUE, selected = character(0)
+      updateSelectizeInput(
+        session,
+        "communication_purpose_id",
+        choices = purpose_choices(),
+        server = TRUE,
+        selected = character(0)
       )
 
-      updateSelectizeInput(session, "communication_method_id",
-        choices = method_choices(), server = TRUE, selected = character(0)
+      updateSelectizeInput(
+        session,
+        "communication_method_id",
+        choices = method_choices(),
+        server = TRUE,
+        selected = character(0)
       )
     })
 
@@ -239,31 +263,42 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
       req(input$date_contacted)
       req(input$communication_description)
 
-      if (input$communication_type == "Landowner Communication") {
-        req(input$landowner_contact_id)
+      if (input$communication_type == "Property Contact Communication") {
+        req(input$property_contact_id)
 
         # Create the new communication record
         new_communication <- tibble(
-          landowner_contact_id = input$landowner_contact_id,
+          property_contact_id = input$property_contact_id,
           communication_purpose_id = input$communication_purpose_id,
           communication_method_id = input$communication_method_id,
           date_contacted = input$date_contacted,
           communication_description = input$communication_description,
-          date_follow_up = if (isTruthy(input$date_follow_up)) input$date_follow_up else as.Date(NA)
+          date_follow_up = if (isTruthy(input$date_follow_up)) {
+            input$date_follow_up
+          } else {
+            as.Date(NA)
+          }
         )
 
         print(glimpse(new_communication))
-        append_db_data("landowner_communication", new_communication, db_con, silent = FALSE)
+        append_db_data(
+          "property_contact_communication",
+          new_communication,
+          db_con,
+          silent = FALSE
+        )
       } else if (input$communication_type == "Outreach") {
         req(input$pid_input)
 
         parcel_id <- dbGetQuery(
           db_con,
-          glue_sql("SELECT id AS parcel_id FROM parcels
+          glue_sql(
+            "SELECT id AS parcel_id FROM parcels
                    WHERE pid IN ({input$pid_input*});",
             .con = db_con
           )
-        ) |> pull(parcel_id)
+        ) |>
+          pull(parcel_id)
 
         # Create the new outreach record(s)
         new_outreach <- tibble(
@@ -273,7 +308,11 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
           communication_method_id = input$communication_method_id,
           date_contacted = input$date_contacted,
           outreach_description = input$communication_description,
-          date_follow_up = if (isTruthy(input$date_follow_up)) input$date_follow_up else as.Date(NA)
+          date_follow_up = if (isTruthy(input$date_follow_up)) {
+            input$date_follow_up
+          } else {
+            as.Date(NA)
+          }
         )
 
         print(glimpse(new_outreach))
@@ -288,14 +327,21 @@ module_landowner_communication_server <- function(id, db_con, db_updated = NULL)
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
-      
       updateSelectInput(session, "communication_type", selected = "")
 
-      updateSelectizeInput(session, "communication_purpose_id",
-        choices = purpose_choices(), server = TRUE, selected = character(0)
+      updateSelectizeInput(
+        session,
+        "communication_purpose_id",
+        choices = purpose_choices(),
+        server = TRUE,
+        selected = character(0)
       )
-      updateSelectizeInput(session, "communication_method_id",
-        choices = method_choices(), server = TRUE, selected = character(0)
+      updateSelectizeInput(
+        session,
+        "communication_method_id",
+        choices = method_choices(),
+        server = TRUE,
+        selected = character(0)
       )
       updateDateInput(session, "date_contacted", value = Sys.Date())
       updateDateInput(session, "date_follow_up", value = as.Date(NA))

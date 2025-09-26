@@ -8,8 +8,8 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Select a view from the list" = "",
       "PIDs (all)" = "pid_view_04",
       "PIDs (filtered)" = "pid_view_01",
-      "Landowner Details (all)" = "landowner_details_view_all",
-      "Landowner Details (filtered)" = "landowner_details_view_filtered",
+      "Property Contact Details (all)" = "property_contact_details_view_all",
+      "Property Contact Details (filtered)" = "property_contact_details_view_filtered",
       "Communication History" = "communication_data_view_all",
       "Communication History (filtered)" = "communication_data_view_filtered",
       "Outreach" = "outreach_view",
@@ -87,16 +87,16 @@ module_data_viewer_server <- function(
       ## Access the selected view
       selected_view <- view_scenario()
 
-      ## Landowner details view ----
-      if (selected_view == "landowner_details_view_all") {
-        data <- prep_view_landowners(df_view_meta, db_con)
-      } else if (selected_view == "landowner_details_view_filtered") {
-        data <- prep_view_landowners(df_view_meta, db_con)
+      ## Property contact details view ----
+      if (selected_view == "property_contact_details_view_all") {
+        data <- prep_view_property_contacts(df_view_meta, db_con)
+      } else if (selected_view == "property_contact_details_view_filtered") {
+        data <- prep_view_property_contacts(df_view_meta, db_con)
 
         if (!is.null(focal_pid_rv())) {
           data <- data |>
             filter(str_detect(
-              `Landowner PIDs`,
+              `Property Contact PIDs`,
               str_c(focal_pid_rv(), collapse = "|")
             ))
         } else {
