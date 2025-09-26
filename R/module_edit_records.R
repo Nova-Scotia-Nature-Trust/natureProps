@@ -45,7 +45,19 @@ module_edit_records_ui <- function(id) {
             ## Card :: Edit ----
             card(
               height = "100%",
-              card_header(h5("Edit records")),
+              card_header(div(
+                style = "display: flex; align-items: center; gap: 8px;",
+                h5("Edit Records"),
+                popover(
+                  div(
+                    icon("question-circle"),
+                    style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
+                  ),
+                  includeMarkdown("help/edit_records_help.md"),
+                  title = "Help on editing fields",
+                  placement = "right"
+                )
+              )),
               card_body(
                 div(
                   style = "display: flex; flex-direction: column; gap: 15px;",
@@ -97,13 +109,15 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         "phase_id",
         "anticipated_closing_year",
         "phase_id_description",
-        "team_lead_id"
+        "phase_id_followup",
+        "team_lead_id",
+        "closing_probability_id"
       )
     )
 
     ## Set custom field data types ----
     ## Unassigned fields will be treated as text inputs
-    date_fields <- c("date_added", "date_updated")
+    date_fields <- c("date_added", "date_updated", "phase_id_followup")
     text_area_fields <- c("property_description", "phase_id_description")
     numeric_fields <- c(
       "size_acres_confirmed",
@@ -116,8 +130,8 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       "priority_securement_ranking_id",
       "priority_ecological_ranking_id",
       "focus_area_internal_id",
-      "team_lead_id"
-      # "closing_probability_id" # Need to updated database schema
+      "team_lead_id",
+      "closing_probability_id"
     )
 
     lookup_fields_details <- list(
@@ -144,6 +158,10 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       team_lead_id = list(
         table_name = "team_lead",
         value_name = "team_value"
+      ),
+      closing_probability_id = list(
+        table_name = "closing_probability",
+        value_name = "probability_value"
       )
     )
 

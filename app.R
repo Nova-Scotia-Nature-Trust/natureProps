@@ -23,6 +23,24 @@ prd_con <- create_db_con("nsprd")
 
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
+
+  # Add the CSS here for all modules
+  tags$head(
+    tags$style(HTML(
+      "
+      .popover {
+        max-width: 600px !important;
+        width: auto !important;
+      }
+      .popover-body {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        line-height: 1.4;
+      }
+    "
+    ))
+  ),
+
   id = "main_navbar",
   selected = "Securement",
   collapsible = TRUE,
@@ -123,7 +141,7 @@ ui <- page_navbar(
     navset_card_tab(
       height = "100%",
       nav_panel(
-        title = "Parcels",
+        title = "Properties/Parcels",
         module_edit_records_ui("edit_records")
       ),
       nav_panel(
