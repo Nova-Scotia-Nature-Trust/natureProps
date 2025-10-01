@@ -60,9 +60,25 @@ module_action_item_tracking_ui <- function(id) {
                     "Select action value",
                     choices = NULL
                   ),
+                  div(
+                    style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+                    tags$label(
+                      "Securement action description",
+                      `for` = ns("securement_notes")
+                    ),
+                    popover(
+                      div(
+                        icon("question-circle"),
+                        style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+                      ),
+                      includeMarkdown("help/securement_desc.md"),
+                      title = "Securement Description Help",
+                      placement = "top"
+                    )
+                  ),
                   textAreaInput(
                     ns("securement_notes"),
-                    "Securement action description",
+                    label = NULL,
                     "",
                     height = "150px",
                     width = "100%"
@@ -134,7 +150,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
 
       dbGetQuery(
         db_con,
-        "SELECT securement_action_notes, property_id FROM parcels;"
+        "SELECT securement_action_description, property_id FROM parcels;"
       ) |>
         as_tibble() |>
         left_join(
@@ -146,7 +162,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
           join_by(property_id == id)
         ) |>
         filter(property_name == input$property) |>
-        pull(securement_action_notes) |>
+        pull(securement_action_description) |>
         unique() |>
         paste(collapse = " ")
     })
@@ -234,7 +250,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
           times = length(input$pids)
         ),
         action_value = input$action_item_value,
-        securement_action_notes = if (isTruthy(input$securement_notes)) {
+        securement_action_description = if (isTruthy(input$securement_notes)) {
           input$securement_notes
         } else {
           as.character(0)
