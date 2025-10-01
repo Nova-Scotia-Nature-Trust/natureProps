@@ -19,10 +19,10 @@ create_db_con <- function(database) {
   db_con <- dbConnect(
     RPostgres::Postgres(),
     dbname = database,
-    host = "192.168.1.51",
+    host = Sys.getenv("POSTGRES_HOST"),
     port = 5432,
-    user = "postgres",
-    password = "s80d80d300"
+    user = Sys.getenv("POSTGRES_USER"),
+    password = Sys.getenv("POSTGRES_PASSWORD")
   )
   return(db_con)
 }
