@@ -126,6 +126,7 @@ module_property_contact_communication_server <- function(
 
     ## Conditionally add validation rules based on communication type
     observe({
+      req(input$communication_type)
       if (input$communication_type == "Property Contact Communication") {
         iv$add_rule("property_contact_id", sv_required())
       } else {
