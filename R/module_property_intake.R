@@ -65,6 +65,18 @@ module_property_intake_ui <- function(id) {
                         create = TRUE,
                         placeholder = "Select or add new focal area"
                       )
+                    ),
+                    selectInput(
+                      inputId = ns("source"),
+                      label = "Source",
+                      choices = NULL,
+                      selected = character(0)
+                    ),
+                    selectInput(
+                      inputId = ns("team_lead"),
+                      label = "Team Lead",
+                      choices = NULL,
+                      selected = character(0)
                     )
                   ),
                   layout_columns(
@@ -84,9 +96,25 @@ module_property_intake_ui <- function(id) {
                   ),
                   div(
                     style = "width: 100%;", # Ensure it spans the full width
+                    div(
+                      style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+                      tags$label(
+                        "Property & Opportunity Overview",
+                        `for` = ns("property_description")
+                      ),
+                      popover(
+                        div(
+                          icon("question-circle"),
+                          style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+                        ),
+                        includeMarkdown("help/prop_opp_overview.md"),
+                        title = "Property Description Help",
+                        placement = "top"
+                      )
+                    ),
                     textAreaInput(
                       ns("property_description"),
-                      "Property Description",
+                      label = NULL,
                       "",
                       height = "100px",
                       width = "100%"
@@ -171,9 +199,25 @@ module_property_intake_ui <- function(id) {
                   ),
                   div(
                     style = "width: 100%;",
+                    div(
+                      style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+                      tags$label(
+                        "Property Contact Description",
+                        `for` = ns("property_contact_description")
+                      ),
+                      popover(
+                        div(
+                          icon("question-circle"),
+                          style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+                        ),
+                        includeMarkdown("help/prop_contact_desc.md"),
+                        title = "Property Contact Help",
+                        placement = "top"
+                      )
+                    ),
                     textAreaInput(
                       ns("property_contact_description"),
-                      "Property Contact Description",
+                      label = NULL,
                       "",
                       height = "100px",
                       width = "100%"
@@ -202,9 +246,18 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
     iv$add_rule("date_added", sv_required())
     iv$add_rule("property_name", sv_required())
     iv$add_rule("phase_id", sv_required())
+    iv$add_rule("source", sv_required())
+    iv$add_rule("team_lead", sv_required())
     # iv$add_rule("acquisition_type", sv_required())
     iv$add_rule("focus_area_internal", sv_required())
-    iv$add_rule("email_input", ~ if (. != "") sv_email()(.))
+
+    #' isTruthy tests for NULL, FALSE, character(0), "", NA values.
+    #' It returns TRUE for everything else that has actual content
+    #' Don't want to run the validation rule unless there is valid email content
+    #' The isTruthy() function is particularly useful in Shiny because inputs
+    #' often start as NULL or empty values before users interact with them, and
+    #' you need robust ways to handle these edge cases without breaking your reactive logic.
+    iv$add_rule("email_input", ~ if (isTruthy(.)) sv_email()(.))
     iv$add_rule("name_first_input", sv_required())
     iv$add_rule("name_last_input", sv_required())
     iv$add_rule(
@@ -240,6 +293,20 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         sort()
     })
 
+    source_choices <- reactive({
+      dbReadTable(db_con, "source") |>
+        arrange(source_value) |>
+        select(source_value, id) |>
+        deframe()
+    })
+
+    team_choices <- reactive({
+      dbReadTable(db_con, "team_lead") |>
+        arrange(team_value) |>
+        select(team_value, id) |>
+        deframe()
+    })
+
     observe({
       updateSelectizeInput(
         session,
@@ -266,6 +333,18 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
         choices = pid_choices(),
         server = TRUE
       )
+      updateSelectizeInput(
+        session,
+        inputId = "source",
+        choices = source_choices(),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        inputId = "team_lead",
+        choices = team_choices(),
+        server = TRUE
+      )
     })
 
     ## Event :: Submit property ----
@@ -275,7 +354,8 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       req(input$focus_area_internal)
       req(input$property_name)
       req(input$phase_id)
-
+      req(input$source)
+      req(input$team_lead)
       print(input$pid)
       print(input$date_added)
       print(input$property_name)
@@ -325,7 +405,9 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
           property_name = input$property_name,
           focus_area_internal_id,
           property_description = input$property_description,
-          phase_id = input$phase_id
+          phase_id = input$phase_id,
+          source_id = input$source,
+          team_lead_id = input$team_lead
         )
         append_db_data("properties", new_property, db_con, silent = TRUE)
         message("NEW PROPERTY ADDED TO DATABASE")
@@ -429,6 +511,8 @@ module_property_intake_server <- function(id, db_con, prd_con, db_updated) {
       updateSelectizeInput(session, "pid", selected = character(0))
       updateDateInput(session, "date_added", value = Sys.Date())
       updateTextInput(session, "property_name", value = "")
+      updateSelectInput(session, "source", selected = character(0))
+      updateSelectInput(session, "team_lead", selected = character(0))
       updateSelectInput(session, "phase_id", selected = character(0))
       updateTextInput(session, "focus_area_internal", value = "")
       updateSelectInput(
