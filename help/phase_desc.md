@@ -1,0 +1,1 @@
+A reason/explanation for why a property is assigned a particular phase (e.g., why did we reject it, why is it parked, etc). Provide a history of how we got there.

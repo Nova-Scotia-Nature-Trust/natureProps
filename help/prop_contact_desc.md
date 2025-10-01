@@ -1,0 +1,1 @@
+A property contact. Some background of owner. Where things currently stand with a landowner. Who are all of the interested parties
