@@ -1,26 +1,3 @@
-library(shiny)
-library(bslib)
-library(DT)
-library(DBI)
-library(shinyWidgets)
-library(tidyverse)
-library(readxl)
-library(glue)
-library(bsicons)
-library(shinyvalidate)
-library(shinyjs)
-library(shinyalert)
-library(dbx)
-library(janitor)
-conflicted::conflict_scout()
-walk(list.files("R/functions", full.names = TRUE), source)
-# walk(list.files("R", full.names = TRUE, pattern = "\\.R$"), source)
-# options(browser = "C:/Program Files/Google/Chrome/Application/chrome.exe")
-
-# Create database connection
-db_con <- create_db_con("dummydb")
-prd_con <- create_db_con("nsprd")
-
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
 
@@ -42,7 +19,7 @@ ui <- page_navbar(
   ),
 
   id = "main_navbar",
-  selected = "Securement",
+  selected = "Review",
   collapsible = TRUE,
   theme = bs_theme(bootswatch = "united"),
   fillable = TRUE,
@@ -76,12 +53,20 @@ ui <- page_navbar(
     icon = bs_icon("person-lines-fill"),
     navset_card_tab(
       height = "100%",
+      # nav_panel(
+      #   title = "Initialise PID",
+      #   module_property_intake_ui("property_form")
+      # ),
       nav_panel(
-        title = "Initialise PID",
-        module_property_intake_ui("property_form")
+        title = "Add Property Record",
+        module_property_details_ui("property_details_form")
       ),
       nav_panel(
-        title = "Outreach & Communication",
+        title = "Add Property Contact",
+        module_property_contact_ui("property_contact_form")
+      ),
+      nav_panel(
+        title = "Add Outreach & Communication",
         module_property_contact_communication_ui(
           "property_contact_communication"
         )
@@ -107,7 +92,10 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Data Viewer",
-        module_data_viewer_ui("securement_records_view", panel_id = "panel_02")
+        module_data_viewer_ui(
+          "securement_records_view",
+          panel_id = "panel_02"
+        )
       ),
       nav_panel(
         title = "Queries",
@@ -120,6 +108,11 @@ ui <- page_navbar(
     icon = bs_icon("clipboard-data"),
     navset_card_tab(
       height = "100%",
+      nav_panel(
+        title = "Project Overview",
+        module_review_projects_ui("project_review")
+      ),
+
       nav_panel(
         title = "Assign Priorities",
         p(
@@ -164,51 +157,8 @@ ui <- page_navbar(
   )
 )
 
-# Server logic ----
-server <- function(input, output, session) {
-  # Toggle sidebar when gear icon is clicked
-  observeEvent(input$toggle_sidebar, {
-    # Use toggle_sidebar with the correct sidebar ID
-    bslib::toggle_sidebar(id = "main_sidebar")
-  })
-
-  observeEvent(input$dark_toggle, {
-    toggle_dark_mode(if (input$dark_toggle) "dark" else "light")
-  })
-
-  db_updated <- reactiveVal(0)
-  focal_pid_rv <- reactiveVal(NULL)
-
-  module_property_stats_server("home_page", db_con, db_updated)
-  module_property_intake_server("property_form", db_con, prd_con, db_updated)
-  module_data_viewer_server(
-    "records_view",
-    db_con,
-    db_updated,
-    prop_filter = NULL,
-    focal_pid_rv
-  )
-  module_action_item_tracking_server("action_items", db_con, db_updated)
-  module_data_viewer_server("securement_records_view", db_con, db_updated)
-  module_property_contact_communication_server(
-    "property_contact_communication",
-    db_con,
-    db_updated
-  )
-  module_outreach_queries_server(
-    "outreach_query",
-    db_con,
-    db_updated,
-    focal_pid_rv
-  )
-  module_edit_records_server("edit_records", db_con, db_updated)
-  module_securement_queries_server(
-    "securement_query",
-    db_con,
-    db_updated,
-    focal_pid_rv
-  )
+if (USE_AUTH) {
+  ui <- secure_app(ui)
+} else {
+  ui <- ui
 }
-
-# Run the application
-shinyApp(ui = ui, server = server)
