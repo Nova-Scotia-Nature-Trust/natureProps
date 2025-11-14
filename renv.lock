@@ -69,6 +69,45 @@
       ],
       "Hash": "5122bb14d8736372411f955e1b16bc8a"
     },
+    "R.methodsS3": {
+      "Package": "R.methodsS3",
+      "Version": "1.8.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "utils"
+      ],
+      "Hash": "278c286fd6e9e75d0c2e8f731ea445c8"
+    },
+    "R.oo": {
+      "Package": "R.oo",
+      "Version": "1.27.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "R.methodsS3",
+        "methods",
+        "utils"
+      ],
+      "Hash": "6ac79ff194202248cf946fe3a5d6d498"
+    },
+    "R.utils": {
+      "Package": "R.utils",
+      "Version": "2.13.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "R.methodsS3",
+        "R.oo",
+        "methods",
+        "tools",
+        "utils"
+      ],
+      "Hash": "d32373d88da809f8974d5307481862b0"
+    },
     "R6": {
       "Package": "R6",
       "Version": "2.5.1",
@@ -107,6 +146,25 @@
         "withr"
       ],
       "Hash": "beb7e18bf3f9e096f716a52a77ec793c"
+    },
+    "RSQLite": {
+      "Package": "RSQLite",
+      "Version": "2.4.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "DBI",
+        "R",
+        "bit64",
+        "blob",
+        "cpp11",
+        "memoise",
+        "methods",
+        "pkgconfig",
+        "plogr",
+        "rlang"
+      ],
+      "Hash": "37186150849b2172a0f4357773701fed"
     },
     "Rcpp": {
       "Package": "Rcpp",
@@ -148,6 +206,24 @@
         "R"
       ],
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
+    },
+    "billboarder": {
+      "Package": "billboarder",
+      "Version": "0.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "ggplot2",
+        "htmltools",
+        "htmlwidgets",
+        "jsonlite",
+        "magrittr",
+        "rlang",
+        "scales",
+        "shiny"
+      ],
+      "Hash": "8cfc73709bd06a57f4039fe15083b238"
     },
     "bit": {
       "Package": "bit",
@@ -939,6 +1015,19 @@
       ],
       "Hash": "b8552d117e1b808b09a832f589b79035"
     },
+    "litedown": {
+      "Package": "litedown",
+      "Version": "0.7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "commonmark",
+        "utils",
+        "xfun"
+      ],
+      "Hash": "6145ea7089736f7b6585243bd3992508"
+    },
     "lubridate": {
       "Package": "lubridate",
       "Version": "1.9.4",
@@ -961,6 +1050,19 @@
         "R"
       ],
       "Hash": "7ce2733a9826b3aeb1775d56fd305472"
+    },
+    "markdown": {
+      "Package": "markdown",
+      "Version": "2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "litedown",
+        "utils",
+        "xfun"
+      ],
+      "Hash": "b4349847250b103bbbb8bc6819c4fbca"
     },
     "memoise": {
       "Package": "memoise",
@@ -1367,6 +1469,17 @@
       ],
       "Hash": "c19df082ba346b0ffa6f833e92de34d1"
     },
+    "scrypt": {
+      "Package": "scrypt",
+      "Version": "0.1.6",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp"
+      ],
+      "Hash": "5669c376aea6546ff938528588101b7a"
+    },
     "selectr": {
       "Package": "selectr",
       "Version": "0.4-2",
@@ -1455,6 +1568,32 @@
         "shiny"
       ],
       "Hash": "802e4786b353a4bb27116957558548d5"
+    },
+    "shinymanager": {
+      "Package": "shinymanager",
+      "Version": "1.0.6",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "datastorm-open",
+      "RemoteRepo": "shinymanager",
+      "RemoteRef": "master",
+      "RemoteSha": "be21b51c370698647696c40a0391817cdeef4d5d",
+      "Requirements": [
+        "DBI",
+        "DT",
+        "R.utils",
+        "R6",
+        "RSQLite",
+        "billboarder",
+        "glue",
+        "htmltools",
+        "openssl",
+        "scrypt",
+        "shiny",
+        "yaml"
+      ],
+      "Hash": "4c8de675750a1495f19691f748f4cd56"
     },
     "shinyvalidate": {
       "Package": "shinyvalidate",
