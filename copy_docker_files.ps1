@@ -11,10 +11,25 @@ if (!(Test-Path -Path $destination_path_01)) {
 }
 
 # Copy necessary files
-Copy-Item -Path "$source_path\app.R" -Destination $destination_path_01 -Recurse -Force
+# Copy-Item -Path "$source_path\app.R" -Destination $destination_path_01 -Recurse -Force
+
+Copy-Item -Path "$source_path\global.R" -Destination $destination_path_01 -Recurse -Force
+Copy-Item -Path "$source_path\ui.R" -Destination $destination_path_01 -Recurse -Force
+Copy-Item -Path "$source_path\server.R" -Destination $destination_path_01 -Recurse -Force
+
+Copy-Item -Path "$source_path\.Renviron" -Destination $destination_path_01 -Recurse -Force
+Copy-Item -Path "$source_path\postgres_auth_config.yml" -Destination $destination_path_01 -Recurse -Force
+
+
 Copy-Item -Path "$source_path\.dockerignore" -Destination $destination_path_02 -Force
 Copy-Item -Path "$source_path\renv.lock" -Destination $destination_path_01 -Force
+
+Copy-Item -Path "$source_path\help" -Destination $destination_path_01 -Recurse -Force
 Copy-Item -Path "$source_path\inputs" -Destination $destination_path_01 -Recurse -Force
 Copy-Item -Path "$source_path\R" -Destination $destination_path_01 -Recurse -Force
+
+$source_spreadsheet = "C:\Users\dominic\OneDrive - Nova Scotia Nature Trust\Documents\Property database\inputs\reference files"
+$dest_spreadhseet = "C:\Users\dominic\deploy_docker_apps\natureprops\inputs"
+Copy-Item -Path "$source_spreadsheet\23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx" -Destination $dest_spreadhseet -Force
 
 Write-Host "Files have been successfully copied to $destination_path"
