@@ -111,7 +111,7 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         "phase_id_description",
         "phase_id_followup",
         "team_lead_id",
-        "closing_probability_id"
+        "securement_probability_id"
       )
     )
 
@@ -131,7 +131,7 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       "priority_ecological_ranking_id",
       "focus_area_internal_id",
       "team_lead_id",
-      "closing_probability_id"
+      "securement_probability_id"
     )
 
     lookup_fields_details <- list(
@@ -159,8 +159,8 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         table_name = "team_lead",
         value_name = "team_value"
       ),
-      closing_probability_id = list(
-        table_name = "closing_probability",
+      securement_probability_id = list(
+        table_name = "securement_probability",
         value_name = "probability_value"
       )
     )
