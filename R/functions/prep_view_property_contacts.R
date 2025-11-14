@@ -33,7 +33,7 @@ prep_view_property_contacts <- function(df_view_meta, db_con) {
     select(-property_id) |>
     rename(id = property_contact_id) |>
     group_by(id) |>
-    summarise(property_name = paste(property_name, collapse = ", "))
+    summarise(property_name = paste(unique(property_name), collapse = ", "))
 
   ## Transform to pretty column names
   pretty_col_names <- df_view_meta |>
