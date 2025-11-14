@@ -19,7 +19,7 @@ prep_view_query_focal_props <- function(
       "SELECT id, property_name_public, 
       price_purchase, date_closed_fiscal, focus_area_internal_id 
       FROM properties 
-      WHERE focus_area_internal_id IN ({focal_areas$id*}) AND ownership_id != 9;",
+      WHERE focus_area_internal_id IN ({focal_areas$id*}) AND ownership_id NOT IN (11, 12, 13);",
       .con = db_con
     )
   )

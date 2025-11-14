@@ -35,7 +35,7 @@ prep_view_query_insurance <- function(
     LEFT JOIN parcel_padd pp ON pa.id = pp.parcel_id
     LEFT JOIN ownership o ON p.ownership_id = o.id
     LEFT JOIN acquisition_type at ON p.acquisition_securement_type_id = at.id
-    WHERE p.ownership_id != 9
+    WHERE p.ownership_id NOT IN (11, 12, 13)
     GROUP BY p.id, p.property_name, p.property_name_public, 
             at.acquisition_value, o.ownership_value, 
             p.date_closed, p.owner_name",
