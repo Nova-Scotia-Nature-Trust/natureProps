@@ -1,6 +1,6 @@
 # Notes on deploying app with Docker
 
-Render file in the terminal: quarto render "Docker notes.md"
+Render html file in the terminal: quarto render "Docker notes.md"
 
 Make sure the repository exisits on Docker Hub 
 Run `docker login` to double check you can push/pull to DockerHub
