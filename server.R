@@ -43,7 +43,6 @@ server <- function(input, output, session) {
   focal_pid_rv <- reactiveVal(NULL)
 
   module_property_stats_server("home_page", db_con, db_updated)
-  module_property_intake_server("property_form", db_con, prd_con, db_updated)
   module_property_details_server(
     "property_details_form",
     db_con,
