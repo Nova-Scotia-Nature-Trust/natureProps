@@ -65,10 +65,16 @@ module_data_viewer_server <- function(
     ## WARNING THIS WILL NOT WORK IN DOCKER CONTAINER ##
     ## NEED TO COPY THIS FILE TO FILE INPUTS ###
     ## Load 'property database' spreadsheet data
-    parcels_path <- "C:/Users/dominic/OneDrive - Nova Scotia Nature Trust/Documents/Property database/inputs/reference files/23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx"
+
+    if (DOCKER_CON) {
+      parcels_path <- "inputs/23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx"
+    } else {
+      parcels_path <- "C:/Users/dominic/OneDrive - Nova Scotia Nature Trust/Documents/Property database/inputs/reference files/23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx"
+    }
 
     parcels_raw <- read_xlsx(
-      parcels_path
+      parcels_path,
+      sheet = "Properties"
     )
 
     ## Reactive to capture the selected view
@@ -197,7 +203,7 @@ module_data_viewer_server <- function(
             "print"
           ),
           order = table_order(),
-          stateSave = TRUE
+          stateSave = FALSE
         ),
         filter = list(position = "top", clear = FALSE),
         rownames = FALSE,
