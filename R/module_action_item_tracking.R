@@ -116,6 +116,9 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
 
     ## Property and PID reactives ----
     props_reactive <- reactive({
+      # Add dependency on db_updated to trigger re-query
+      db_updated()
+
       ## Get property list
       dbGetQuery(db_con, "SELECT property_name FROM properties;") |>
         pull() |>
@@ -125,7 +128,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     ## Reactive for PIDS based on input$property
     pids_reactive <- reactive({
       req(input$property)
-
+      db_updated()
       prop_ref <- dbGetQuery(db_con, "SELECT pid, property_id FROM parcels;") |>
         as_tibble() |>
         left_join(
@@ -147,7 +150,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     ## Reactive for securement notes based on input$property
     notes_reactive <- reactive({
       req(input$property)
-
+      db_updated()
       dbGetQuery(
         db_con,
         "SELECT securement_action_description, property_id FROM parcels;"
