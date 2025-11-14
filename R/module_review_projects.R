@@ -18,8 +18,16 @@ module_review_projects_ui <- function(id) {
             multiple = FALSE,
             width = "80%"
           ),
-          actionButton(ns("load_record"), "Load Record"),
-          actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
+          actionButton(
+            inputId = ns("load_record"),
+            label = "Load Record",
+            class = "btn-primary"
+          ),
+          actionButton(
+            inputId = ns("clear_inputs"),
+            label = "Clear Inputs",
+            class = "btn-secondary"
+          ),
         ),
         div(
           style = "height: 100%; display: flex; flex-direction: column;",

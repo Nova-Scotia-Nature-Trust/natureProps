@@ -5,110 +5,82 @@ module_property_contact_communication_ui <- function(id) {
     style = "height: 100%; display: flex; flex-direction: column;",
     card(
       full_screen = TRUE,
-      height = "100%", # Make card fill available space
-      layout_sidebar(
-        sidebar = sidebar(
-          "",
-          open = TRUE,
-          actionButton(
-            inputId = ns("submit_communication"),
-            label = "Submit Communication"
-          ),
-          actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
-        ),
-        # Main layout
+      height = "100%",
+      card_header(h5("Outreach & Property Contact Communication")),
+      card_body(
         div(
-          style = "height: 100%; display: flex; flex-direction: column;",
+          style = "display: flex; flex-direction: column; gap: 15px;",
           layout_columns(
-            height = "100%",
-            col_widths = c(8, 4),
-            ## Card :: Property Contact communication ----
-            card(
-              height = "100%",
-              card_header(h5("Outreach & Property Contact Communication")),
-              card_body(
-                div(
-                  style = "display: flex; flex-direction: column; gap: 15px;",
-                  layout_columns(
-                    col_widths = c(6, 6),
-                    selectInput(
-                      ns("communication_type"),
-                      "Select Type",
-                      choices = c(
-                        "",
-                        "Property Contact Communication",
-                        "Outreach"
-                      ),
-                      selected = ""
-                    ),
-                    uiOutput(ns("conditional_contact_ui"))
-                  ),
-                  layout_columns(
-                    col_widths = c(6, 6),
-                    selectizeInput(
-                      ns("communication_purpose_id"),
-                      "Communication Purpose",
-                      choices = NULL
-                    ),
-                    selectizeInput(
-                      ns("communication_method_id"),
-                      "Communication Method",
-                      choices = NULL
-                    )
-                  ),
-                  layout_columns(
-                    col_widths = c(6, 6),
-                    dateInput(
-                      inputId = ns("date_contacted"),
-                      label = "Date Contacted",
-                      value = today()
-                    ),
-                    dateInput(
-                      inputId = ns("date_follow_up"),
-                      label = "Date Follow Up",
-                      value = as.Date(NA)
-                    )
-                  ),
-                  div(
-                    style = "width: 100%;",
-                    textAreaInput(
-                      ns("communication_description"),
-                      "Description",
-                      "",
-                      height = "200px",
-                      width = "100%"
-                    )
-                  ),
-                  layout_columns(),
-                  layout_columns(),
-                  layout_columns(),
-                  # Add a spacer div to prevent pushing everything to bottom
-                  div(style = "flex-grow: 1;")
-                )
-              )
+            col_widths = c(6, 6),
+            selectInput(
+              ns("communication_type"),
+              "Select Type",
+              choices = c(
+                "",
+                "Property Contact Communication",
+                "Outreach"
+              ),
+              selected = ""
             ),
-            ## Card :: [other things] ----
-            card(
-              height = "100%",
-              card_header(h5("Other things")),
-              card_body(
-                div(
-                  style = "display: flex; flex-direction: column; gap: 15px;",
-                  layout_columns(),
-                  layout_columns(),
-                  layout_columns(),
-                  # Add a spacer div to prevent pushing everything to bottom
-                  div(style = "flex-grow: 1;")
-                )
-              )
+            uiOutput(ns("conditional_contact_ui"))
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            selectizeInput(
+              ns("communication_purpose_id"),
+              "Communication Purpose",
+              choices = NULL
+            ),
+            selectizeInput(
+              ns("communication_method_id"),
+              "Communication Method",
+              choices = NULL
             )
-          )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            dateInput(
+              inputId = ns("date_contacted"),
+              label = "Date Contacted",
+              value = today()
+            ),
+            dateInput(
+              inputId = ns("date_follow_up"),
+              label = "Date Follow Up",
+              value = as.Date(NA)
+            )
+          ),
+          div(
+            style = "width: 100%;",
+            textAreaInput(
+              ns("communication_description"),
+              "Description",
+              "",
+              height = "200px",
+              width = "100%"
+            )
+          ),
+          # Buttons section
+          div(
+            style = "margin-top: 20px;",
+            actionButton(
+              inputId = ns("submit_communication"),
+              label = "Submit Communication",
+              class = "btn-primary"
+            ),
+            actionButton(
+              inputId = ns("clear_inputs"),
+              label = "Clear Inputs",
+              class = "btn-secondary"
+            )
+          ),
+          # Add a spacer div to prevent pushing everything to bottom
+          div(style = "flex-grow: 1;")
         )
       )
     )
   )
 }
-
 # Server ----
 module_property_contact_communication_server <- function(
   id,

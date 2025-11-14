@@ -13,9 +13,14 @@ module_action_item_tracking_ui <- function(id) {
           open = TRUE,
           actionButton(
             inputId = ns("submit_actions"),
-            label = "Submit Actions"
+            label = "Submit Actions",
+            class = "btn-primary"
           ),
-          actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
+          actionButton(
+            inputId = ns("clear_inputs"),
+            label = "Clear Inputs",
+            class = "btn-secondary"
+          ),
           # actionButton(
           #   inputId = ns("refresh_db"),
           #   label = "Refresh Data Viewer"

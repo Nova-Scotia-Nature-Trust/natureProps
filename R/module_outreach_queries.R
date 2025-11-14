@@ -11,8 +11,16 @@ module_outreach_queries_ui <- function(id) {
         sidebar = sidebar(
           "",
           open = TRUE,
-          actionButton(inputId = ns("run_query"), label = "Run query"),
-          actionButton(inputId = ns("clear_inputs"), label = "Clear Inputs"),
+          actionButton(
+            inputId = ns("run_query"),
+            label = "Run query",
+            class = "btn-primary"
+          ),
+          actionButton(
+            inputId = ns("clear_inputs"),
+            label = "Clear Inputs",
+            class = "btn-secondary"
+          ),
         ),
         # Main layout
         div(
@@ -99,8 +107,7 @@ module_outreach_queries_server <- function(
             placeholder = "Select a focal area"
           )
         )
-      } else if (input$communication_type == "XXX") {
-      }
+      } else if (input$communication_type == "XXX") {}
     })
 
     ## Focal area reactive ----

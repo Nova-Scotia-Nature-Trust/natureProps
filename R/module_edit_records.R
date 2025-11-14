@@ -32,10 +32,22 @@ module_edit_records_ui <- function(id) {
               placeholder = "Search or select ID"
             )
           ),
-          actionButton(ns("load_record"), "Load Record"),
+          actionButton(
+            inputId = ns("load_record"),
+            label = "Load Record",
+            class = "btn-success"
+          ),
           hr(),
-          actionButton(ns("submit_edit"), "Submit Changes"),
-          actionButton(ns("clear_edit"), "Clear")
+          actionButton(
+            inputId = ns("submit_edit"),
+            label = "Submit Changes",
+            class = "btn-primary"
+          ),
+          actionButton(
+            inputId = ns("clear_edit"),
+            label = "Clear",
+            class = "btn-secondary"
+          )
         ),
         div(
           style = "height: 100%; display: flex; flex-direction: column;",
