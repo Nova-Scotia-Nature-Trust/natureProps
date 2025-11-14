@@ -5,7 +5,8 @@ server <- function(input, output, session) {
     res_auth <- secure_server(
       check_credentials = check_credentials(
         "postgres_auth_config.yml"
-      )
+      ),
+      timeout = 0,
     )
 
     # Get current user info
@@ -34,7 +35,6 @@ server <- function(input, output, session) {
   # })
 
   observeEvent(input$dark_toggle, {
-    req(input$dark_toggle) # Only proceed if input exists
     mode <- if (input$dark_toggle) "dark" else "light"
     toggle_dark_mode(mode)
   })
