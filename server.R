@@ -27,7 +27,7 @@ server <- function(input, output, session) {
   # Toggle sidebar when gear icon is clicked
   observeEvent(input$toggle_sidebar, {
     # Use toggle_sidebar with the correct sidebar ID
-    bslib::toggle_sidebar(id = "main_sidebar")
+    bslib::toggle_sidebar("main_sidebar")
   })
 
   # observeEvent(input$dark_toggle, {
@@ -52,6 +52,18 @@ server <- function(input, output, session) {
 
   module_property_contact_server(
     "property_contact_form",
+    db_con,
+    db_updated
+  )
+
+  module_assign_priorities_server(
+    "assign_priorities",
+    db_con,
+    db_updated
+  )
+
+  module_review_data_viewer_server(
+    "review_data",
     db_con,
     db_updated
   )

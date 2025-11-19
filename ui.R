@@ -112,16 +112,13 @@ ui <- page_navbar(
         title = "Project Overview",
         module_review_projects_ui("project_review")
       ),
-
       nav_panel(
         title = "Assign Priorities",
-        p(
-          "UI for assigning ecological and securement 
-          priority ranking to each property."
-        )
+        module_assign_priorities_ui("assign_priorities")
       ),
       nav_panel(
         title = "Data Viewer",
+        module_review_data_viewer_ui("review_data")
       ),
       nav_panel(
         title = "Queries"
