@@ -6,11 +6,18 @@ module_outreach_queries_ui <- function(id) {
     style = "height: 100%; display: flex; flex-direction: column;",
     card(
       full_screen = TRUE,
-      height = "100%", # Make card fill available space
+      height = "100%",
       layout_sidebar(
         sidebar = sidebar(
           "",
           open = TRUE,
+          selectizeInput(
+            ns("query_choice"),
+            "Select query",
+            choices = c("", "Focal area outreach priorities"),
+            multiple = FALSE
+          ),
+          uiOutput(ns("conditional_contact_ui")),
           actionButton(
             inputId = ns("run_query"),
             label = "Run query",
@@ -20,52 +27,20 @@ module_outreach_queries_ui <- function(id) {
             inputId = ns("clear_inputs"),
             label = "Clear Inputs",
             class = "btn-secondary"
-          ),
+          )
         ),
-        # Main layout
-        div(
-          style = "height: 100%; display: flex; flex-direction: column;",
-          layout_columns(
-            height = "100%",
-            col_widths = c(2, 10),
-            ## Card :: Select query from list ----
-            card(
-              height = "100%",
-              card_header(h5("Query List")),
-              card_body(
-                div(
-                  style = "display: flex; flex-direction: column; gap: 15px;",
-                  selectizeInput(
-                    ns("query_choice"),
-                    "Select query",
-                    choices = c("", "Focal area outreach priorities"),
-                    multiple = FALSE,
-                    width = "80%"
-                  ),
-                  uiOutput(ns("conditional_contact_ui")),
-                  layout_columns(),
-                  layout_columns(),
-                  layout_columns(),
-                  # Add a spacer div to prevent pushing everything to bottom
-                  div(style = "flex-grow: 1;")
-                )
-              )
-            ),
-            # Card :: Show query result ----
-            card(
-              height = "100%",
-              card_header(h5("Query Result")),
-              card_body(
-                div(
-                  style = "display: flex; flex-direction: column; gap: 15px;",
-                  DTOutput(outputId = ns("view_df"), height = "100%"),
-                  layout_columns(),
-                  layout_columns(),
-                  layout_columns(),
-                  # Add a spacer div to prevent pushing everything to bottom
-                  div(style = "flex-grow: 1;")
-                )
-              )
+        # Main layout - Query Result card only
+        card(
+          height = "100%",
+          card_header(h5("Query Result")),
+          card_body(
+            div(
+              style = "display: flex; flex-direction: column; gap: 15px;",
+              DTOutput(outputId = ns("view_df"), height = "100%"),
+              layout_columns(),
+              layout_columns(),
+              layout_columns(),
+              div(style = "flex-grow: 1;")
             )
           )
         )
@@ -107,7 +82,7 @@ module_outreach_queries_server <- function(
             placeholder = "Select a focal area"
           )
         )
-      } else if (input$communication_type == "XXX") {}
+      } else if (input$query_choice == "XXX") {}
     })
 
     ## Focal area reactive ----
@@ -202,9 +177,9 @@ module_outreach_queries_server <- function(
           dom = dom_layout,
           buttons = list(
             "copy",
-            "excel",
-            "pdf",
-            "print"
+            "excel"
+            # "pdf",
+            # "print"
           ),
           # order = table_order(),
           stateSave = FALSE
