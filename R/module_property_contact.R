@@ -3,7 +3,7 @@ module_property_contact_ui <- function(id) {
   ns <- NS(id)
 
   layout_columns(
-    col_widths = c(6, 6),
+    col_widths = c(8, 4),
     # Original card for creating new property contacts
     card(
       full_screen = TRUE,
@@ -192,11 +192,59 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     iv_create$add_rule("name_first_input", sv_required())
     iv_create$add_rule("name_last_input", sv_required())
     iv_create$add_rule("pid_input_property_contact", sv_required())
+    iv_create$add_rule("pid_input_property_contact", function(value) {
+      if (length(value) == 0) {
+        return(NULL)
+      }
+
+      # Query parcels table to check for existing property_contact_id
+      existing_contacts <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT pid, property_contact_id FROM parcels WHERE pid IN ({value*}) AND property_contact_id IS NOT NULL;",
+          .con = db_con
+        )
+      )
+
+      if (nrow(existing_contacts) > 0) {
+        pids_with_contacts <- paste(existing_contacts$pid, collapse = ", ")
+        return(glue(
+          "Property contact already exists for the following PID(s): {pids_with_contacts}"
+        ))
+      } else {
+        return(NULL)
+      }
+    })
+
     iv_create$enable()
 
     ## Input validation for updating existing contact ----
     iv_update <- InputValidator$new()
     iv_update$add_rule("pid_input_update", sv_required())
+    iv_update$add_rule("pid_input_update", function(value) {
+      if (length(value) == 0) {
+        return(NULL)
+      }
+
+      # Query parcels table to check for existing property_contact_id
+      existing_contacts <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT pid, property_contact_id FROM parcels WHERE pid IN ({value*}) AND property_contact_id IS NOT NULL;",
+          .con = db_con
+        )
+      )
+
+      if (nrow(existing_contacts) > 0) {
+        pids_with_contacts <- paste(existing_contacts$pid, collapse = ", ")
+        return(glue(
+          "The following PID(s) is already assigned to a property contact: {pids_with_contacts}"
+        ))
+      } else {
+        return(NULL)
+      }
+    })
+
     iv_update$add_rule("contact_select", sv_required())
     iv_update$enable()
 
@@ -258,6 +306,15 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       req(input$name_last_input)
       req(input$pid_input_property_contact)
 
+      if (!iv_create$is_valid()) {
+        shinyalert(
+          title = "Eish! Validation Error",
+          text = "Please fix the validation errors before submitting.",
+          type = "error"
+        )
+        return()
+      }
+
       new_property_contact <- tibble(
         name_last = input$name_last_input,
         name_first = input$name_first_input,
@@ -305,7 +362,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       if (!iv_update$is_valid()) {
         shinyalert(
           title = "Eish! Validation Error",
-          text = "Please fill in all required fields.",
+          text = "Please fix the validation errors before submitting.",
           type = "error"
         )
         return()
@@ -385,7 +442,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       )
     })
 
-    ## Return reactive to update PID choices when new properties are added
+    ## Return reactive to update PID choices when new properties are added ----
     return(
       list(
         update_pid_choices = function() {
