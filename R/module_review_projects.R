@@ -126,7 +126,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
       query_02 <- glue_sql(
         "   
-        SELECT par.pid, par.securement_action_description, con.property_contact_description
+        SELECT par.pid, par.securement_action_description, 
+        con.property_contact_description, con.name_last, con.name_first
         FROM parcels par
         LEFT JOIN properties prop ON par.property_id = prop.id
         LEFT JOIN property_contact_details con ON par.property_contact_id = con.id  
@@ -139,7 +140,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         summarise(
           pids = paste(pid, collapse = ", "),
           securement_description = unique(securement_action_description),
-          property_contact = unique(property_contact_description)
+          property_contact_description = unique(property_contact_description),
+          property_contact_name = unique(str_glue("{name_first} {name_last}"))
         )
 
       record <- bind_cols(record_01, record_02)
@@ -160,7 +162,12 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       tagList(
         # First row: 3 columns for first 3 fields
         layout_columns(
-          col_widths = c(4, 4, 4),
+          col_widths = c(3, 3, 3, 3),
+          div(
+            strong("Project Name:"),
+            br(),
+            input$property
+          ),
           div(
             strong("Project Phase:"),
             br(),
@@ -237,7 +244,10 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               )
             ),
             br(),
-            df$property_contact
+            df$property_contact_name,
+            br(),
+            br(),
+            df$property_contact_description
           ),
           div(
             div(
