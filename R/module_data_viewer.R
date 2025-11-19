@@ -198,9 +198,9 @@ module_data_viewer_server <- function(
           dom = dom_layout,
           buttons = list(
             "copy",
-            "excel",
-            "pdf",
-            "print"
+            "excel"
+            # "pdf",
+            # "print"
           ),
           order = table_order(),
           stateSave = FALSE
