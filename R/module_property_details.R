@@ -13,7 +13,7 @@ module_property_details_ui <- function(id) {
           col_widths = c(7, 5),
           selectizeInput(
             inputId = ns("pid"),
-            label = "Enter PID(s):",
+            label = "Enter PID(s)",
             choices = NULL,
             multiple = TRUE,
             options = list(
@@ -43,6 +43,19 @@ module_property_details_ui <- function(id) {
               create = TRUE,
               placeholder = "Select or add new focal area"
             )
+          ),
+          selectInput(
+            inputId = ns("theme"),
+            label = "Project Theme",
+            choices = NULL,
+            selected = character(0),
+            multiple = TRUE
+          ),
+          selectInput(
+            inputId = ns("region"),
+            label = "Project Region",
+            choices = NULL,
+            selected = character(0)
           ),
           selectInput(
             inputId = ns("source"),
@@ -157,6 +170,20 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         deframe()
     })
 
+    theme_choices <- reactive({
+      dbReadTable(db_con, "project_theme") |>
+        arrange(theme_value) |>
+        select(theme_value, id) |>
+        deframe()
+    })
+
+    region_choices <- reactive({
+      dbReadTable(db_con, "project_region") |>
+        arrange(region_value) |>
+        select(region_value, id) |>
+        deframe()
+    })
+
     source_choices <- reactive({
       dbReadTable(db_con, "source") |>
         arrange(source_value) |>
@@ -190,6 +217,20 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         "acquisition_type",
         choices = acquisition_choices(),
         selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        inputId = "theme",
+        choices = theme_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        inputId = "region",
+        choices = region_choices(),
+        selected = character(0),
+        server = TRUE
       )
       updateSelectizeInput(
         session,
@@ -256,7 +297,8 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
           property_description = input$property_description,
           phase_id = input$phase_id,
           source_id = input$source,
-          team_lead_id = input$team_lead
+          team_lead_id = input$team_lead,
+          project_region_id = input$region
         )
         append_db_data("properties", new_property, db_con, silent = TRUE)
         message("NEW PROPERTY ADDED TO DATABASE")
@@ -267,6 +309,22 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       property_id <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name) |>
         pull(id)
+
+      ## Write property themes ----
+      if (isTruthy(input$theme)) {
+        new_property_themes <- tibble(
+          property_id = property_id,
+          project_theme_id = input$theme
+        )
+
+        append_db_data(
+          "property_theme",
+          new_property_themes,
+          db_con,
+          silent = TRUE
+        )
+        message("PROPERTY THEMES ADDED TO DATABASE")
+      }
 
       ## Write new parcel(s) ----
       new_parcel <- tibble(
@@ -298,6 +356,8 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       updateDateInput(session, "date_added", value = Sys.Date())
       updateTextInput(session, "property_name", value = "")
       updateSelectInput(session, "source", selected = character(0))
+      updateSelectInput(session, "theme", selected = character(0))
+      updateSelectInput(session, "region", selected = character(0))
       updateSelectInput(session, "team_lead", selected = character(0))
       updateSelectInput(session, "phase_id", selected = character(0))
       updateTextInput(session, "focus_area_internal", value = "")
