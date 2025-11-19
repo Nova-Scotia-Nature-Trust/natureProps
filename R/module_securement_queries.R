@@ -11,46 +11,30 @@ module_securement_queries_ui <- function(id) {
         sidebar = sidebar(
           open = TRUE,
           width = 300,
-          # Container for all sidebar content with relative positioning
-          div(
-            style = "height: 100%; display: flex; flex-direction: column; min-height: 600px; position: relative;",
-            # Top section with inputs
-            div(
-              selectizeInput(
-                ns("query_choice"),
-                "Select query",
-                choices = c(
-                  "",
-                  "Insurance view",
-                  "Focal area properties",
-                  "Securement action"
-                ),
-                multiple = FALSE,
-                width = "100%"
-              ),
-              # Conditional UI for additional inputs
-              uiOutput(ns("conditional_contact_ui"))
+          selectizeInput(
+            ns("query_choice"),
+            "Select query",
+            choices = c(
+              "",
+              "Insurance view",
+              "Focal area properties",
+              "Securement action"
             ),
-            # Spacer to push content down
-            div(style = "flex: 1;"),
-            # Bottom section with buttons - positioned absolutely
-            div(
-              style = "position: absolute; bottom: 20px; left: 15px; right: 15px;", # Absolute positioning
-              div(
-                style = "display: flex; flex-direction: column; gap: 10px;",
-                actionButton(
-                  inputId = ns("run_query"),
-                  label = "Run query",
-                  width = "100%",
-                  class = "btn-primary"
-                ),
-                actionButton(
-                  inputId = ns("clear_inputs"),
-                  label = "Clear Inputs",
-                  width = "100%"
-                )
-              )
-            )
+            multiple = FALSE,
+            width = "100%"
+          ),
+          # Conditional UI for additional inputs
+          uiOutput(ns("conditional_contact_ui")),
+          actionButton(
+            inputId = ns("run_query"),
+            label = "Run query",
+            width = "100%",
+            class = "btn-primary"
+          ),
+          actionButton(
+            inputId = ns("clear_inputs"),
+            label = "Clear Inputs",
+            width = "100%"
           )
         ),
         # Main layout - results card
@@ -284,11 +268,14 @@ module_securement_queries_server <- function(
     "
 
     output$view_df <- renderDT({
-      # Use req to make sure we only render when we have data
       req(table_data())
 
-      datatable(
-        table_data(),
+      # Convert character columns to factors to get select inputs
+      data_for_display <- table_data() |>
+        mutate(across(where(is.character), as.factor))
+
+      DT::datatable(
+        data_for_display,
         options = list(
           pageLength = 10,
           lengthMenu = list(
@@ -299,13 +286,16 @@ module_securement_queries_server <- function(
           dom = dom_layout,
           buttons = list(
             "copy",
-            "excel",
-            "pdf"
+            "excel"
           ),
           # order = table_order(),
           stateSave = FALSE
         ),
-        filter = list(position = "top", clear = FALSE),
+        filter = list(
+          position = "top",
+          clear = TRUE,
+          plain = TRUE
+        ),
         rownames = FALSE,
         selection = "single",
         extensions = c("Buttons")
