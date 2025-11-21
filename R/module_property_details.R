@@ -44,45 +44,39 @@ module_property_details_ui <- function(id) {
               placeholder = "Select or add new focal area"
             )
           ),
-          selectInput(
+          selectizeInput(
             inputId = ns("theme"),
             label = "Project Theme",
             choices = NULL,
-            selected = character(0),
             multiple = TRUE
           ),
-          selectInput(
+          selectizeInput(
             inputId = ns("region"),
             label = "Project Region",
-            choices = NULL,
-            selected = character(0)
+            choices = NULL
           ),
-          selectInput(
+          selectizeInput(
             inputId = ns("source"),
             label = "Source",
-            choices = NULL,
-            selected = character(0)
+            choices = NULL
           ),
-          selectInput(
+          selectizeInput(
             inputId = ns("team_lead"),
             label = "Team Lead",
-            choices = NULL,
-            selected = character(0)
+            choices = NULL
           )
         ),
         layout_columns(
           col_widths = c(6, 6),
-          selectInput(
+          selectizeInput(
             inputId = ns("phase_id"),
             label = "Phase",
-            choices = NULL,
-            selected = character(0)
+            choices = NULL
           ),
-          selectInput(
+          selectizeInput(
             inputId = ns("acquisition_type"),
             label = "Acquisition Type",
-            choices = NULL,
-            selected = character(0)
+            choices = NULL
           )
         ),
         div(
@@ -198,6 +192,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         deframe()
     })
 
+    ## Populate UI inputs ----
     observe({
       updateSelectizeInput(
         session,
@@ -206,42 +201,44 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         selected = character(0),
         server = TRUE
       )
-      updateSelectInput(
+      updateSelectizeInput(
         session,
         "phase_id",
         choices = phase_choices(),
-        selected = character(0)
-      )
-      updateSelectInput(
-        session,
-        "acquisition_type",
-        choices = acquisition_choices(),
-        selected = character(0)
+        selected = character(0),
+        server = TRUE
       )
       updateSelectizeInput(
         session,
-        inputId = "theme",
+        "acquisition_type",
+        choices = acquisition_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "theme",
         choices = theme_choices(),
         selected = character(0),
         server = TRUE
       )
       updateSelectizeInput(
         session,
-        inputId = "region",
+        "region",
         choices = region_choices(),
         selected = character(0),
         server = TRUE
       )
       updateSelectizeInput(
         session,
-        inputId = "source",
+        "source",
         choices = source_choices(),
         selected = character(0),
         server = TRUE
       )
       updateSelectizeInput(
         session,
-        inputId = "team_lead",
+        "team_lead",
         choices = team_choices(),
         selected = character(0),
         server = TRUE
@@ -257,6 +254,29 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       req(input$phase_id)
       req(input$source)
       req(input$team_lead)
+
+      # Check validation before proceeding
+      if (!iv$is_valid()) {
+        return()
+      }
+
+      # Check if any PIDs already exist in the database
+      existing_pids <- dbReadTable(db_con, "parcels") |>
+        filter(pid %in% input$pid) |>
+        pull(pid)
+
+      if (length(existing_pids) > 0) {
+        shinyalert(
+          title = "Database Error",
+          text = glue(
+            "The following PID(s) already exist in the database: {paste(existing_pids, collapse = ', ')}"
+          ),
+          type = "error",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return() # Stop execution here
+      }
 
       ### Focus area (internal) ----
       focus_area_check <- dbReadTable(db_con, "focus_area_internal") |>
@@ -294,18 +314,46 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         new_property <- tibble(
           property_name = input$property_name,
           focus_area_internal_id,
-          property_description = input$property_description,
+          property_description = if_else(
+            isTruthy(input$property_description),
+            as.character(input$property_description),
+            NA_character_
+          ),
           phase_id = input$phase_id,
           source_id = input$source,
           team_lead_id = input$team_lead,
-          project_region_id = input$region
+          project_region_id = if_else(
+            isTruthy(input$region),
+            as.integer(input$region),
+            NA_integer_
+          )
         )
-        append_db_data("properties", new_property, db_con, silent = TRUE)
+
+        # Try to append property - stop if it fails
+        property_success <- append_db_data(
+          "properties",
+          new_property,
+          db_con,
+          silent = TRUE
+        )
+
+        if (!property_success) {
+          return() # Stop here without crashing
+        }
         message("NEW PROPERTY ADDED TO DATABASE")
       } else {
         message("PROPERTY ALREADY IN DATABASE")
+        shinyalert(
+          title = "Database Error",
+          text = "Property name already exists",
+          type = "error",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
       }
 
+      ## Write new parcel(s) ----
       property_id <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name) |>
         pull(id)
@@ -326,42 +374,98 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         message("PROPERTY THEMES ADDED TO DATABASE")
       }
 
-      ## Write new parcel(s) ----
       new_parcel <- tibble(
         pid = input$pid,
         date_added = input$date_added,
         property_id,
-        acquisition_type_id = if (isTruthy(input$acquisition_type)) {
-          input$acquisition_type
-        } else {
-          NA
-        }
+        acquisition_type_id = if_else(
+          isTruthy(input$acquisition_type),
+          as.integer(input$acquisition_type),
+          NA_integer_
+        )
+      )
+      # Try to append parcel - stop if it fails
+      parcel_success <- append_db_data(
+        "parcels",
+        new_parcel,
+        db_con,
+        silent = FALSE
       )
 
-      tryCatch(
-        {
-          append_db_data("parcels", new_parcel, db_con, silent = FALSE)
-          db_updated(db_updated() + 1)
-          populate_nsprd_tables(input$pid, prd_con, db_con)
-        },
-        error = function(e) {
-          print(paste("Database error:", e$message))
-        }
-      )
+      if (!parcel_success) {
+        return() # Stop here without crashing
+      }
+
+      # Only proceed if successful
+      db_updated(db_updated() + 1)
+      # Extract data from NSPRD database
+      populate_nsprd_tables(input$pid, prd_con, db_con)
     })
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
-      updateSelectizeInput(session, "pid", selected = character(0))
+      updateSelectizeInput(
+        session,
+        "pid",
+        label = "Enter PID(s)",
+        choices = NULL,
+        options = list(
+          create = TRUE,
+          placeholder = "Type PID and press Enter"
+        ),
+        server = TRUE
+      )
       updateDateInput(session, "date_added", value = Sys.Date())
       updateTextInput(session, "property_name", value = "")
-      updateSelectInput(session, "source", selected = character(0))
-      updateSelectInput(session, "theme", selected = character(0))
-      updateSelectInput(session, "region", selected = character(0))
-      updateSelectInput(session, "team_lead", selected = character(0))
-      updateSelectInput(session, "phase_id", selected = character(0))
-      updateTextInput(session, "focus_area_internal", value = "")
-      updateSelectInput(session, "acquisition_type", selected = character(0))
+      updateSelectizeInput(
+        session,
+        "source",
+        choices = source_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "theme",
+        choices = theme_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "region",
+        choices = region_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "team_lead",
+        choices = team_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "phase_id",
+        choices = phase_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "focus_area_internal",
+        choices = focus_area_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "acquisition_type",
+        choices = acquisition_choices(),
+        selected = character(0),
+        server = TRUE
+      )
       updateTextInput(session, "property_description", value = "")
     })
   })
