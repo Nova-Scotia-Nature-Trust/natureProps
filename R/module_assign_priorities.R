@@ -56,19 +56,26 @@ module_assign_priorities_ui <- function(id) {
               card_body(
                 div(
                   style = "display: flex; flex-direction: column; gap: 15px;",
-                  selectizeInput(
-                    inputId = ns("securement_prob"),
-                    label = "Securement Probability",
-                    choices = NULL,
-                    multiple = FALSE
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    selectizeInput(
+                      inputId = ns("securement_prob"),
+                      label = "Securement Probability",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    textInput(
+                      inputId = ns("closing_year"),
+                      label = "Anticipated Closing Year",
+                      value = "",
+                      placeholder = "e.g., 2025/26"
+                    )
                   ),
                   actionButton(
                     inputId = ns("submit_edit_properties"),
                     label = "Submit Changes",
                     class = "btn-primary"
                   ),
-                  layout_columns(),
-                  layout_columns(),
                   layout_columns(),
                   div(),
                   div(),
@@ -103,11 +110,20 @@ module_assign_priorities_ui <- function(id) {
                     choices = NULL,
                     multiple = FALSE
                   ),
-                  selectizeInput(
-                    inputId = ns("ecological_priority"),
-                    label = "Ecological Priority",
-                    choices = NULL,
-                    multiple = FALSE
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    selectizeInput(
+                      inputId = ns("ecological_priority"),
+                      label = "Ecological Priority",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    selectizeInput(
+                      inputId = ns("securement_priority"),
+                      label = "Securement Priority",
+                      choices = NULL,
+                      multiple = FALSE
+                    )
                   ),
                   tableOutput(ns("parcels_table")),
                   actionButton(
@@ -131,6 +147,30 @@ module_assign_priorities_ui <- function(id) {
 module_assign_priorities_server <- function(id, db_con, db_updated) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    ## Input validation ----
+    iv <- InputValidator$new()
+    iv$add_rule("closing_year", function(value) {
+      if (is.null(value) || value == "") {
+        return() # Allow empty values
+      }
+
+      # Check format: YYYY/YY
+      if (!str_detect(value, "^[0-9]{4}/[0-9]{2}$")) {
+        return("Must be in format YYYY/YY (e.g., 2025/26)")
+      }
+
+      # Extract year components
+      start_year <- as.integer(str_sub(value, 1, 4))
+      end_year <- as.integer(str_sub(value, 6, 7))
+
+      # Check if end year is consecutive (start_year + 1) % 100
+      if ((start_year + 1) %% 100 != end_year) {
+        return("Years must be consecutive (e.g., 2025/26, not 2025/27)")
+      }
+    })
+
+    iv$enable()
 
     ## Helper functions ----
     get_property_choices <- function(db_con) {
@@ -161,7 +201,8 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
           p.property_name, 
           p.securement_probability_id,
           p.anticipated_closing_year,
-          pa.priority_ecological_ranking_id
+          pa.priority_ecological_ranking_id,
+          pa.priority_securement_ranking_id
         FROM properties p
         LEFT JOIN parcels pa ON p.id = pa.property_id
         WHERE p.property_name = {prop_name}",
@@ -203,7 +244,9 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       current_selections <- list(
         property = isolate(input$property),
         securement_prob = isolate(input$securement_prob),
-        ecological_priority = isolate(input$ecological_priority)
+        ecological_priority = isolate(input$ecological_priority),
+        securement_priority = isolate(input$securement_priority),
+        closing_year = isolate(input$closing_year)
       )
 
       # Update inputs
@@ -222,11 +265,24 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         selected = current_selections$securement_prob
       )
 
+      updateTextInput(
+        session,
+        "closing_year",
+        value = current_selections$closing_year
+      )
+
       updateSelectizeInput(
         session,
         "ecological_priority",
         choices = c("", ranking_choices()),
         selected = current_selections$ecological_priority
+      )
+
+      updateSelectizeInput(
+        session,
+        "securement_priority",
+        choices = c("", ranking_choices()),
+        selected = current_selections$securement_priority
       )
     })
 
@@ -236,7 +292,8 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     ## Event:: Load Record  ----
     observeEvent(input$load_record, {
       req(input$property)
-      record <- load_property_record(db_con, input$property)
+      record <- load_property_record(db_con, input$property) |>
+        arrange(pid)
 
       if (nrow(record) >= 1) {
         selected_record(record)
@@ -246,6 +303,13 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
           inputId = "securement_prob",
           selected = unique(record$securement_probability_id)
         )
+
+        updateTextInput(
+          session,
+          inputId = "closing_year",
+          value = unique(record$anticipated_closing_year)
+        )
+
         updateSelectizeInput(
           session,
           inputId = "pid",
@@ -277,6 +341,12 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
           inputId = "ecological_priority",
           selected = selected_parcel$priority_ecological_ranking_id
         )
+
+        updateSelectizeInput(
+          session,
+          inputId = "securement_priority",
+          selected = selected_parcel$priority_securement_ranking_id
+        )
       }
     })
 
@@ -295,16 +365,28 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         )
 
         selected_record() |>
-          select(pid, priority_ecological_ranking_id) |>
+          select(
+            pid,
+            priority_ecological_ranking_id,
+            priority_securement_ranking_id
+          ) |>
           left_join(
             ranking_lookup,
             by = c("priority_ecological_ranking_id" = "id")
           ) |>
-          select(pid, ranking_label) |>
+          rename(ecological_label = ranking_label) |>
+          left_join(
+            ranking_lookup,
+            by = c("priority_securement_ranking_id" = "id")
+          ) |>
+          rename(securement_label = ranking_label) |>
+          select(pid, ecological_label, securement_label) |>
           rename(
             PID = pid,
-            `Ecological Priority` = ranking_label
-          )
+            `Ecological Priority` = ecological_label,
+            `Securement Priority` = securement_label
+          ) |>
+          arrange(PID)
       },
       colnames = TRUE,
       spacing = "s"
@@ -314,9 +396,19 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     observeEvent(input$submit_edit_properties, {
       req(input$property, input$securement_prob)
 
+      # Check validation before proceeding
+      if (!iv$is_valid()) {
+        return()
+      }
+
       df <- tibble(
         property_name = input$property,
-        securement_probability_id = input$securement_prob
+        securement_probability_id = input$securement_prob,
+        anticipated_closing_year = if_else(
+          input$closing_year == "" | is.null(input$closing_year),
+          NA_character_,
+          input$closing_year
+        )
       )
 
       print(df)
@@ -354,7 +446,8 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
 
       df <- tibble(
         pid = input$pid,
-        priority_ecological_ranking_id = input$ecological_priority
+        priority_ecological_ranking_id = input$ecological_priority,
+        priority_securement_ranking_id = input$securement_priority,
       )
 
       print(df)
@@ -405,9 +498,24 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         server = TRUE
       )
 
+      updateTextInput(
+        session,
+        inputId = "closing_year",
+        value = "",
+        placeholder = "e.g., 2025/26"
+      )
+
       updateSelectizeInput(
         session,
         inputId = "ecological_priority",
+        choices = c("", ranking_choices()),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "securement_priority",
         choices = c("", ranking_choices()),
         selected = character(0),
         server = TRUE
