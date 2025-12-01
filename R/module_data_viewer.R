@@ -190,8 +190,13 @@ module_data_viewer_server <- function(
 
     # Render the datatable
     output$view_df <- renderDT({
+      req(output_view_data())
+      # Convert character columns to factors to get select inputs
+      data_for_display <- output_view_data() |>
+        mutate(across(where(is.character), as.factor))
+
       datatable(
-        output_view_data(),
+        data_for_display,
         options = list(
           pageLength = 10,
           scrollX = TRUE,
@@ -199,13 +204,15 @@ module_data_viewer_server <- function(
           buttons = list(
             "copy",
             "excel"
-            # "pdf",
-            # "print"
           ),
           order = table_order(),
           stateSave = FALSE
         ),
-        filter = list(position = "top", clear = FALSE),
+        filter = list(
+          position = "top",
+          clear = TRUE,
+          plain = TRUE
+        ),
         rownames = FALSE,
         selection = "single",
         extensions = c("Buttons")

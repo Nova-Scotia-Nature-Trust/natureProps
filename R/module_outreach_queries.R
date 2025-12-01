@@ -169,8 +169,12 @@ module_outreach_queries_server <- function(
       # Use req to make sure we only render when we have data
       req(table_data())
 
+      # Convert character columns to factors to get select inputs
+      data_for_display <- table_data() |>
+        mutate(across(where(is.character), as.factor))
+
       datatable(
-        table_data(),
+        data_for_display,
         options = list(
           pageLength = 10,
           scrollX = TRUE,
@@ -178,13 +182,15 @@ module_outreach_queries_server <- function(
           buttons = list(
             "copy",
             "excel"
-            # "pdf",
-            # "print"
           ),
           # order = table_order(),
           stateSave = FALSE
         ),
-        filter = list(position = "top", clear = FALSE),
+        filter = list(
+          position = "top",
+          clear = TRUE,
+          plain = TRUE
+        ),
         rownames = FALSE,
         selection = "single",
         extensions = c("Buttons")
