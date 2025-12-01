@@ -49,7 +49,7 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="notes-on-deploying-app-with-docker" class="level1">
 <h1>Notes on deploying app with Docker</h1>
-<p>Render file in the terminal: quarto render “Docker notes.md”</p>
+<p>Render html file in the terminal: <code>quarto render "Docker notes.md"</code></p>
 <p>Make sure the repository exisits on Docker Hub Run <code>docker login</code> to double check you can push/pull to DockerHub</p>
 <section id="deployment" class="level2">
 <h2 class="anchored" data-anchor-id="deployment">Deployment</h2>
@@ -58,7 +58,8 @@ ul.task-list li input[type="checkbox"] {
 <ol type="1">
 <li>Setup Docker file as follows. Note that a dockerignore file can be used if necessary.</li>
 </ol>
-<pre><code>FROM rocker/shiny-verse
+<pre><code># Install system dependencies
+FROM rocker/shiny-verse
 
 # Install system dependencies
 RUN apt-get update &amp;&amp; apt-get install -y \
@@ -72,23 +73,33 @@ RUN apt-get update &amp;&amp; apt-get install -y \
     libpng-dev \
     libtiff5-dev \
     libjpeg-dev \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    libudunits2-dev \
     &amp;&amp; rm -rf /var/lib/apt/lists/*
 
+RUN echo 'preserve_logs true;' &gt;&gt; /etc/shiny-server/shiny-server.conf
+RUN echo 'sanitize_errors false;' &gt;&gt; /etc/shiny-server/shiny-server.conf
+
 # Copy natureProp files and restore its renv environment
-COPY ./natureprop /srv/shiny-server/natureprop
+COPY ./natureprops /srv/shiny-server/natureprops
 # Change working directory
-WORKDIR /srv/shiny-server/natureprop
+WORKDIR /srv/shiny-server/natureprops
 # Restore environment
 RUN Rscript -e 'install.packages("renv")'
 RUN Rscript -e 'renv::consent(provided = TRUE)'
 RUN Rscript -e 'renv::restore()'
 
-# Copy app2 files and restore its renv environment
-# COPY ./app2 /srv/shiny-server/app2
-# WORKDIR /srv/shiny-server/app2
-# RUN Rscript -e 'install.packages("renv")'
-# RUN Rscript -e 'renv::consent(provided = TRUE)'
-# RUN Rscript -e 'renv::restore()'
+# Copy cons-lands-map files and restore its renv environment
+COPY ./cons-lands-map /srv/shiny-server/cons-lands-map
+WORKDIR /srv/shiny-server/cons-lands-map
+RUN Rscript -e 'install.packages("renv")'
+RUN Rscript -e 'renv::consent(provided = TRUE)'
+RUN Rscript -e 'renv::restore()'
+
+# Set working directory back to Shiny Server root
+WORKDIR /srv/shiny-server
 
 # Expose Shiny Server port
 EXPOSE 3838
@@ -97,13 +108,24 @@ EXPOSE 3838
 CMD ["/usr/bin/shiny-server"]</code></pre>
 <ol start="2" type="1">
 <li><p>Copy app code files, Docker config file, Docker ignore file, renv.lock file, and data files to the <code>natureprops</code> folder within the deploy apps folder. To do this run the <code>copy_docker_files.ps1</code> script. Run command is <code>.\copy_docker_files.ps1</code>. Note the <code>F8</code> can be used to run a single/multiple selected lines in the terminal.</p></li>
-<li><p>Open terminal in <code>docker_deploy_apps</code> directory and build the image by running <code>docker build -t nsnt-apps .</code>.</p></li>
-<li><p>Once the image is built, test it locally by running <code>docker run -d --name nsnt-apps -p 3838:3838 nsnt-apps</code>. Access to the app will be through <code>localhost:3838/natureprops</code>. Note that the name of the container and image are the same (although they needn’t be).</p></li>
+<li><p>Open terminal in <code>docker_deploy_apps</code> directory.</p></li>
+<li><p>If <code>nsnt-apps</code> image exists (and is running), first stop the container and remove it before building new testing version using <code>docker stop nsnt-apps-test</code>, <code>docker rm nsnt-apps-test</code> and <code>docker rmi nsnt-apps</code>.</p></li>
+<li><p>Build the image by running <code>docker build -t nsnt-apps .</code>.</p></li>
+<li><p>Once the image is built, test it locally by running <code>docker run -d --name nsnt-apps-test -p 3838:3838 nsnt-apps</code>. Access to the app will be through <code>localhost:3838/natureprops</code>. Note that the name of the container and image can the same (although they needn’t be).</p></li>
 <li><p>The app files can be updated by copying local files to the running Docker container. The app will automatically restart when it detects new code files. To replace the <code>app.R</code> file for example, use <code>docker cp app.R nsnt-apps:/srv/shiny-server/natureprops/</code>. To replace all files in the <code>natureprops</code> folder, use <code>docker cp ./natureprops/. nsnt-apps:/srv/shiny-server/natureprops/</code> (note the trailing <code>.</code> indicates copy all files in the folder, not the folder itself). Note that the container should be stopped, then copy files, then start again to work reliably (it seems that files are not overwritten when the container is running). If files are copied to an existing container then the files need to be committed to the tagged version and then pushed to Docker Hub. Commit using <code>docker commit nsnt-apps domhenrynsnt/nsnt-apps:v1.0</code> after copying over files.</p></li>
-<li><p>To view files within the container open a bash terminal using <code>docker exec -it nsnt-apps bash</code>. The list files using <code>ls -al</code> in which folder you’ve navigated to. Use <code>exit</code> to exit the bash terminal. To view logs of the shiny server run <code>docker logs nsnt-apps</code>. The view logs of the app go into the bash terminal and navigate to the log directory using <code>cd /var/log/shiny-server</code>. Then view the logs for natureprops by using <code>cat natureprops.log</code> or <code>tail -f natureprops.log</code></p></li>
-<li><p>Once the app has been verified to be working, it can be pushed to DockerHub. First tag the version of the image using <code>docker tag nsnt-apps domhenrynsnt/nsnt-apps:latest</code>. Then push using <code>docker push domhenrynsnt/nsnt-apps:latest</code>.</p></li>
-<li><p>The app container can then be started on the server using <code>ssh nsnt_admin@192.168.1.51</code> to get in, then <code>docker pull domhenrynsnt/nsnt-apps:latest</code> to pull latest version. Run container using <code>docker run -d --name nsnt-apps -p 3838:3838 domhenrynsnt/nsnt-apps:latest</code>.</p></li>
-<li><p>App can be accessed using <code>192.168.1.51:3838/natureprops</code></p></li>
+<li><p>To view files within the container open a bash terminal using <code>docker exec -it nsnt-apps bash</code>. The list files using <code>ls -al</code> in which folder you’ve navigated to. Use <code>exit</code> to exit the bash terminal. To view logs of the shiny server run <code>docker logs nsnt-apps</code>. The view logs of the app go into the bash terminal and navigate to the log directory using <code>cd /var/log/shiny-server</code>. Then view the logs for <code>natureprops</code> by using <code>cat natureprops.log</code> or <code>tail -f natureprops.log</code></p></li>
+<li><p>Once the app has been verified to be working, it can be pushed to DockerHub. First tag with the version of the image and then tag latest using <code>docker tag nsnt-apps domhenrynsnt/nsnt-apps:v2.2</code>and <code>docker tag nsnt-apps domhenrynsnt/nsnt-apps:latest</code>.</p></li>
+<li><p>Push to DockerHub using both tags <code>docker push domhenrynsnt/nsnt-apps:v2.2</code> and <code>docker push domhenrynsnt/nsnt-apps:latest</code>.</p></li>
+<li><p>The app container can then be started on the server using <code>ssh nsnt_admin@192.168.1.51</code> to get in.</p></li>
+<li><p>Stop and remove existing containers <code>docker stop nsnt-apps-prod</code> and <code>docker rm nsnt-apps-prod</code>.</p></li>
+<li><p>Then <code>docker pull domhenrynsnt/nsnt-apps:v2.2</code> to pull preferred version. Run container using <code>docker run -d --name nsnt-apps-prod -p 3030:3838 domhenrynsnt/nsnt-apps:v2.2</code>. Note that the port has to be changed to <code>3030</code> because there are conflicts if we’re using <code>3838</code> for multiple apps.</p></li>
+<li><p>Note on ports. The format is <strong>:</strong> <code>-p [HOST_PORT]:[CONTAINER_PORT]</code></p>
+<ul>
+<li><p><strong>3030</strong> = Port on the host machine (your server at 192.168.1.51)</p></li>
+<li><p><strong>3838</strong> = Port inside the container where Shiny Server is listening</p></li>
+<li><p>Inside the container, Shiny Server runs on port 3838 (standard Shiny Server port). When you access <code>192.168.1.51:3030</code>, Docker forwards that traffic to port 3838 inside the container. Here we’re using 3030 on the host to avoid conflicts with other apps using 3838.</p></li>
+</ul></li>
+<li><p>App can be accessed using <code>192.168.1.51:3030/natureprops</code></p></li>
 <li><p>Docker maintenance on server (due to limited space). Get images using <code>docker images -a</code>. Delete image using by first removing container <code>docker rm [CONTAINER NAME]</code>, then <code>docker rmi [IMAGE ID]</code>. Then look for dangling images using <code>docker images -f dangling=true</code>, then prune them using <code>docker image prune</code></p></li>
 </ol>
 </section>

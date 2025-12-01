@@ -1,3 +1,4 @@
+# Install system dependencies
 FROM rocker/shiny-verse
 
 # Install system dependencies
@@ -12,7 +13,14 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libtiff5-dev \
     libjpeg-dev \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    libudunits2-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf
+RUN echo 'sanitize_errors false;' >> /etc/shiny-server/shiny-server.conf
 
 # Copy natureProp files and restore its renv environment
 COPY ./natureprops /srv/shiny-server/natureprops
@@ -23,12 +31,15 @@ RUN Rscript -e 'install.packages("renv")'
 RUN Rscript -e 'renv::consent(provided = TRUE)'
 RUN Rscript -e 'renv::restore()'
 
-# Copy app2 files and restore its renv environment
-# COPY ./app2 /srv/shiny-server/app2
-# WORKDIR /srv/shiny-server/app2
-# RUN Rscript -e 'install.packages("renv")'
-# RUN Rscript -e 'renv::consent(provided = TRUE)'
-# RUN Rscript -e 'renv::restore()'
+# Copy cons-lands-map files and restore its renv environment
+COPY ./cons-lands-map /srv/shiny-server/cons-lands-map
+WORKDIR /srv/shiny-server/cons-lands-map
+RUN Rscript -e 'install.packages("renv")'
+RUN Rscript -e 'renv::consent(provided = TRUE)'
+RUN Rscript -e 'renv::restore()'
+
+# Set working directory back to Shiny Server root
+WORKDIR /srv/shiny-server
 
 # Expose Shiny Server port
 EXPOSE 3838
