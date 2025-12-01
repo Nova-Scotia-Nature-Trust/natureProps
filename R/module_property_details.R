@@ -2,123 +2,184 @@
 module_property_details_ui <- function(id) {
   ns <- NS(id)
 
-  card(
-    full_screen = TRUE,
-    height = "100%",
-    card_header(h5("Property Details")),
-    card_body(
-      div(
-        style = "display: flex; flex-direction: column; gap: 15px;",
-        layout_columns(
-          col_widths = c(7, 5),
-          selectizeInput(
-            inputId = ns("pid"),
-            label = "Enter PID(s)",
-            choices = NULL,
-            multiple = TRUE,
-            options = list(
-              create = TRUE,
-              placeholder = "Type PID and press Enter"
+  layout_columns(
+    col_widths = c(8, 4),
+    # Existing card: Add New Property ----
+    card(
+      full_screen = TRUE,
+      height = "100%",
+      card_header(h5("Add New Property")),
+      card_body(
+        div(
+          style = "display: flex; flex-direction: column; gap: 15px;",
+          layout_columns(
+            col_widths = c(6, 6),
+            selectizeInput(
+              inputId = ns("pid"),
+              label = "Enter PID(s)",
+              choices = NULL,
+              multiple = TRUE,
+              options = list(
+                create = TRUE,
+                placeholder = "Type PID and press Enter"
+              )
+            ),
+            dateInput(
+              inputId = ns("date_added"),
+              label = "Date Added",
+              value = today()
             )
           ),
-          dateInput(
-            inputId = ns("date_added"),
-            label = "Date Added",
-            value = today()
-          )
-        ),
-        layout_columns(
-          col_widths = c(6, 6),
-          textInput(
-            inputId = ns("property_name"),
-            label = "Property Name",
-            value = ""
+          layout_columns(
+            col_widths = c(6, 6),
+            textInput(
+              inputId = ns("property_name"),
+              label = "Property Name",
+              value = ""
+            ),
+            selectizeInput(
+              inputId = ns("focus_area_internal"),
+              label = "Focus Area (Internal)",
+              choices = NULL,
+              multiple = FALSE,
+              options = list(
+                create = TRUE,
+                placeholder = "Select or add new focal area"
+              )
+            ),
+            selectizeInput(
+              inputId = ns("theme"),
+              label = "Project Theme",
+              choices = NULL,
+              multiple = TRUE
+            ),
+            selectizeInput(
+              inputId = ns("region"),
+              label = "Project Region",
+              choices = NULL
+            ),
+            selectizeInput(
+              inputId = ns("source"),
+              label = "Source",
+              choices = NULL
+            ),
+            selectizeInput(
+              inputId = ns("team_lead"),
+              label = "Team Lead",
+              choices = NULL
+            )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            selectizeInput(
+              inputId = ns("phase_id"),
+              label = "Phase",
+              choices = NULL
+            ),
+            selectizeInput(
+              inputId = ns("acquisition_type"),
+              label = "Acquisition Type",
+              choices = NULL
+            )
+          ),
+          div(
+            style = "width: 100%;",
+            div(
+              style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+              tags$label(
+                "Property & Opportunity Overview",
+                `for` = ns("property_description")
+              ),
+              popover(
+                div(
+                  icon("question-circle"),
+                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+                ),
+                includeMarkdown("help/prop_opp_overview.md"),
+                title = "Property Description Help",
+                placement = "top"
+              )
+            ),
+            textAreaInput(
+              ns("property_description"),
+              label = NULL,
+              "",
+              height = "100px",
+              width = "100%"
+            )
+          ),
+          div(
+            style = "margin-top: 20px;",
+            actionButton(
+              inputId = ns("submit_property"),
+              label = "Add Property",
+              class = "btn-primary"
+            ),
+            actionButton(
+              inputId = ns("clear_inputs"),
+              label = "Clear Inputs",
+              class = "btn-secondary"
+            )
+          ),
+          div(style = "flex-grow: 1;")
+        )
+      )
+    ),
+    # New card: Update Property ----
+    card(
+      full_screen = TRUE,
+      height = "100%",
+      card_header(h5("Add PID to Existing Property")),
+      card_body(
+        div(
+          style = "display: flex; flex-direction: column; gap: 15px;",
+          layout_columns(
+            col_widths = c(7, 5),
+            selectizeInput(
+              inputId = ns("update_pid"),
+              label = "Enter PID(s)",
+              choices = NULL,
+              multiple = TRUE,
+              options = list(
+                create = TRUE,
+                placeholder = "Type PID and press Enter"
+              )
+            ),
+            dateInput(
+              inputId = ns("update_date_added"),
+              label = "Date Added",
+              value = today()
+            )
           ),
           selectizeInput(
-            inputId = ns("focus_area_internal"),
-            label = "Focus Area (Internal)",
+            inputId = ns("update_property"),
+            label = "Select Property",
             choices = NULL,
             multiple = FALSE,
             options = list(
-              create = TRUE,
-              placeholder = "Select or add new focal area"
+              placeholder = "Select existing property"
             )
           ),
           selectizeInput(
-            inputId = ns("theme"),
-            label = "Project Theme",
-            choices = NULL,
-            multiple = TRUE
-          ),
-          selectizeInput(
-            inputId = ns("region"),
-            label = "Project Region",
-            choices = NULL
-          ),
-          selectizeInput(
-            inputId = ns("source"),
-            label = "Source",
-            choices = NULL
-          ),
-          selectizeInput(
-            inputId = ns("team_lead"),
-            label = "Team Lead",
-            choices = NULL
-          )
-        ),
-        layout_columns(
-          col_widths = c(6, 6),
-          selectizeInput(
-            inputId = ns("phase_id"),
-            label = "Phase",
-            choices = NULL
-          ),
-          selectizeInput(
-            inputId = ns("acquisition_type"),
+            inputId = ns("update_acquisition_type"),
             label = "Acquisition Type",
             choices = NULL
-          )
-        ),
-        div(
-          style = "width: 100%;",
+          ),
           div(
-            style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-            tags$label(
-              "Property & Opportunity Overview",
-              `for` = ns("property_description")
+            style = "margin-top: 20px;",
+            actionButton(
+              inputId = ns("submit_update"),
+              label = "Add PID to Property",
+              class = "btn-primary"
             ),
-            popover(
-              div(
-                icon("question-circle"),
-                style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-              ),
-              includeMarkdown("help/prop_opp_overview.md"),
-              title = "Property Description Help",
-              placement = "top"
+            actionButton(
+              inputId = ns("clear_update_inputs"),
+              label = "Clear Inputs",
+              class = "btn-secondary"
             )
           ),
-          textAreaInput(
-            ns("property_description"),
-            label = NULL,
-            "",
-            height = "100px",
-            width = "100%"
-          )
-        ),
-        div(
-          style = "margin-top: 20px;",
-          actionButton(
-            inputId = ns("submit_property"),
-            label = "Add Property",
-            class = "btn-primary"
-          ),
-          actionButton(
-            inputId = ns("clear_inputs"),
-            label = "Clear Inputs",
-            class = "btn-secondary"
-          )
-        ),
-        div(style = "flex-grow: 1;")
+          div(style = "flex-grow: 1;")
+        )
       )
     )
   )
@@ -131,6 +192,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     valid_pids <- dbGetQuery(prd_con, "SELECT DISTINCT(pid) FROM parcels;") |>
       pull(pid)
 
+    # Validation for new property form
     iv <- InputValidator$new()
     iv$add_rule("date_added", sv_required())
     iv$add_rule("property_name", sv_required())
@@ -143,6 +205,16 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       ~ validate_pid_input(., valid_pids, enable_check = TRUE)
     )
     iv$enable()
+
+    # Validation for update property form
+    iv_update <- InputValidator$new()
+    iv_update$add_rule("update_date_added", sv_required())
+    iv_update$add_rule("update_property", sv_required())
+    iv_update$add_rule(
+      "update_pid",
+      ~ validate_pid_input(., valid_pids, enable_check = TRUE)
+    )
+    iv_update$enable()
 
     ## Populate UI inputs ----
     phase_choices <- reactive({
@@ -192,8 +264,16 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         deframe()
     })
 
+    property_choices <- reactive({
+      dbReadTable(db_con, "properties") |>
+        arrange(property_name) |>
+        select(property_name, id) |>
+        deframe()
+    })
+
     ## Populate UI inputs ----
     observe({
+      # New property form
       updateSelectizeInput(
         session,
         "focus_area_internal",
@@ -240,6 +320,22 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         session,
         "team_lead",
         choices = team_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+
+      # Update property form
+      updateSelectizeInput(
+        session,
+        "update_property",
+        choices = property_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "update_acquisition_type",
+        choices = acquisition_choices(),
         selected = character(0),
         server = TRUE
       )
@@ -402,6 +498,67 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       populate_nsprd_tables(input$pid, prd_con, db_con)
     })
 
+    ## Event :: Submit update (add PID to existing property) ----
+    observeEvent(input$submit_update, {
+      req(input$update_pid)
+      req(input$update_date_added)
+      req(input$update_property)
+
+      # Check validation before proceeding
+      if (!iv_update$is_valid()) {
+        return()
+      }
+
+      # Check if any PIDs already exist in the database
+      existing_pids <- dbReadTable(db_con, "parcels") |>
+        filter(pid %in% input$update_pid) |>
+        pull(pid)
+
+      if (length(existing_pids) > 0) {
+        shinyalert(
+          title = "Database Error",
+          text = glue(
+            "The following PID(s) already exist in the database: {paste(existing_pids, collapse = ', ')}"
+          ),
+          type = "error",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      ## Write new parcel(s) to existing property ----
+      new_parcel <- tibble(
+        pid = input$update_pid,
+        date_added = input$update_date_added,
+        property_id = as.integer(input$update_property),
+        acquisition_type_id = if_else(
+          isTruthy(input$update_acquisition_type),
+          as.integer(input$update_acquisition_type),
+          NA_integer_
+        )
+      )
+
+      # Try to append parcel - stop if it fails
+      parcel_success <- append_db_data(
+        "parcels",
+        new_parcel,
+        db_con,
+        silent = FALSE
+      )
+
+      if (!parcel_success) {
+        return()
+      }
+
+      # Only proceed if successful
+      db_updated(db_updated() + 1)
+      # Extract data from NSPRD database
+      populate_nsprd_tables(input$update_pid, prd_con, db_con)
+
+      message("PID(S) ADDED TO EXISTING PROPERTY")
+    })
+
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
@@ -467,6 +624,36 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         server = TRUE
       )
       updateTextInput(session, "property_description", value = "")
+    })
+
+    ## Event :: Clear update inputs ----
+    observeEvent(input$clear_update_inputs, {
+      updateSelectizeInput(
+        session,
+        "update_pid",
+        label = "Enter PID(s)",
+        choices = NULL,
+        options = list(
+          create = TRUE,
+          placeholder = "Type PID and press Enter"
+        ),
+        server = TRUE
+      )
+      updateDateInput(session, "update_date_added", value = Sys.Date())
+      updateSelectizeInput(
+        session,
+        "update_property",
+        choices = property_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      updateSelectizeInput(
+        session,
+        "update_acquisition_type",
+        choices = acquisition_choices(),
+        selected = character(0),
+        server = TRUE
+      )
     })
   })
 }
