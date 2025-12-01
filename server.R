@@ -39,10 +39,21 @@ server <- function(input, output, session) {
     toggle_dark_mode(mode)
   })
 
+  module_pol_viewer_server(
+    "pol_webpage",
+    db_con,
+    db_updated
+  )
+
   db_updated <- reactiveVal(0)
   focal_pid_rv <- reactiveVal(NULL)
 
-  module_property_stats_server("home_page", db_con, db_updated)
+  module_property_stats_server(
+    "home_page",
+    db_con,
+    db_updated
+  )
+
   module_property_details_server(
     "property_details_form",
     db_con,

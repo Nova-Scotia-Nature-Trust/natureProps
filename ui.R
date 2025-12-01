@@ -19,7 +19,7 @@ ui <- page_navbar(
   ),
 
   id = "main_navbar",
-  selected = "Review",
+  selected = "Home",
   collapsible = TRUE,
   theme = bs_theme(bootswatch = "united"),
   fillable = TRUE,
@@ -27,21 +27,18 @@ ui <- page_navbar(
     id = "main_sidebar",
     open = FALSE,
     width = 250,
-    title = "Sidebar things",
+    title = NULL,
     input_switch(
       id = "dark_toggle",
       label = "Dark Mode",
-      value = TRUE
+      value = FALSE
     ),
-    selectInput(
-      inputId = "mySelectInput",
-      label = "List",
-      choices = list("Do this" = "a", "Do that" = "b")
-    ),
-    actionButton(inputId = "myButton", label = "Do action!"),
     hr(),
-    h4("App Info"),
-    p("Version: 0.0.1")
+    h5("Property Online Access"),
+    module_pol_viewer_ui("pol_webpage"),
+    hr(),
+    h5("App Info"),
+    p("Version: 2.4.1")
   ),
   nav_panel(
     title = "Home",

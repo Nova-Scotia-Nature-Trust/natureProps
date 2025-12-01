@@ -2,6 +2,7 @@ library(shiny)
 library(bslib)
 library(DT)
 library(DBI)
+library(pool)
 library(shinyWidgets)
 library(tidyverse)
 library(readxl)
@@ -16,12 +17,16 @@ library(shinymanager)
 library(markdown)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
-# walk(list.files("R", full.names = TRUE, pattern = "\\.R$"), source)
-# options(browser = "C:/Program Files/Google/Chrome/Application/chrome.exe")
 
 # Create database connection
-db_con <- create_db_con("dummydb")
-prd_con <- create_db_con("nsprd")
+db_con <- create_db_pool("dummydb")
+prd_con <- create_db_pool("nsprd")
+
+# Register cleanup when app stops
+onStop(function() {
+  poolClose(db_con)
+  poolClose(prd_con)
+})
 
 DOCKER_CON <- FALSE
 USE_AUTH <- FALSE
