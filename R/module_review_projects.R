@@ -139,10 +139,25 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       record_02 <- dbGetQuery(db_con, query_02) |>
         summarise(
           pids = paste(pid, collapse = ", "),
-          securement_description = unique(securement_action_description),
-          property_contact_description = unique(property_contact_description),
-          property_contact_name = unique(str_glue("{name_first} {name_last}"))
-        )
+          securement_description = paste(
+            unique(securement_action_description),
+            collapse = ", "
+          ),
+          property_contact_description = paste(
+            unique(property_contact_description),
+            collapse = ", "
+          ),
+          property_contact_name = paste(
+            unique(str_glue("{name_first} {name_last}")),
+            collapse = ", "
+          )
+        ) |>
+        mutate(across(
+          everything(),
+          ~ str_remove_all(.x, ",\\s*NA(?:\\s+NA)?") |> # Remove ", NA" or ", NA NA"
+            str_remove_all("^NA(?:\\s+NA)?(?:,\\s*)?") |> # Remove leading "NA" or "NA NA"
+            str_squish()
+        )) # Remove extra whitespace
 
       record <- bind_cols(record_01, record_02)
 
