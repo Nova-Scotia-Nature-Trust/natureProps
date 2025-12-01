@@ -1,4 +1,4 @@
-#' Create a Database Connection
+#' Create a Database Pool
 #'
 #' This function establishes a connection to a PostgreSQL database using the
 #' `RPostgres` package. It requires the database name and uses predefined
@@ -9,14 +9,14 @@
 #' @examples
 #' \dontrun{
 #'   # Example usage:
-#'   db_con <- create_db_con("my_database")
+#'   db_con <- create_db_pool("my_database")
 #'   # Perform database operations...
-#'   dbDisconnect(db_con) # Disconnect when done
+#'   poolClose(db_con) # Disconnect when done
 #' }
 #' @importFrom RPostgres Postgres
 #' @export
-create_db_con <- function(database) {
-  db_con <- dbConnect(
+create_db_pool <- function(database) {
+  db_con <- pool::dbPool(
     RPostgres::Postgres(),
     dbname = database,
     host = Sys.getenv("POSTGRES_HOST"),
