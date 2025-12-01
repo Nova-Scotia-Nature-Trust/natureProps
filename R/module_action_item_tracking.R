@@ -203,7 +203,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         session,
         "property",
         choices = props_reactive(),
-        selected = character(0),
+        selected = isolate(input$property),
         server = TRUE
       )
     })
@@ -274,6 +274,11 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       req(input$action_item_fields)
       req(input$action_item_value)
       print(new_actions())
+
+      # Check validation before proceeding
+      if (!iv$is_valid()) {
+        return()
+      }
 
       ## Update the database ----
       dbx::dbxUpdate(
