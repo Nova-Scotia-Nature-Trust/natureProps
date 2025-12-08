@@ -83,8 +83,8 @@ prep_view_pid <- function(df_view_meta, selected_view, db_con) {
     attr(data, "order_direction") <- "desc"
   } else if (selected_view == "pid_view_02") {
     ## Add ordering attribute for DT table
-    attr(data, "order_column") <- 2
-    attr(data, "order_direction") <- "desc"
+    attr(data, "order_column") <- 1
+    attr(data, "order_direction") <- "asc"
   }
 
   return(data)
