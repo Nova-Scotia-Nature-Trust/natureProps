@@ -114,20 +114,22 @@ module_pol_viewer_server <- function(id, db_con, db_updated = NULL) {
     observeEvent(input$open_pol_map, {
       req(input$parcel_pid, input$parcel_pid != "")
 
-      pol_url <- glue(
+      pol_url <- str_glue(
         "https://pol.novascotia.ca/POL/Map/Index?pid={input$parcel_pid}"
       )
-      browseURL(pol_url)
+      # Use JavaScript to open URL in user's browser
+      shinyjs::runjs(sprintf("window.open('%s', '_blank');", pol_url))
     })
 
     ## Event :: Open POL property detail in new browser tab ----
     observeEvent(input$open_pol_detail, {
       req(input$parcel_pid, input$parcel_pid != "")
 
-      pol_url <- glue(
+      pol_url <- str_glue(
         "https://pol.novascotia.ca/POL/PropertyDetail/Index?pid={input$parcel_pid}&returnView=PropertySearch"
       )
-      browseURL(pol_url)
+      # Use JavaScript to open URL in user's browser
+      shinyjs::runjs(sprintf("window.open('%s', '_blank');", pol_url))
     })
 
     ## Event :: Clear inputs ----
