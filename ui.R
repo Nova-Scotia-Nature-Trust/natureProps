@@ -1,6 +1,6 @@
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
-
+  useShinyjs(),
   # Add the CSS here for all modules
   tags$head(
     tags$style(HTML(
@@ -17,7 +17,6 @@ ui <- page_navbar(
     "
     ))
   ),
-
   id = "main_navbar",
   selected = "Home",
   collapsible = TRUE,
@@ -28,17 +27,28 @@ ui <- page_navbar(
     open = FALSE,
     width = 250,
     title = NULL,
-    input_switch(
-      id = "dark_toggle",
-      label = "Dark Mode",
-      value = FALSE
-    ),
-    hr(),
-    h5("Property Online Access"),
-    module_pol_viewer_ui("pol_webpage"),
-    hr(),
-    h5("App Info"),
-    p("Version: 2.4.1")
+    accordion(
+      open = FALSE,
+      accordion_panel(
+        title = "Property Online Access",
+        icon = bs_icon("link-45deg"),
+        module_pol_viewer_ui("pol_webpage")
+      ),
+      accordion_panel(
+        title = "Display Settings",
+        icon = bs_icon("palette"),
+        input_switch(
+          id = "dark_toggle",
+          label = "Dark Mode",
+          value = FALSE
+        )
+      ),
+      accordion_panel(
+        title = "App Info",
+        icon = bs_icon("info-circle"),
+        p(str_glue("Version: {VERSION}"))
+      )
+    )
   ),
   nav_panel(
     title = "Home",
@@ -118,7 +128,12 @@ ui <- page_navbar(
         module_review_data_viewer_ui("review_data")
       ),
       nav_panel(
-        title = "Queries"
+        title = "Queries",
+        module_review_queries_ui("review_queries")
+      ),
+      nav_panel(
+        title = "Ecological Features",
+        module_eco_highlights_ui("ecological_highlights")
       )
     )
   ),
@@ -133,6 +148,32 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Tab 2",
+      ),
+      nav_panel(
+        title = "Tab 3"
+      )
+    )
+  ),
+  nav_panel(
+    title = "Mapping",
+    icon = bs_icon("map"),
+    navset_card_tab(
+      height = "100%",
+      nav_panel(
+        title = "Priority Map",
+        module_property_map_ui("property_map")
+      ),
+      nav_panel(
+        title = "ArcGIS Online Map",
+        card(
+          full_screen = TRUE,
+          card_body(
+            tags$iframe(
+              src = "https://nsnt.maps.arcgis.com/apps/instant/basic/index.html?appid=36ea149a7296409583d023812ac482d1",
+              style = "width:100%; height:80vh; border:0;"
+            )
+          )
+        )
       ),
       nav_panel(
         title = "Tab 3"
