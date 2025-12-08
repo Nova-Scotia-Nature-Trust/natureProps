@@ -6,17 +6,13 @@ module_data_viewer_ui <- function(id, panel_id) {
   choices_list <- if (panel_id == "panel_01") {
     list(
       "Select a view from the list" = "",
-      "PIDs (all)" = "pid_view_04",
-      "PIDs (filtered)" = "pid_view_01",
-      "Property Contact Details (all)" = "property_contact_details_view_all",
-      "Property Contact Details (filtered)" = "property_contact_details_view_filtered",
-      "Communication History" = "communication_data_view_all",
-      "Communication History (filtered)" = "communication_data_view_filtered",
+      "PIDs" = "pid_view",
+      "Property Contact Details" = "property_contact_details_view",
+      "Communication History" = "communication_data_view",
       "Outreach" = "outreach_view",
-      "Land & Securement History (all)" = "land_secure_comms_all",
-      "Land & Securement History (filtered)" = "land_secure_comms_filtered",
-      "Property Descriptions (all)" = "property_descriptions_all",
-      "Property Descriptions (filtered)" = "property_descriptions_filtered"
+      "Land & Securement History" = "land_secure_comms",
+      "Property Descriptions" = "property_descriptions",
+      "Landowner & Address" = "landowner_address"
     )
   } else if (panel_id == "panel_02") {
     list(
@@ -29,19 +25,31 @@ module_data_viewer_ui <- function(id, panel_id) {
     title = "Data Viewer",
     card(
       full_screen = TRUE,
-      height = "100%", # Set card height to 100%
+      height = "100%",
       card_header(
-        selectInput(
-          inputId = ns("data_view_input"),
-          label = "Data Table View",
-          choices = choices_list,
-          selected = ifelse(panel_id == "panel_02", "pid_view_02", ""),
-          width = "350px"
+        tagList(
+          selectInput(
+            inputId = ns("data_view_input"),
+            label = "Data Table View",
+            choices = choices_list,
+            selected = ifelse(panel_id == "panel_02", "pid_view_02", ""),
+            width = "250px"
+          ),
+          if (panel_id == "panel_01") {
+            div(
+              style = "margin-top: 0.5rem;",
+              input_switch(
+                id = ns("filter_toggle"),
+                label = "Filter by query results",
+                value = FALSE
+              )
+            )
+          }
         )
       ),
       card_body(
-        style = "height: calc(100vh - 265px); padding: 0.5rem 1rem;", # Set explicit height and remove padding
-        DTOutput(outputId = ns("view_df"), height = "100%") # Set output height to 100%
+        style = "height: calc(100vh - 265px); padding: 0.5rem 1rem;",
+        DTOutput(outputId = ns("view_df"), height = "100%")
       )
     )
   )
@@ -57,24 +65,8 @@ module_data_viewer_server <- function(
 ) {
   moduleServer(id, function(input, output, session) {
     ## Load data view metadata table (parameters and attribute names)
-    # Change name to df_views_meta
     df_view_meta <- read_xlsx(
       "inputs/field and function mapping tables/df_views.xlsx"
-    )
-
-    ## WARNING THIS WILL NOT WORK IN DOCKER CONTAINER ##
-    ## NEED TO COPY THIS FILE TO FILE INPUTS ###
-    ## Load 'property database' spreadsheet data
-
-    if (DOCKER_CON) {
-      parcels_path <- "inputs/23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx"
-    } else {
-      parcels_path <- "C:/Users/dominic/OneDrive - Nova Scotia Nature Trust/Documents/Property database/inputs/reference files/23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx"
-    }
-
-    parcels_raw <- read_xlsx(
-      parcels_path,
-      sheet = "Properties"
     )
 
     ## Reactive to capture the selected view
@@ -90,59 +82,61 @@ module_data_viewer_server <- function(
         db_updated()
       }
 
-      ## Access the selected view
+      ## Access the selected view and filter toggle
       selected_view <- view_scenario()
+      apply_filter <- input$filter_toggle
 
       ## Property contact details view ----
-      if (selected_view == "property_contact_details_view_all") {
-        data <- prep_view_property_contacts(df_view_meta, db_con)
-      } else if (selected_view == "property_contact_details_view_filtered") {
+      if (selected_view == "property_contact_details_view") {
         data <- prep_view_property_contacts(df_view_meta, db_con)
 
-        if (!is.null(focal_pid_rv())) {
+        if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
             filter(str_detect(
               `Property Contact PIDs`,
               str_c(focal_pid_rv(), collapse = "|")
             ))
-        } else {
+        } else if (apply_filter) {
           data <- data |>
             filter(FALSE)
         }
-        ## PID view (multiple) ----
-      } else if (
-        selected_view %in% c("pid_view_01", "pid_view_02", "pid_view_04")
-      ) {
-        data <- prep_view_pid(df_view_meta, selected_view, db_con)
+        ## PID view ----
+      } else if (selected_view == "pid_view") {
+        # Use pid_view_04 for unfiltered view in panel_01
+        view_name <- if (id == "panel_01") "pid_view_04" else "pid_view_02"
+        data <- prep_view_pid(df_view_meta, view_name, db_con)
 
-        if (!is.null(prop_filter)) {
+        # if (!is.null(prop_filter)) {
+        #   data <- data |>
+        #     filter(`Property Name` == prop_filter())
+        # }
+
+        if (apply_filter && !is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(PID %in% focal_pid_rv())
+        } else if (apply_filter) {
+          data <- data |>
+            filter(FALSE)
+        }
+      } else if (selected_view == "pid_view_02") {
+        # Action items view (panel_02 only, no filtering)
+        data <- prep_view_pid(df_view_meta, "pid_view_02", db_con)
+        if (!is.null(prop_filter) && !is.null(prop_filter())) {
           data <- data |>
             filter(`Property Name` == prop_filter())
         }
-
-        if (selected_view == "pid_view_01") {
-          data <- data |>
-            filter(PID %in% focal_pid_rv())
-        }
-
         # Communication data view ----
-      } else if (selected_view == "communication_data_view_all") {
-        data <- prep_view_communications(
-          df_view_meta,
-          selected_view = "communication_data_view",
-          db_con
-        )
-      } else if (selected_view == "communication_data_view_filtered") {
+      } else if (selected_view == "communication_data_view") {
         data <- prep_view_communications(
           df_view_meta,
           selected_view = "communication_data_view",
           db_con
         )
 
-        if (!is.null(focal_pid_rv())) {
+        if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
             filter(str_detect(PIDs, str_c(focal_pid_rv(), collapse = "|")))
-        } else {
+        } else if (apply_filter) {
           data <- data |>
             filter(FALSE)
         }
@@ -150,21 +144,44 @@ module_data_viewer_server <- function(
         ## Outreach data view ----
       } else if (selected_view == "outreach_view") {
         data <- prep_view_outreach(df_view_meta, selected_view, db_con)
+
+        if (apply_filter && !is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(PID %in% focal_pid_rv())
+        } else if (apply_filter) {
+          data <- data |>
+            filter(FALSE)
+        }
+
         ## Historical communications data view ----
-      } else if (selected_view == "land_secure_comms_all") {
-        data <- prep_view_historical_comms(parcels_raw, db_con)
-      } else if (selected_view == "land_secure_comms_filtered") {
-        data <- prep_view_historical_comms(parcels_raw, db_con) |>
-          filter(PID %in% focal_pid_rv())
+      } else if (selected_view == "land_secure_comms") {
+        data <- prep_view_historical_comms(db_con)
+
+        if (apply_filter && !is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(PID %in% focal_pid_rv())
+        } else if (apply_filter) {
+          data <- data |>
+            filter(FALSE)
+        }
         ## Property descriptions data view ----
-      } else if (selected_view == "property_descriptions_all") {
+      } else if (selected_view == "property_descriptions") {
         data <- prep_view_property_descriptions(db_con)
-      } else if (selected_view == "property_descriptions_filtered") {
-        data <- prep_view_property_descriptions(db_con)
-        if (!is.null(focal_pid_rv())) {
+
+        if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
             filter(str_detect(PIDs, str_c(focal_pid_rv(), collapse = "|")))
-        } else {
+        } else if (apply_filter) {
+          data <- data |>
+            filter(FALSE)
+        }
+      } else if (selected_view == "landowner_address") {
+        data <- prep_view_landowner_address(db_con)
+
+        if (apply_filter && !is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(PID %in% focal_pid_rv())
+        } else if (apply_filter) {
           data <- data |>
             filter(FALSE)
         }
@@ -190,13 +207,18 @@ module_data_viewer_server <- function(
 
     # Render the datatable
     output$view_df <- renderDT({
-      req(output_view_data())
+      # req(output_view_data())
+
+      if (is.null(output_view_data()) || nrow(output_view_data()) == 0) {
+        return(datatable(data.frame()))
+      }
       # Convert character columns to factors to get select inputs
       data_for_display <- output_view_data() |>
         mutate(across(where(is.character), as.factor))
 
       datatable(
         data_for_display,
+        escape = FALSE,
         options = list(
           pageLength = 10,
           scrollX = TRUE,
