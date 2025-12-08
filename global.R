@@ -15,12 +15,17 @@ library(dbx)
 library(janitor)
 library(shinymanager)
 library(markdown)
+library(leaflet)
+library(leaflet.extras)
+library(sf)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
 # Create database connection
 db_con <- create_db_pool("dummydb")
 prd_con <- create_db_pool("nsprd")
+gis_con <- create_db_pool("nsnt_gis")
+# gis_con <- create_db_pool("gis")
 
 # Register cleanup when app stops
 onStop(function() {
@@ -28,7 +33,6 @@ onStop(function() {
   poolClose(prd_con)
 })
 
-DOCKER_CON <- FALSE
 USE_AUTH <- FALSE
 
 if (USE_AUTH) {
@@ -38,6 +42,8 @@ if (USE_AUTH) {
     "Login" = "Sign in"
   )
 }
+
+VERSION <- "2.4.3"
 
 # Tester PIDs:
 # 05311154
