@@ -107,4 +107,15 @@ server <- function(input, output, session) {
     focal_pid_rv
   )
   module_review_projects_server("project_review", db_con, db_updated)
+
+  module_property_map_server(
+    "property_map",
+    db_con = db_con,
+    gis_con = gis_con,
+    db_updated
+  )
+
+  module_review_queries_server("review_queries", db_con, db_updated)
+
+  module_eco_highlights_server("ecological_highlights", db_con, db_updated)
 }
