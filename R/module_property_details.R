@@ -199,7 +199,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     iv$add_rule("phase_id", sv_required())
     iv$add_rule("source", sv_required())
     iv$add_rule("team_lead", sv_required())
-    iv$add_rule("focus_area_internal", sv_required())
+    # iv$add_rule("focus_area_internal", sv_required())
     iv$add_rule(
       "pid",
       ~ validate_pid_input(., valid_pids, enable_check = TRUE)
@@ -345,7 +345,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     observeEvent(input$submit_property, {
       req(input$pid)
       req(input$date_added)
-      req(input$focus_area_internal)
+      # req(input$focus_area_internal)
       req(input$property_name)
       req(input$phase_id)
       req(input$source)
@@ -375,30 +375,39 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       }
 
       ### Focus area (internal) ----
-      focus_area_check <- dbReadTable(db_con, "focus_area_internal") |>
-        filter(id == input$focus_area_internal) |>
-        pull(id)
 
-      if (length(focus_area_check) == 0) {
-        new_focus_area <- tibble(
-          internal_value = input$focus_area_internal
-        )
-
-        append_db_data(
-          "focus_area_internal",
-          new_focus_area,
-          db_con,
-          silent = TRUE
-        )
-
-        focus_area_internal_id <- dbReadTable(db_con, "focus_area_internal") |>
-          filter(internal_value == input$focus_area_internal) |>
+      if (isTruthy(input$focus_area_internal)) {
+        focus_area_check <- dbReadTable(db_con, "focus_area_internal") |>
+          filter(id == input$focus_area_internal) |>
           pull(id)
 
-        message("FOCUS AREA ADDED TO DATABASE")
+        if (length(focus_area_check) == 0) {
+          new_focus_area <- tibble(
+            internal_value = input$focus_area_internal
+          )
+
+          append_db_data(
+            "focus_area_internal",
+            new_focus_area,
+            db_con,
+            silent = TRUE
+          )
+
+          focus_area_internal_id <- dbReadTable(
+            db_con,
+            "focus_area_internal"
+          ) |>
+            filter(internal_value == input$focus_area_internal) |>
+            pull(id)
+
+          message("FOCUS AREA ADDED TO DATABASE")
+        } else {
+          focus_area_internal_id <- input$focus_area_internal
+          message("FOCUS AREA ALREADY IN DATABASE")
+        }
       } else {
-        focus_area_internal_id <- input$focus_area_internal
-        message("FOCUS AREA ALREADY IN DATABASE")
+        focus_area_internal_id <- NA_integer_
+        message("FOCUS AREA NOT ASSIGNED")
       }
 
       ## Property name & ID -----
