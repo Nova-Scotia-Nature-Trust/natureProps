@@ -1,20 +1,14 @@
-prep_view_historical_comms <- function(parcels_raw, db_con) {
-  parcels_raw <- parcels_raw |>
-    clean_names() |>
-    mutate(
-      phase = case_when(
-        phase == "Active (Phase 1-3)" ~ phase_db,
-        .default = phase
-      )
-    ) |>
-    select(-phase_db) |>
-    mutate(pid = str_trim(pid, "both"))
-
-  data <- parcels_raw |>
+prep_view_historical_comms <- function(db_con) {
+  data <- dbGetQuery(
+    db_con,
+    "SELECT pid, historical_landowner_notes, historical_securement_notes
+     FROM parcels;
+    "
+  ) |>
     select(
       pid,
-      landowner_history = landowner_details_history_communications,
-      securement_history = securement_details_history_communications
+      landowner_history = historical_landowner_notes,
+      securement_history = historical_securement_notes
     ) |>
     mutate(property_name = property_name_from_pid(pid, db_con)) |>
     relocate(property_name, .after = pid) |>
