@@ -48,8 +48,8 @@ server <- function(input, output, session) {
   db_updated <- reactiveVal(0)
   focal_pid_rv <- reactiveVal(NULL)
 
-  module_property_stats_server(
-    "home_page",
+  module_prop_stats_server(
+    "prop_stats",
     db_con,
     db_updated
   )
@@ -118,4 +118,6 @@ server <- function(input, output, session) {
   module_review_queries_server("review_queries", db_con, db_updated)
 
   module_eco_highlights_server("ecological_highlights", db_con, db_updated)
+
+  module_team_lead_info_server("ecological_highlights", db_con, db_updated)
 }

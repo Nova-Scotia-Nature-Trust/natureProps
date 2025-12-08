@@ -53,17 +53,23 @@ ui <- page_navbar(
   nav_panel(
     title = "Home",
     icon = icon("home"),
-    module_value_boxes_UI("home_page")
+    navset_card_tab(
+      height = "100%",
+      nav_panel(
+        title = "Property Metrics",
+        module_prop_stats_UI("prop_stats")
+      ),
+      nav_panel(
+        title = "Team Lead",
+        module_team_lead_info_UI("prop_stats")
+      )
+    )
   ),
   nav_panel(
     title = "Outreach",
     icon = bs_icon("person-lines-fill"),
     navset_card_tab(
       height = "100%",
-      # nav_panel(
-      #   title = "Initialise PID",
-      #   module_property_intake_ui("property_form")
-      # ),
       nav_panel(
         title = "Add Property Record",
         module_property_details_ui("property_details_form")
