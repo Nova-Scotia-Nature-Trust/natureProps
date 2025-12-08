@@ -119,5 +119,11 @@ server <- function(input, output, session) {
 
   module_eco_highlights_server("ecological_highlights", db_con, db_updated)
 
-  module_team_lead_info_server("ecological_highlights", db_con, db_updated)
+  module_team_lead_info_server("team_lead_info", db_con, db_updated)
+
+  module_internal_communications_server(
+    "internal_communications",
+    db_con,
+    db_updated
+  )
 }

@@ -61,7 +61,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Team Lead",
-        module_team_lead_info_UI("prop_stats")
+        module_team_lead_info_UI("team_lead_info")
       )
     )
   ),
@@ -128,6 +128,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Assign Priorities",
         module_assign_priorities_ui("assign_priorities")
+      ),
+      nav_panel(
+        title = "Internal Communications",
+        module_internal_communications_UI("internal_communications")
       ),
       nav_panel(
         title = "Data Viewer",

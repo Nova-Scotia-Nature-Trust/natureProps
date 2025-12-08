@@ -159,7 +159,26 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             str_squish()
         )) # Remove extra whitespace
 
-      record <- bind_cols(record_01, record_02)
+      query_03 <- glue_sql(
+        "   
+        SELECT ic.date, ic.communication_description
+        FROM internal_communications ic
+        LEFT JOIN properties prop ON ic.property_id = prop.id
+        WHERE prop.property_name = {prop_name}
+        ORDER BY ic.date DESC;
+        ",
+        .con = db_con
+      )
+
+      record_03 <- dbGetQuery(db_con, query_03) |>
+        mutate(
+          formatted_comm = str_glue("{date}: {communication_description}")
+        ) |>
+        summarise(
+          internal_communications = paste(formatted_comm, collapse = "<br>")
+        )
+
+      record <- bind_cols(record_01, record_02, record_03)
 
       if (nrow(record) == 1) {
         selected_record(record)
@@ -280,6 +299,14 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             ),
             br(),
             df$securement_description
+          )
+        ),
+        hr(),
+        div(
+          strong("Internal Communications:"),
+          div(
+            style = "margin-top: 5px;",
+            HTML(df$internal_communications)
           )
         )
       )
