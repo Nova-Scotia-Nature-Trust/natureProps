@@ -20,6 +20,7 @@ create_db_pool <- function(database) {
     RPostgres::Postgres(),
     dbname = database,
     host = Sys.getenv("POSTGRES_HOST"),
+    # host = "localhost",
     port = 5432,
     user = Sys.getenv("POSTGRES_USER"),
     password = Sys.getenv("POSTGRES_PASSWORD")

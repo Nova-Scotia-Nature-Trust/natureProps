@@ -7,7 +7,7 @@
 #' @param db_table_name A character string specifying the name of the database table
 #'   to which the data will be appended.
 #' @param data A data frame containing the data to be appended to the database table.
-#' @param con A database connection object created using `DBI::dbConnect`.
+#' @param con A database connection object created using `DBI::dbConnect` or a pool object.
 #' @param silent A logical value indicating whether to suppress success messages.
 #'   If `FALSE`, a success message will be displayed using `shinyalert`.
 #'
@@ -20,7 +20,8 @@
 #' If a unique constraint violation occurs (e.g., duplicate keys), a specific
 #' error message is displayed. For other errors, a generic error message is shown.
 #'
-#' @importFrom DBI dbBegin dbAppendTable dbCommit dbRollback
+#' @importFrom DBI dbAppendTable
+#' @importFrom pool poolWithTransaction
 #' @importFrom shinyalert shinyalert
 #' @importFrom stringr str_detect
 #'
@@ -36,23 +37,22 @@
 #' @export
 
 append_db_data <- function(db_table_name, data, con, silent) {
-  # Start transaction
-  dbBegin(con)
-
   result <- tryCatch(
     {
-      # Append the data
-      dbAppendTable(con, name = db_table_name, value = data, row.names = NULL)
+      # Use poolWithTransaction for pool objects
+      poolWithTransaction(con, function(conn) {
+        dbAppendTable(
+          conn,
+          name = db_table_name,
+          value = data,
+          row.names = NULL
+        )
+      })
 
-      # If successful, commit the transaction
-      dbCommit(con)
       message("Data appended successfully.")
       TRUE # Return TRUE for success
     },
     error = function(e) {
-      # Rollback if any error occurs
-      dbRollback(con)
-
       if (
         str_detect(
           e$message,
