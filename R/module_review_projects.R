@@ -34,7 +34,7 @@ module_review_projects_ui <- function(id) {
           layout_columns(
             height = "100%",
             col_widths = c(12, -1),
-            ## Card :: Edit ----
+            ## Card :: Projects ----
             card(
               height = "100%",
               card_header(div(
