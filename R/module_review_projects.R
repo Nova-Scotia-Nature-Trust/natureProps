@@ -108,7 +108,9 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
       query_01 <- glue_sql(
         "
-        SELECT property_description, phase_id_description, tl.team_value as team_lead, ph.phase_value as phase
+        SELECT property_description, phase_id_description, 
+               tl.team_value as team_lead, 
+               ph.phase_value as phase, p.stewardship_concerns
         FROM properties p
         LEFT JOIN team_lead tl ON p.team_lead_id = tl.id 
         LEFT JOIN phase ph ON p.phase_id = ph.id
@@ -178,7 +180,36 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           internal_communications = paste(formatted_comm, collapse = "<br>")
         )
 
-      record <- bind_cols(record_01, record_02, record_03)
+      query_04 <- glue_sql(
+        "   
+       SELECT
+          tl.team_value,
+          tla.action_item_description,
+          tla.due_date,
+          tla.action_complete
+        FROM
+          team_lead_actions tla
+          LEFT JOIN properties p ON tla.property_id = p.id
+          LEFT JOIN team_lead tl ON tla.team_lead_id = tl.id
+        WHERE
+          p.property_name = {prop_name}
+        ORDER BY
+          tla.due_date;
+        ",
+        .con = db_con
+      )
+
+      record_04 <- dbGetQuery(db_con, query_04) |>
+        mutate(
+          formatted_comm = str_glue(
+            "{team_value} - {due_date}: {action_item_description} Complete: {action_complete}"
+          )
+        ) |>
+        summarise(
+          action_items = paste(formatted_comm, collapse = "<br>")
+        )
+
+      record <- bind_cols(record_01, record_02, record_03, record_04)
 
       if (nrow(record) == 1) {
         selected_record(record)
@@ -307,6 +338,22 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           div(
             style = "margin-top: 5px;",
             HTML(df$internal_communications)
+          )
+        ),
+        hr(),
+        div(
+          strong("Action Items:"),
+          div(
+            style = "margin-top: 5px;",
+            HTML(df$action_items)
+          )
+        ),
+        hr(),
+        div(
+          strong("Stewardship Concerns:"),
+          div(
+            style = "margin-top: 5px;",
+            HTML(df$stewardship_concerns)
           )
         )
       )

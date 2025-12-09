@@ -4,7 +4,6 @@ module_team_lead_info_UI <- function(id) {
 
   layout_sidebar(
     sidebar = sidebar(
-      title = "Filters",
       selectizeInput(
         ns("team_lead_choice"),
         "Select Team Lead",
@@ -87,7 +86,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
           "SELECT
                   p.property_name,
                   tla.action_item_description,
-                  tla.due_date
+                  tla.due_date,
+                  tla.action_complete
                 FROM
                   team_lead_actions tla
                   LEFT JOIN properties p ON tla.property_id = p.id
@@ -103,7 +103,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         rename(
           `Property Name` = property_name,
           `Action Item Description` = action_item_description,
-          `Due Date` = due_date
+          `Due Date` = due_date,
+          `Completed` = action_complete
         )
 
       actions_data(actions)
