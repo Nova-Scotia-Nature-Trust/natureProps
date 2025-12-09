@@ -15,23 +15,13 @@ module_edit_records_ui <- function(id) {
             inputId = ns("db_table"),
             label = "Database Table",
             selected = NULL,
-            choices = c("", "Parcels", "Properties"),
+            choices = c("", "Parcels", "Properties", "Team Lead Actions"),
             options = list(
               create = FALSE,
               placeholder = "Select table"
             )
           ),
-          selectizeInput(
-            inputId = ns("record_id"),
-            label = "Database Record ID",
-            choices = NULL,
-            selected = NULL,
-            multiple = FALSE,
-            options = list(
-              create = FALSE,
-              placeholder = "Search or select ID"
-            )
-          ),
+          uiOutput(ns("record_id_ui")),
           actionButton(
             inputId = ns("load_record"),
             label = "Load Record",
@@ -78,18 +68,7 @@ module_edit_records_ui <- function(id) {
                   div(style = "flex-grow: 1;")
                 )
               )
-            ) #,
-            ## Card :: Other content ----
-            # card(
-            #   height = "100%",
-            #   card_header(h5("Other content")),
-            #   div(
-            #     style = "display: flex; flex-direction: column; gap: 15px;",
-            #     "Content here.",
-            #     # Add a spacer div to prevent pushing everything to bottom
-            #     div(style = "flex-grow: 1;")
-            #   )
-            # )
+            )
           )
         )
       )
@@ -105,7 +84,7 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
     ## Assign fields from each database table ----
     table_fields <- list(
       Parcels = c(
-        "property_id", # This should not be an editable field (just using for reference here)
+        "property_id",
         "acquisition_type_id",
         "date_added",
         "date_updated",
@@ -124,13 +103,28 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         "phase_id_followup",
         "team_lead_id",
         "securement_probability_id"
+      ),
+      "Team Lead Actions" = c(
+        "team_lead_id",
+        "action_item_description",
+        "due_date",
+        "action_complete"
       )
     )
 
     ## Set custom field data types ----
-    ## Unassigned fields will be treated as text inputs
-    date_fields <- c("date_added", "date_updated", "phase_id_followup")
-    text_area_fields <- c("property_description", "phase_id_description")
+    date_fields <- c(
+      "date_added",
+      "date_updated",
+      "phase_id_followup",
+      "due_date"
+    )
+    text_area_fields <- c(
+      "property_description",
+      "phase_id_description",
+      "action_item_description"
+    )
+    boolean_fields <- c("action_complete")
     numeric_fields <- c(
       "size_acres_confirmed",
       "price_asking",
@@ -177,6 +171,57 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
       )
     )
 
+    ## Reactive :: Team lead choices ----
+    team_lead_choices <- reactive({
+      dbGetQuery(
+        db_con,
+        "SELECT id, team_value FROM team_lead ORDER BY team_value;"
+      ) |>
+        select(team_value, id) |> # Flip the order: name first, then id
+        deframe()
+    })
+
+    ## Dynamic UI :: Record ID input ----
+    output$record_id_ui <- renderUI({
+      if (!is.null(input$db_table) && input$db_table == "Team Lead Actions") {
+        tagList(
+          selectizeInput(
+            inputId = ns("team_lead_filter"),
+            label = "Team Lead",
+            choices = c("", team_lead_choices()),
+            selected = NULL,
+            options = list(
+              create = FALSE,
+              placeholder = "Select team lead"
+            )
+          ),
+          selectizeInput(
+            inputId = ns("record_id"),
+            label = "Database Record ID",
+            choices = NULL,
+            selected = NULL,
+            multiple = FALSE,
+            options = list(
+              create = FALSE,
+              placeholder = "Search or select ID"
+            )
+          )
+        )
+      } else {
+        selectizeInput(
+          inputId = ns("record_id"),
+          label = "Database Record ID",
+          choices = NULL,
+          selected = NULL,
+          multiple = FALSE,
+          options = list(
+            create = FALSE,
+            placeholder = "Search or select ID"
+          )
+        )
+      }
+    })
+
     ## Reactive :: Record ID choices ----
     id_choices <- reactive({
       req(input$db_table)
@@ -190,6 +235,38 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         dbGetQuery(db_con, glue("SELECT property_name FROM {tbl};")) |>
           pull(property_name) |>
           sort()
+      } else if (tbl == "Team Lead Actions") {
+        req(input$team_lead_filter)
+
+        query <- glue_sql(
+          "SELECT 
+            tla.id,
+            pr.property_name,
+            tla.due_date
+          FROM team_lead_actions tla
+          JOIN properties pr ON tla.property_id = pr.id
+          WHERE tla.team_lead_id = {input$team_lead_filter}
+          ORDER BY tla.due_date DESC, pr.property_name",
+          .con = db_con
+        )
+
+        results <- dbGetQuery(db_con, query) |>
+          mutate(due_date = as.Date(due_date))
+
+        # Create named vector with format "Property Name - Due Date" = id
+        # Create named vector with format "Property Name - Due Date" = id
+        set_names(
+          results$id,
+          paste0(
+            results$property_name,
+            " - ",
+            ifelse(
+              is.na(results$due_date),
+              "No date",
+              format(results$due_date, "%Y-%m-%d")
+            )
+          )
+        )
       }
     })
 
@@ -232,6 +309,14 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         fields <- table_fields$Properties
         query <- glue_sql(
           "SELECT {`fields`*} FROM properties WHERE property_name = {prop_name}",
+          .con = db_con
+        )
+        record <- dbGetQuery(db_con, query)
+      } else if (tbl == "Team Lead Actions") {
+        action_id <- input$record_id
+        fields <- table_fields[["Team Lead Actions"]]
+        query <- glue_sql(
+          "SELECT {`fields`*} FROM team_lead_actions WHERE id = {action_id}",
           .con = db_con
         )
         record <- dbGetQuery(db_con, query)
@@ -283,6 +368,16 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
               },
               height = "200px",
               width = "100%"
+            )
+          } else if (field_name %in% boolean_fields) {
+            checkboxInput(
+              inputId = ns(paste0("edit_", field_name)),
+              label = field_label,
+              value = if (!is.na(record[[field_name]])) {
+                record[[field_name]]
+              } else {
+                FALSE
+              }
             )
           } else if (field_name %in% numeric_fields) {
             numericInput(
@@ -412,6 +507,13 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
           records = update_tibble |> mutate(property_name = db_id),
           where_cols = "property_name"
         )
+      } else if (tbl == "Team Lead Actions") {
+        dbx::dbxUpdate(
+          db_con,
+          table = "team_lead_actions",
+          records = update_tibble |> mutate(id = as.integer(db_id)),
+          where_cols = "id"
+        )
       }
 
       # Signal update
@@ -429,8 +531,6 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         closeOnClickOutside = TRUE,
         timer = 10000
       )
-
-      # showNotification("Record updated, lekker!", type = "message")
     })
 
     ## Event :: Clear inputs ----
@@ -446,6 +546,8 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
             updateDateInput(session, field_id, value = "")
           } else if (.x %in% text_area_fields) {
             updateTextAreaInput(session, field_id, value = "")
+          } else if (.x %in% boolean_fields) {
+            updateCheckboxInput(session, field_id, value = FALSE)
           } else if (.x %in% numeric_fields) {
             updateNumericInput(session, field_id, value = NA)
           } else {
@@ -461,12 +563,6 @@ module_edit_records_server <- function(id, db_con, db_updated = NULL) {
         selected = "",
         server = TRUE
       )
-
-      # updateSelectInput(
-      #   session,
-      #   inputId = "db_table",
-      #   selected = ""
-      # )
     })
   })
 }
