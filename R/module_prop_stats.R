@@ -77,7 +77,11 @@ module_prop_stats_UI <- function(id) {
         card_body(
           div(
             class = "indicator-grid",
-            uiOutput(ns("nsnt_acres_card")),
+            uiOutput(ns("acres_total")),
+            uiOutput(ns("acres_nsnt")),
+            uiOutput(ns("acres_easement")),
+            uiOutput(ns("n_easements")),
+            uiOutput(ns("n_ecogifts")),
             uiOutput(ns("ecological_vh_card")),
             uiOutput(ns("securement_vh_card")),
             uiOutput(ns("props_2025_card"))
@@ -128,18 +132,89 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
       ) |>
         pull(count)
 
-      # Get total acres for NSNT-owned properties
-      valboxes$nsnt_acres <- dbGetQuery(
+      # # Get total acres for NSNT-owned properties
+      # valboxes$nsnt_acres <- dbGetQuery(
+      #   db_con,
+      #   "SELECT
+      #     COALESCE(SUM(p.size_confirmed_acres), 0) +
+      #     COALESCE(SUM(CASE WHEN p.size_confirmed_acres IS NULL THEN pi.area_ha * 2.471053 ELSE 0 END), 0) AS total_acres
+      #   FROM parcels p
+      #   LEFT JOIN parcel_info pi ON p.id = pi.parcel_id
+      #   INNER JOIN properties pr ON p.property_id = pr.id
+      #   WHERE pr.ownership_id NOT IN (11, 12, 13);"
+      # ) |>
+      #   pull(total_acres)
+
+      # Number of ecogifts
+      valboxes$n_ecogifts <- dbGetQuery(
         db_con,
-        "SELECT 
-          COALESCE(SUM(p.size_confirmed_acres), 0) + 
-          COALESCE(SUM(CASE WHEN p.size_confirmed_acres IS NULL THEN pi.area_ha * 2.471053 ELSE 0 END), 0) AS total_acres
-        FROM parcels p
-        LEFT JOIN parcel_info pi ON p.id = pi.parcel_id
-        INNER JOIN properties pr ON p.property_id = pr.id
-        WHERE pr.ownership_id NOT IN (11, 12, 13);"
+        "SELECT COUNT(*) FROM properties WHERE ecogift_number IS NOT NULL;"
       ) |>
-        pull(total_acres)
+        pull(count)
+
+      # Number of easements
+      valboxes$n_easements <- dbGetQuery(
+        db_con,
+        "SELECT COUNT(*) FROM properties WHERE ownership_id IN (2,3,4,12);"
+      ) |>
+        pull(count)
+
+      # Acres under easement
+      valboxes$acres_easement <- dbGetQuery(
+        db_con,
+        "SELECT
+          pa.property_id,
+          pr.property_name,
+          pa.size_confirmed_acres,
+          pi.area_ha * 2.471 AS pol_acres,
+          COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
+        FROM
+          properties pr
+          JOIN parcels pa ON pr.id = pa.property_id
+          LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
+        WHERE
+          pr.ownership_id IN (2, 3, 4, 12);"
+      ) |>
+        pull(acres) |>
+        sum()
+
+      # Total acres protected
+      valboxes$acres_total <- dbGetQuery(
+        db_con,
+        "SELECT
+          pa.property_id,
+          pr.property_name,
+          pa.size_confirmed_acres,
+          pi.area_ha * 2.471 AS pol_acres,
+          COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
+        FROM
+          properties pr
+          JOIN parcels pa ON pr.id = pa.property_id
+          LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
+        WHERE
+          pr.ownership_id IS NOT NULL"
+      ) |>
+        pull(acres) |>
+        sum()
+
+      # Total acres held by NSNT
+      valboxes$acres_nsnt <- dbGetQuery(
+        db_con,
+        "SELECT
+          pa.property_id,
+          pr.property_name,
+          pa.size_confirmed_acres,
+          pi.area_ha * 2.471 AS pol_acres,
+          COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
+        FROM
+          properties pr
+          JOIN parcels pa ON pr.id = pa.property_id
+          LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
+        WHERE
+          pr.ownership_id NOT IN (11, 12, 13);"
+      ) |>
+        pull(acres) |>
+        sum()
     })
 
     # Helper function to create indicator cards
@@ -148,7 +223,8 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
       value,
       icon,
       theme = "primary",
-      unit = NULL
+      unit = NULL,
+      custom_color = NULL
     ) {
       formatted_value <- if (is.numeric(value)) {
         paste0(
@@ -159,62 +235,117 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
         format(value, big.mark = ",")
       }
 
-      div(
-        class = paste("indicator-card", theme),
-        div(class = "indicator-icon", bs_icon(icon)),
+      # Use custom color if provided, otherwise use theme class
+      if (!is.null(custom_color)) {
         div(
-          h3(class = "indicator-value", formatted_value),
-          p(class = "indicator-title", title)
+          class = "indicator-card",
+          div(
+            class = "indicator-icon",
+            style = paste0("color: ", custom_color, ";"),
+            bs_icon(icon)
+          ),
+          div(
+            h3(class = "indicator-value", formatted_value),
+            p(class = "indicator-title", title)
+          )
         )
-      )
+      } else {
+        div(
+          class = paste("indicator-card", theme),
+          div(class = "indicator-icon", bs_icon(icon)),
+          div(
+            h3(class = "indicator-value", formatted_value),
+            p(class = "indicator-title", title)
+          )
+        )
+      }
     }
 
     output$ecological_vh_card <- renderUI({
       indicator_card(
-        "Very High Priority (Ecological)",
-        valboxes$eco_high,
-        "tree",
-        "success",
-        unit = "parcels"
+        title = "Very High Priority (Ecological)",
+        value = valboxes$eco_high,
+        icon = "tree",
+        theme = "success",
+        unit = "parcels",
+        custom_color = NULL
       )
     })
 
     output$securement_vh_card <- renderUI({
       indicator_card(
-        "Very High Priority (Securement)",
-        valboxes$sec_high,
-        "houses",
-        "primary",
-        unit = "parcels"
+        title = "Very High Priority (Securement)",
+        value = valboxes$sec_high,
+        icon = "houses",
+        theme = "primary",
+        unit = "parcels",
+        custom_color = NULL
       )
     })
 
     output$props_2025_card <- renderUI({
       indicator_card(
-        "Added to database in 2025",
-        valboxes$prop_2025,
-        "calendar-event",
-        "warning",
-        unit = "properties"
+        title = "Added to database in 2025",
+        value = valboxes$prop_2025,
+        icon = "calendar-event",
+        theme = "warning",
+        unit = "properties",
+        custom_color = NULL
       )
     })
 
-    output$board_approval_card <- renderUI({
+    output$acres_nsnt <- renderUI({
       indicator_card(
-        "Properties requiring Board approval",
-        valboxes$board_approval,
-        "exclamation-square",
-        "danger"
+        title = "Nature Trust Held Conservation Land",
+        value = round(valboxes$acres_nsnt, 0),
+        icon = "map",
+        theme = NULL,
+        unit = "acres",
+        custom_color = "#1717c9ff"
       )
     })
 
-    output$nsnt_acres_card <- renderUI({
+    output$acres_total <- renderUI({
       indicator_card(
-        "Nature Trust Conservation Land",
-        round(valboxes$nsnt_acres, 1),
-        "map",
-        "success",
-        unit = "acres"
+        title = "Total Nature Trust Conservation Land ",
+        value = round(valboxes$acres_total, 0),
+        icon = "map",
+        theme = "success",
+        unit = "acres",
+        custom_color = NULL
+      )
+    })
+
+    output$acres_easement <- renderUI({
+      indicator_card(
+        title = "Conservation Land Under Easement ",
+        value = round(valboxes$acres_easement, 0),
+        icon = "map",
+        theme = NULL,
+        unit = "acres",
+        custom_color = "#ce3f0bff"
+      )
+    })
+
+    output$n_ecogifts <- renderUI({
+      indicator_card(
+        title = "Number of Ecogifts",
+        value = valboxes$n_ecogifts,
+        icon = "houses",
+        theme = "warning",
+        unit = NULL,
+        custom_color = NULL
+      )
+    })
+
+    output$n_easements <- renderUI({
+      indicator_card(
+        title = "Number of Easements",
+        value = valboxes$n_easements,
+        icon = "houses",
+        theme = "warning",
+        unit = NULL,
+        custom_color = NULL
       )
     })
   })
