@@ -110,6 +110,17 @@ module_property_details_ui <- function(id) {
           ),
           div(
             style = "margin-top: 20px;",
+            textAreaInput(
+              ns("stewardship_concerns"),
+              label = "Stewardship Concerns",
+              value = "",
+              # placeholder = "Enter any information around potential stewardship issues",
+              height = "100px",
+              width = "100%"
+            )
+          ),
+          div(
+            style = "margin-top: 20px;",
             actionButton(
               inputId = ns("submit_property"),
               label = "Add Property",
@@ -422,6 +433,11 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
           property_description = if_else(
             isTruthy(input$property_description),
             as.character(input$property_description),
+            NA_character_
+          ),
+          stewardship_concerns = if_else(
+            isTruthy(input$stewardship_concerns),
+            as.character(input$stewardship_concerns),
             NA_character_
           ),
           phase_id = input$phase_id,
