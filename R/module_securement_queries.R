@@ -95,6 +95,16 @@ module_securement_queries_server <- function(
               placeholder = "Select a closing year"
             )
           ),
+          selectizeInput(
+            ns("securement_probability"),
+            "Select Securement Probability",
+            choices = NULL,
+            multiple = TRUE,
+            options = list(
+              create = FALSE,
+              placeholder = "Select a probability"
+            )
+          ),
           input_switch(
             ns("prop_view"),
             "Properties only",
@@ -140,6 +150,20 @@ module_securement_queries_server <- function(
         pull()
     })
 
+    securement_probability_reactive <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      # Query database for Securement Probability values
+      dbGetQuery(
+        conn = db_con,
+        statement = "SELECT DISTINCT probability_value 
+                     FROM securement_probability 
+                     ORDER BY probability_value;"
+      ) |>
+        pull()
+    })
+
     ## Initialize inputs ----
     observe({
       req(input$query_choice)
@@ -156,6 +180,13 @@ module_securement_queries_server <- function(
         session,
         inputId = "closing_year",
         choices = closing_year_reactive(),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "securement_probability",
+        choices = securement_probability_reactive(),
         server = TRUE
       )
     })
@@ -195,20 +226,32 @@ module_securement_queries_server <- function(
         data <- prep_view_pid(df_view_meta, selected_view, db_con) |>
           as_tibble()
 
-        closing_year <- dbGetQuery(
+        additional_data <- dbGetQuery(
           conn = db_con,
-          statement = "SELECT par.pid, 
-                              prop.anticipated_closing_year
-                      FROM parcels par
-                      LEFT JOIN properties prop ON par.property_id = prop.id;"
+          statement = "
+          SELECT par.pid, 
+                prop.anticipated_closing_year,
+                se.probability_value
+          FROM parcels par
+          LEFT JOIN properties prop ON par.property_id = prop.id
+          LEFT JOIN securement_probability se ON prop.securement_probability_id = se.id;"
         )
 
         data <- data |>
-          left_join(closing_year, join_by(PID == pid))
+          left_join(additional_data, join_by(PID == pid))
 
         data <- data |>
-          relocate(anticipated_closing_year) |>
-          rename(`Closing Year` = anticipated_closing_year)
+          relocate(anticipated_closing_year, probability_value) |>
+          rename(
+            `Closing Year` = anticipated_closing_year,
+            `Securement Probability` = probability_value
+          )
+
+        # Filter by securement probability if selected
+        if (isTruthy(input$securement_probability)) {
+          data <- data |>
+            filter(`Securement Probability` %in% input$securement_probability)
+        }
 
         data <- data |>
           filter(`Closing Year` == input$closing_year) |>
@@ -250,6 +293,14 @@ module_securement_queries_server <- function(
         session,
         inputId = "closing_year",
         choices = closing_year_reactive(),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "securement_probability",
+        choices = securement_probability_reactive(),
+        selected = character(0),
         server = TRUE
       )
 
