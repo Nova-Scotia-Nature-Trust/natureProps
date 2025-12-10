@@ -6,11 +6,61 @@ module_action_item_tracking_ui <- function(id) {
     style = "height: 100%; display: flex; flex-direction: column;",
     card(
       full_screen = FALSE,
-      height = "100%", # Make card fill available space
+      height = "100%",
       layout_sidebar(
         sidebar = sidebar(
-          "",
+          title = "Assign Action Items",
           open = TRUE,
+          width = 300,
+          selectizeInput(
+            ns("property"),
+            "Select property",
+            choices = NULL,
+            multiple = FALSE,
+            width = "100%"
+          ),
+          selectizeInput(
+            ns("pids"),
+            "Select PIDs",
+            choices = NULL,
+            multiple = TRUE,
+            width = "100%"
+          ),
+          selectizeInput(
+            ns("action_item_fields"),
+            "Select action item fields",
+            choices = NULL,
+            multiple = TRUE,
+            width = "100%"
+          ),
+          selectizeInput(
+            ns("action_item_value"),
+            "Select action value",
+            choices = NULL
+          ),
+          div(
+            style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+            tags$label(
+              "Securement action description",
+              `for` = ns("securement_notes")
+            ),
+            popover(
+              div(
+                icon("question-circle"),
+                style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+              ),
+              includeMarkdown("help/securement_desc.md"),
+              title = "Securement Description Help",
+              placement = "top"
+            )
+          ),
+          textAreaInput(
+            ns("securement_notes"),
+            label = NULL,
+            "",
+            height = "150px",
+            width = "100%"
+          ),
           actionButton(
             inputId = ns("submit_actions"),
             label = "Submit Actions",
@@ -20,88 +70,12 @@ module_action_item_tracking_ui <- function(id) {
             inputId = ns("clear_inputs"),
             label = "Clear Inputs",
             class = "btn-secondary"
-          ),
-          # actionButton(
-          #   inputId = ns("refresh_db"),
-          #   label = "Refresh Data Viewer"
-          # )
-        ),
-        # Main layout
-        div(
-          style = "height: 100%; display: flex; flex-direction: column;",
-          layout_columns(
-            height = "100%",
-            col_widths = c(3, 9),
-            ## Card :: Assign action items ----
-            card(
-              height = "100%",
-              card_header(h5("Assign Action Items")),
-              card_body(
-                div(
-                  style = "display: flex; flex-direction: column; gap: 15px;",
-                  selectizeInput(
-                    ns("property"),
-                    "Select property",
-                    choices = NULL,
-                    multiple = FALSE,
-                    width = "80%"
-                  ),
-                  selectizeInput(
-                    ns("pids"),
-                    "Select PIDs",
-                    choices = NULL,
-                    multiple = TRUE,
-                    width = "80%"
-                  ),
-                  selectizeInput(
-                    ns("action_item_fields"),
-                    "Select action item fields",
-                    choices = NULL,
-                    multiple = TRUE,
-                    width = "80%"
-                  ),
-                  selectizeInput(
-                    ns("action_item_value"),
-                    "Select action value",
-                    choices = NULL
-                  ),
-                  div(
-                    style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-                    tags$label(
-                      "Securement action description",
-                      `for` = ns("securement_notes")
-                    ),
-                    popover(
-                      div(
-                        icon("question-circle"),
-                        style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                      ),
-                      includeMarkdown("help/securement_desc.md"),
-                      title = "Securement Description Help",
-                      placement = "top"
-                    )
-                  ),
-                  textAreaInput(
-                    ns("securement_notes"),
-                    label = NULL,
-                    "",
-                    height = "150px",
-                    width = "100%"
-                  ),
-                  layout_columns(),
-                  layout_columns(),
-                  layout_columns(),
-                  # Add a spacer div to prevent pushing everything to bottom
-                  div(style = "flex-grow: 1;")
-                )
-              )
-            ),
-            ## Card :: Data viewer for action items ----
-            module_data_viewer_ui(
-              ns("action_item_viewer"),
-              panel_id = "panel_02"
-            )
           )
+        ),
+        # Main layout - now just the data viewer
+        module_data_viewer_ui(
+          ns("action_item_viewer"),
+          panel_id = "panel_02"
         )
       )
     )
