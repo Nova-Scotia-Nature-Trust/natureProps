@@ -17,6 +17,7 @@ library(shinymanager)
 library(markdown)
 library(leaflet)
 library(leaflet.extras)
+library(leafem)
 library(sf)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
@@ -43,7 +44,7 @@ if (USE_AUTH) {
   )
 }
 
-VERSION <- "2.4.3"
+VERSION <- "2.4.4"
 
 # Tester PIDs:
 # 05311154
