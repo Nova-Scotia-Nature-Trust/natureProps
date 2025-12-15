@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     libgeos-dev \
     libproj-dev \
     libudunits2-dev \
+    cmake \
+    libabsl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf

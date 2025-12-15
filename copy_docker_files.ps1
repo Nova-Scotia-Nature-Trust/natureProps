@@ -26,10 +26,13 @@ Copy-Item -Path "$source_path\renv.lock" -Destination $destination_path_01 -Forc
 
 Copy-Item -Path "$source_path\help" -Destination $destination_path_01 -Recurse -Force
 Copy-Item -Path "$source_path\inputs" -Destination $destination_path_01 -Recurse -Force
+Copy-Item -Path "$source_path\app_data" -Destination $destination_path_01 -Recurse -Force
 Copy-Item -Path "$source_path\R" -Destination $destination_path_01 -Recurse -Force
 
-$source_spreadsheet = "C:\Users\dominic\OneDrive - Nova Scotia Nature Trust\Documents\Property database\inputs\reference files"
-$dest_spreadhseet = "C:\Users\dominic\deploy_docker_apps\natureprops\inputs"
-Copy-Item -Path "$source_spreadsheet\23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx" -Destination $dest_spreadhseet -Force
+Copy-Item -Path "$source_path\Dockerfile" -Destination $destination_path_02 -Recurse -Force
 
-Write-Host "Files have been successfully copied to $destination_path"
+# $source_spreadsheet = "C:\Users\dominic\OneDrive - Nova Scotia Nature Trust\Documents\Property database\inputs\reference files"
+# $dest_spreadhseet = "C:\Users\dominic\deploy_docker_apps\natureprops\inputs"
+# Copy-Item -Path "$source_spreadsheet\23-12-12 - Single Sheet Landowner Tracking Spreadsheet.xlsx" -Destination $dest_spreadhseet -Force
+
+Write-Host "Files have been successfully copied to $destination_path_02"
