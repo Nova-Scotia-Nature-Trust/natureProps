@@ -18,7 +18,8 @@ module_securement_queries_ui <- function(id) {
               "",
               "Insurance view",
               "Focal area properties",
-              "Securement action"
+              "Securement action",
+              "Property sizes"
             ),
             multiple = FALSE,
             width = "100%"
@@ -261,6 +262,8 @@ module_securement_queries_server <- function(
           data <- data |>
             distinct(`Property Name`, .keep_all = TRUE)
         }
+      } else if (input$query_choice == "Property sizes") {
+        data <- prep_view_query_size(db_con)
       }
 
       table_data(data)
@@ -275,7 +278,8 @@ module_securement_queries_server <- function(
           "",
           "Insurance view",
           "Focal area properties",
-          "Securement action"
+          "Securement action",
+          "Property sizes"
         ),
         selected = character(0),
         server = TRUE
@@ -334,12 +338,10 @@ module_securement_queries_server <- function(
             c('10', '25', '50', '100', 'All')
           ),
           scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
           dom = dom_layout,
-          buttons = list(
-            "copy",
-            "excel"
-          ),
-          # order = table_order(),
+          buttons = list("copy", "excel"),
           stateSave = FALSE
         ),
         filter = list(
@@ -349,7 +351,7 @@ module_securement_queries_server <- function(
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons", "FixedHeader")
       )
     })
   })
