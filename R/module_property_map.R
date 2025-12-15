@@ -49,11 +49,6 @@ module_property_map_ui <- function(id) {
             "Load NSPRD parcels",
             class = "btn-primary"
           )
-        ),
-        accordion_panel(
-          title = "Priority Ranking Legend",
-          icon = bsicons::bs_icon("palette"),
-          htmlOutput(ns("priority_legend"))
         )
       ),
       hr(),
@@ -163,27 +158,67 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         db_updated() # Creates the reactive dependency; ignore the return value.
       }
 
-      query <- glue_sql(
-        "
-        SELECT 
-          prop.property_name,
-          prop.property_description,
-          tl.team_value as team_lead,
-          ph.phase_value as phase,
-          par.pid,
-          ra_eco.ranking_value AS ecological_priority,
-          ra_sec.ranking_value AS securement_priority
-        FROM parcels par
-        LEFT JOIN properties prop ON par.property_id = prop.id
-        LEFT JOIN team_lead tl ON prop.team_lead_id = tl.id
-        LEFT JOIN phase ph ON prop.phase_id = ph.id
-        LEFT JOIN ranking ra_eco ON par.priority_ecological_ranking_id = ra_eco.id
-        LEFT JOIN ranking ra_sec ON par.priority_securement_ranking_id = ra_sec.id;
+      parcel_query <- glue_sql(
+        "SELECT 
+        prop.property_name,
+        prop.property_description,
+        tl.team_value as team_lead,
+        ph.phase_value as phase,
+        par.pid,
+        par.id,
+        ra_eco.ranking_value AS ecological_priority,
+        ra_sec.ranking_value AS securement_priority,
+        info.area_ha
+      FROM parcels par
+      LEFT JOIN properties prop ON par.property_id = prop.id
+      LEFT JOIN team_lead tl ON prop.team_lead_id = tl.id
+      LEFT JOIN phase ph ON prop.phase_id = ph.id
+      LEFT JOIN ranking ra_eco ON par.priority_ecological_ranking_id = ra_eco.id
+      LEFT JOIN ranking ra_sec ON par.priority_securement_ranking_id = ra_sec.id
+      LEFT JOIN parcel_info info ON par.id = info.parcel_id;
         ",
         .con = db_con
       )
 
-      result <- dbGetQuery(db_con, query)
+      result <- dbGetQuery(db_con, parcel_query)
+
+      # Get all landowners for these parcels
+      db_owners <- dbGetQuery(
+        db_con,
+        statement = "SELECT * FROM landowners;"
+      ) |>
+        as_tibble()
+
+      # Format each owner's name - vectorized approach
+      db_formatted_owners <- db_owners |>
+        mutate(
+          # Build individual name from components - vectorized
+          individual_name = paste(
+            owner_name_first,
+            owner_name_middle,
+            owner_name_last
+          ) |>
+            str_remove_all("\\bNA\\b") |>
+            str_trim() |>
+            str_squish(),
+          individual_name = na_if(individual_name, ""),
+
+          # Use corp name if available, otherwise individual name
+          owner_display = coalesce(owner_name_corp, individual_name)
+        ) |>
+        filter(!is.na(owner_display)) |>
+        select(parcel_id, owner_display)
+
+      # Group by parcel and combine multiple owners with commas
+      db_owners_collapsed <- db_formatted_owners |>
+        group_by(parcel_id) |>
+        summarize(
+          landowner_names = paste(owner_display, collapse = ", "),
+          .groups = "drop"
+        )
+
+      result <- result |>
+        left_join(db_owners_collapsed, join_by(id == parcel_id))
 
       message(
         "[",
@@ -193,7 +228,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         " secs"
       )
 
-      result
+      return(result)
     })
 
     ## Reactive :: Get spatial data for all parcels ----
@@ -206,21 +241,22 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         pull(pid) |>
         unique()
 
-      query <- glue_sql(
-        "
-        SELECT pid, geom
-        FROM parcels
-        WHERE pid IN ({all_pids*});
-        ",
+      pid_geom_query <- glue_sql(
+        "SELECT pid, geom
+         FROM parcels
+         WHERE pid IN ({all_pids*});
+          ",
         .con = gis_con
       )
+
+      # Join spatial data with parcel attributes
+      result <- st_read(gis_con, query = pid_geom_query) |>
+        left_join(all_parcels_data(), join_by(pid))
 
       # Define priority levels once
       priority_levels <- c("Very High", "High", "Medium", "Low", "Very Low")
 
-      # Join and transform in one step
-      data <- st_read(gis_con, query = query) |>
-        left_join(all_parcels_data(), join_by(pid)) |>
+      result <- result |>
         mutate(
           ecological_priority = factor(
             ecological_priority,
@@ -239,11 +275,11 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         round(difftime(Sys.time(), start_time, units = "secs"), 2),
         " secs"
       )
-      return(data)
+      return(result)
     })
 
     ## Color palettes (now simpler) ----
-    priority_pal <- colorFactor(
+    ecological_pal <- colorFactor(
       palette = c("#a50026", "#d73027", "#fee090", "#91bfdb", "#4575b4"),
       levels = c("Very High", "High", "Medium", "Low", "Very Low"),
       ordered = TRUE,
@@ -257,60 +293,25 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
       na.color = "#808080"
     )
 
-    ## Render priority legend ----
-    output$priority_legend <- renderUI({
-      tags$div(
-        tags$div(
-          style = "display: flex; align-items: center; margin-bottom: 5px;",
-          tags$span(
-            style = "background-color: #a50026; width: 20px; height: 20px; display: inline-block; margin-right: 8px; border: 1px solid #333;"
-          ),
-          tags$span("Very High")
-        ),
-        tags$div(
-          style = "display: flex; align-items: center; margin-bottom: 5px;",
-          tags$span(
-            style = "background-color: #d73027; width: 20px; height: 20px; display: inline-block; margin-right: 8px; border: 1px solid #333;"
-          ),
-          tags$span("High")
-        ),
-        tags$div(
-          style = "display: flex; align-items: center; margin-bottom: 5px;",
-          tags$span(
-            style = "background-color: #fee090; width: 20px; height: 20px; display: inline-block; margin-right: 8px; border: 1px solid #333;"
-          ),
-          tags$span("Medium")
-        ),
-        tags$div(
-          style = "display: flex; align-items: center; margin-bottom: 5px;",
-          tags$span(
-            style = "background-color: #91bfdb; width: 20px; height: 20px; display: inline-block; margin-right: 8px; border: 1px solid #333;"
-          ),
-          tags$span("Low")
-        ),
-        tags$div(
-          style = "display: flex; align-items: center; margin-bottom: 5px;",
-          tags$span(
-            style = "background-color: #4575b4; width: 20px; height: 20px; display: inline-block; margin-right: 8px; border: 1px solid #333;"
-          ),
-          tags$span("Very Low")
-        ),
-        tags$div(
-          style = "display: flex; align-items: center; margin-bottom: 5px;",
-          tags$span(
-            style = "background-color: #808080; width: 20px; height: 20px; display: inline-block; margin-right: 8px; border: 1px solid #333;"
-          ),
-          tags$span("Not Assigned")
-        )
+    nsnt_cons_lands <- reactive({
+      result <- st_read(
+        gis_con,
+        query = "SELECT property_name_public, geom FROM nsnt_conservation_lands;"
       )
     })
+
+    # Define shared label
+    shared_label_opts <- labelOptions(
+      style = list("font-size" = "12px", "font-weight" = "bold"),
+      direction = "auto"
+    )
 
     ## Render base map ----
     output$map <- renderLeaflet({
       start_time <- Sys.time()
       message("[", format(Sys.time(), "%H:%M:%OS3"), "] Starting map render")
 
-      req(parcels_sf())
+      req(parcels_sf(), nsnt_cons_lands())
 
       map <- leaflet() |>
         addProviderTiles(providers$Esri.WorldImagery, group = "Imagery") |>
@@ -321,21 +322,28 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         ) |>
         addLayersControl(
           baseGroups = c("Imagery", "Topo", "Gray Canvas"),
-          options = layersControlOptions(collapsed = TRUE)
+          overlayGroups = c(
+            "DB Parcels",
+            "Crown Land",
+            "Protected Areas",
+            "Nature Trust Conservation Lands"
+          ),
+          options = layersControlOptions(collapsed = FALSE)
         ) |>
+        addMapPane("nsprd_pane", zIndex = 410) |>
+        addMapPane("crown_pane", zIndex = 420) |>
+        addMapPane("papa_pane", zIndex = 430) |>
+        addMapPane("db_parcels_pane", zIndex = 440) |>
+        addMapPane("nsnt_cons_lands_pane", zIndex = 450) |>
         addPolygons(
           data = parcels_sf(),
-          fillColor = ~ priority_pal(ecological_priority),
+          group = "DB Parcels",
+          fillColor = ~ ecological_pal(ecological_priority),
           fillOpacity = 0.7,
           color = ~ securement_pal(securement_priority),
           weight = 3,
-          label = ~ glue(
-            "{property_name} - PID: {pid}"
-          ),
-          labelOptions = labelOptions(
-            style = list("font-size" = "14px", "font-weight" = "bold"),
-            direction = "auto"
-          ),
+          label = ~ str_glue("{property_name} - PID: {pid}"),
+          labelOptions = shared_label_opts,
           popup = ~ paste(
             "<div style='font-size: 14px;'>",
             "<b>Property Name:</b>",
@@ -359,15 +367,78 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
             "<b>Property Description:</b>",
             coalesce(property_description, "N/A"),
             "<br>",
+            "<b>Landowner:</b>",
+            coalesce(landowner_names, "Unknown"),
+            "<br>",
+            "<b>Size (hectares):</b>",
+            coalesce(as.character(area_ha), "Unknown"),
+            "<br>",
             "</div>"
           ),
           popupOptions = popupOptions(maxWidth = 500, minWidth = 300),
           highlight = highlightOptions(
             weight = 5,
-            color = "yellow",
+            color = "black",
             fillOpacity = 0.9,
             bringToFront = TRUE
-          )
+          ),
+          options = pathOptions(pane = "db_parcels_pane")
+        ) |>
+        addPolygons(
+          data = nsnt_cons_lands(),
+          group = "Nature Trust Conservation Lands",
+          label = ~ str_glue("Public name: {property_name_public}"),
+          labelOptions = shared_label_opts,
+          fillColor = "#0544a9ff",
+          fillOpacity = 0.8,
+          color = "#0544a9ff",
+          weight = 1,
+          options = pathOptions(pane = "nsnt_cons_lands_pane")
+        ) |>
+        leafem::addFgb(
+          file = "app_data/crown_land.fgb",
+          group = "Crown Land",
+          label = "",
+          popup = FALSE,
+          fill = TRUE,
+          fillColor = "#bc5844ff",
+          fillOpacity = 0.6,
+          color = "black",
+          weight = 1,
+          options = pathOptions(pane = "crown_pane")
+        ) |>
+        leafem::addFgb(
+          file = "app_data/papa.fgb",
+          group = "Protected Areas",
+          label = "prot_name",
+          labelOptions = shared_label_opts,
+          fill = TRUE,
+          fillColor = "#05530bff",
+          fillOpacity = 0.8,
+          color = "black",
+          weight = 1,
+          options = pathOptions(pane = "papa_pane")
+        ) |>
+        groupOptions("Crown Land", zoomLevels = 13:20) |>
+        groupOptions("Protected Areas", zoomLevels = 13:20) |>
+        addLegend(
+          position = "bottomright",
+          colors = c("#0544a9", "#bc5844ff", "#05530b"),
+          labels = c(
+            "Nature Trust Conservation Lands",
+            "Crown Land",
+            "Protected Areas"
+          ),
+          title = "",
+          opacity = 1
+        ) |>
+        addLegend(
+          data = parcels_sf(),
+          position = "bottomright",
+          pal = ecological_pal,
+          values = ~ecological_priority,
+          title = "Priority Ranking",
+          opacity = 1
         ) |>
         setView(lng = -63.36, lat = 45.21, zoom = 8)
 
@@ -379,7 +450,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         " secs"
       )
 
-      map
+      return(map)
     })
 
     ## Event :: Zoom to selected property ----
@@ -431,6 +502,17 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
     observeEvent(input$get_bounds, {
       req(input$map_bounds)
 
+      # Check zoom level before proceeding
+      if (is.null(input$map_zoom) || input$map_zoom < 13) {
+        shinyalert(
+          title = "Zoom Required",
+          text = "Zoom in further to show NSPRD data",
+          type = "warning",
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
       bounds <- input$map_bounds
 
       # Extract the bounding box coordinates
@@ -442,7 +524,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
       )
 
       # Create PostGIS query to find intersecting parcels
-      query <- glue_sql(
+      nsprd_query <- glue_sql(
         "
         SELECT pid, geom
         FROM parcels
@@ -454,15 +536,16 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         .con = gis_con
       )
 
-      # Execute the query
-      intersecting_parcels <- st_read(gis_con, query = query)
+      nsprd_parcels <- st_read(gis_con, query = nsprd_query)
+
+      pid_list <- nsprd_parcels$pid
 
       message(
         "[",
         format(Sys.time(), "%H:%M:%OS3"),
         "] ",
         "Found ",
-        nrow(intersecting_parcels),
+        nrow(nsprd_parcels),
         " parcels intersecting bounds: ",
         "West: ",
         bbox$xmin,
@@ -477,25 +560,87 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         bbox$ymax
       )
 
-      # Add intersecting parcels to map
+      landowner_query <- glue_sql(
+        "SELECT pid, fname, mname, lname, corpname FROM pidnames WHERE pid IN ({pid_list*});",
+        .con = prd_con
+      )
+
+      landowners <- dbGetQuery(prd_con, landowner_query)
+
+      formatted_owners <- landowners |>
+        mutate(
+          # Build individual name from components - vectorized
+          individual_name = paste(
+            fname,
+            mname,
+            lname
+          ) |>
+            str_remove_all("\\bNA\\b") |>
+            str_trim() |>
+            str_squish(),
+          individual_name = na_if(individual_name, ""),
+
+          # Use corp name if available, otherwise individual name
+          owner_display = coalesce(corpname, individual_name)
+        ) |>
+        filter(!is.na(owner_display)) |>
+        select(pid, owner_display)
+
+      # Group by parcel and combine multiple owners with commas
+      owners_collapsed <- formatted_owners |>
+        group_by(pid) |>
+        summarize(
+          landowner_names = paste(owner_display, collapse = ", "),
+          .groups = "drop"
+        )
+
+      nsprd_size_query <- glue_sql(
+        "SELECT pid, area_hect FROM pidmstrs WHERE pid IN ({pid_list*});",
+        .con = prd_con
+      )
+
+      nsprd_size <- dbGetQuery(prd_con, nsprd_size_query)
+
+      nsprd_parcels <- nsprd_parcels |>
+        left_join(owners_collapsed, join_by(pid)) |>
+        left_join(nsprd_size, join_by(pid))
+
+      # Add NSPRD parcels to map
       leafletProxy(ns("map")) |>
-        clearGroup("bbox_parcels") |>
+        clearGroup("NSPRD Parcels") |>
         addPolygons(
-          data = intersecting_parcels,
+          data = nsprd_parcels,
+          group = "NSPRD Parcels",
+          popup = ~ paste(
+            "<b>PID:</b>",
+            pid,
+            "<br>",
+            "<b>Landowner:</b>",
+            landowner_names,
+            "<br>",
+            "<b>Size (ha):</b>",
+            round(area_hect, 0)
+          ),
+          label = ~ str_glue("PID: {pid}"),
+          labelOptions = shared_label_opts,
           fillColor = "transparent",
           fillOpacity = 0,
           color = "black",
           weight = 2,
-          group = "bbox_parcels",
-          popup = ~ paste("<b>PID:</b>", pid),
-          layerId = ~ paste0("bbox_", pid)
+          options = pathOptions(pane = "nsprd_pane"),
+          highlight = highlightOptions(
+            weight = 5,
+            color = "#d94f05ff",
+            fillOpacity = 0.9,
+            bringToFront = TRUE
+          )
         )
     })
 
     ## Event :: Reset map view ----
     observeEvent(input$reset_view, {
       leafletProxy(ns("map")) |>
-        clearGroup("bbox_parcels") |>
+        clearGroup("NSPRD Parcels") |>
         setView(lng = -63.36, lat = 45.21, zoom = 8)
 
       updateSelectizeInput(
