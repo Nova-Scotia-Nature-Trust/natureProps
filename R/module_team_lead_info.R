@@ -57,16 +57,19 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
     properties_data <- reactiveVal(NULL)
 
     # Populate team lead dropdown on module load
-    observe({
-      team_leads <- dbGetQuery(
+    team_leads <- reactive({
+      dbGetQuery(
         db_con,
         "SELECT DISTINCT team_value FROM team_lead ORDER BY team_value"
-      )
+      ) |>
+        pull(team_value)
+    })
 
+    observe({
       updateSelectizeInput(
         session,
         inputId = "team_lead_choice",
-        choices = c("", team_leads$team_value),
+        choices = c("", team_leads()),
         server = TRUE
       )
     })
@@ -142,6 +145,7 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "team_lead_choice",
+        choices = c("", team_leads()),
         selected = character(0),
         server = TRUE
       )
