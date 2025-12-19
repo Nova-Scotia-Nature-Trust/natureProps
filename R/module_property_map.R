@@ -168,7 +168,8 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         par.id,
         ra_eco.ranking_value AS ecological_priority,
         ra_sec.ranking_value AS securement_priority,
-        info.area_ha
+        info.area_ha,
+        info.area_ha * 2.471 AS area_acres
       FROM parcels par
       LEFT JOIN properties prop ON par.property_id = prop.id
       LEFT JOIN team_lead tl ON prop.team_lead_id = tl.id
@@ -326,6 +327,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
             "DB Parcels",
             "Crown Land",
             "Protected Areas",
+            "Protected Areas (Pending)",
             "Nature Trust Conservation Lands"
           ),
           options = layersControlOptions(collapsed = FALSE)
@@ -333,6 +335,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         addMapPane("nsprd_pane", zIndex = 410) |>
         addMapPane("crown_pane", zIndex = 420) |>
         addMapPane("papa_pane", zIndex = 430) |>
+        addMapPane("papa_pending_pane", zIndex = 435) |>
         addMapPane("db_parcels_pane", zIndex = 440) |>
         addMapPane("nsnt_cons_lands_pane", zIndex = 450) |>
         addPolygons(
@@ -370,8 +373,11 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
             "<b>Landowner:</b>",
             coalesce(landowner_names, "Unknown"),
             "<br>",
+            "<b>Size (acres):</b>",
+            coalesce(as.character(round(area_acres, 0)), "Unknown"),
+            "<br>",
             "<b>Size (hectares):</b>",
-            coalesce(as.character(area_ha), "Unknown"),
+            coalesce(as.character(round(area_ha, 0)), "Unknown"),
             "<br>",
             "</div>"
           ),
@@ -390,7 +396,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
           label = ~ str_glue("Public name: {property_name_public}"),
           labelOptions = shared_label_opts,
           fillColor = "#0544a9ff",
-          fillOpacity = 0.8,
+          fillOpacity = 1,
           color = "#0544a9ff",
           weight = 1,
           options = pathOptions(pane = "nsnt_cons_lands_pane")
@@ -401,8 +407,8 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
           label = "",
           popup = FALSE,
           fill = TRUE,
-          fillColor = "#bc5844ff",
-          fillOpacity = 0.6,
+          fillColor = "#741705ff",
+          fillOpacity = 0.8,
           color = "black",
           weight = 1,
           options = pathOptions(pane = "crown_pane")
@@ -419,15 +425,29 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
           weight = 1,
           options = pathOptions(pane = "papa_pane")
         ) |>
+        leafem::addFgb(
+          file = "app_data/papa_pending.fgb",
+          group = "Protected Areas (Pending)",
+          label = "int_name",
+          labelOptions = shared_label_opts,
+          fill = TRUE,
+          fillColor = "#901f78ff",
+          fillOpacity = 0.8,
+          color = "black",
+          weight = 1,
+          options = pathOptions(pane = "papa_pending_pane")
+        ) |>
         groupOptions("Crown Land", zoomLevels = 13:20) |>
         groupOptions("Protected Areas", zoomLevels = 13:20) |>
+        groupOptions("Protected Areas (Pending)", zoomLevels = 13:20) |>
         addLegend(
           position = "bottomright",
-          colors = c("#0544a9", "#bc5844ff", "#05530b"),
+          colors = c("#0544a9", "#741705ff", "#05530b", "#901f78ff"),
           labels = c(
             "Nature Trust Conservation Lands",
             "Crown Land",
-            "Protected Areas"
+            "Protected Areas",
+            "Protected Areas (Pending)"
           ),
           title = "",
           opacity = 1
@@ -595,7 +615,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         )
 
       nsprd_size_query <- glue_sql(
-        "SELECT pid, area_hect FROM pidmstrs WHERE pid IN ({pid_list*});",
+        "SELECT pid, area_hect AS area_ha, area_hect * 2.471 AS area_acres FROM pidmstrs WHERE pid IN ({pid_list*});",
         .con = prd_con
       )
 
@@ -618,8 +638,11 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
             "<b>Landowner:</b>",
             landowner_names,
             "<br>",
+            "<b>Size (acres):</b>",
+            round(area_acres, 0),
+            "<br>",
             "<b>Size (ha):</b>",
-            round(area_hect, 0)
+            round(area_ha, 0)
           ),
           label = ~ str_glue("PID: {pid}"),
           labelOptions = shared_label_opts,
