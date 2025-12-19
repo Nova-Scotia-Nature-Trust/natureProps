@@ -84,10 +84,16 @@ server <- function(input, output, session) {
     db_con,
     db_updated,
     prop_filter = NULL,
-    focal_pid_rv
+    focal_pid_rv,
+    panel_id = "panel_01"
   )
   module_action_item_tracking_server("action_items", db_con, db_updated)
-  module_data_viewer_server("securement_records_view", db_con, db_updated)
+  module_data_viewer_server(
+    "securement_records_view",
+    db_con,
+    db_updated,
+    panel_id = "panel_03"
+  )
   module_property_contact_communication_server(
     "property_contact_communication",
     db_con,
@@ -99,7 +105,7 @@ server <- function(input, output, session) {
     db_updated,
     focal_pid_rv
   )
-  module_edit_records_server("edit_records", db_con, db_updated)
+  # module_edit_records_server("edit_records", db_con, db_updated)
   module_securement_queries_server(
     "securement_query",
     db_con,
@@ -123,6 +129,21 @@ server <- function(input, output, session) {
 
   module_internal_communications_server(
     "internal_communications",
+    db_con,
+    db_updated
+  )
+
+  module_edit_team_actions_server("edit_team", db_con, db_updated)
+  module_edit_pricing_server("edit_pricing", db_con, db_updated)
+  module_edit_closing_details_server("edit_closing", db_con, db_updated)
+  module_edit_funding_server("edit_funding", db_con, db_updated)
+  module_edit_securement_properties_server(
+    "edit_securement_properties",
+    db_con,
+    db_updated
+  )
+  module_edit_securement_parcels_server(
+    "edit_securement_parcels",
     db_con,
     db_updated
   )

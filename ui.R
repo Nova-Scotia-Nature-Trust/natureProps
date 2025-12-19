@@ -152,15 +152,33 @@ ui <- page_navbar(
     icon = bs_icon("pencil-square"),
     navset_card_tab(
       height = "100%",
+      # nav_panel(
+      #   title = "Properties/Parcels",
+      #   module_edit_records_ui("edit_records")
+      # ),
       nav_panel(
-        title = "Properties/Parcels",
-        module_edit_records_ui("edit_records")
+        title = "Securement Details (Properties)",
+        module_edit_securement_properties_ui("edit_securement_properties"),
       ),
       nav_panel(
-        title = "Tab 2",
+        title = "Securement Details (Parcels)",
+        module_edit_securement_parcels_ui("edit_securement_parcels"),
       ),
       nav_panel(
-        title = "Tab 3"
+        title = "Team Actions",
+        module_edit_team_actions_ui("edit_team"),
+      ),
+      nav_panel(
+        title = "Property Pricing",
+        module_edit_pricing_ui("edit_pricing")
+      ),
+      nav_panel(
+        title = "Property Closing Details",
+        module_edit_closing_details_ui("edit_closing")
+      ),
+      nav_panel(
+        title = "Funding Details",
+        module_edit_funding_ui("edit_funding")
       )
     )
   ),
@@ -184,9 +202,6 @@ ui <- page_navbar(
             )
           )
         )
-      ),
-      nav_panel(
-        title = "Tab 3"
       )
     )
   ),
