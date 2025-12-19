@@ -44,7 +44,7 @@ if (USE_AUTH) {
   )
 }
 
-VERSION <- "2.4.4"
+VERSION <- "2.4.5"
 
 # Tester PIDs:
 # 05311154
