@@ -81,7 +81,8 @@ prep_view_query_insurance <- function(
     ) |>
     select(property_id, size_acres) |>
     group_by(property_id) |>
-    summarise(size_acres = sum(size_acres))
+    summarise(size_acres = sum(size_acres)) |>
+    mutate(size_ha = round(size_acres / 2.471, 2))
 
   insurance_props <- insurance_props |>
     left_join(size_table, join_by(id == property_id)) |>

@@ -61,7 +61,8 @@ prep_view_query_focal_props <- function(
     ) |>
     select(property_id, size_acres) |>
     group_by(property_id) |>
-    summarise(size_acres = sum(size_acres))
+    summarise(size_acres = sum(size_acres)) |>
+    mutate(size_ha = round(size_acres / 2.471, 2))
 
   focal_properties <- focal_properties |>
     left_join(size_table, join_by(id == property_id)) |>
@@ -93,8 +94,9 @@ prep_view_query_focal_props <- function(
       `Property Name`,
       `Date Closed (Fiscal)`,
       `Size (acres)`,
+      `Size (ha)`,
       `Purchase Price`,
-      `Price per acre`
+      `Price Per Acre`
     ) |>
     arrange(`Focus Area (Internal)`, `Property Name`)
 
