@@ -93,7 +93,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "property",
         choices = c("", property_choices()),
-        selected = "",
+        selected = isolate(input$property),
         server = TRUE
       )
     })

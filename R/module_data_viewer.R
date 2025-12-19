@@ -17,12 +17,17 @@ module_data_viewer_ui <- function(id, panel_id) {
   } else if (panel_id == "panel_02") {
     list(
       "Select a view from the list" = "",
+      "Action Items" = "pid_view_02",
+      "Secured Property Details" = "secured_props_view"
+    )
+  } else if (panel_id == "panel_03") {
+    list(
       "Action Items" = "pid_view_02"
     )
   }
   ## Card :: Data viewer ----
   nav_panel(
-    title = "Data Viewer",
+    title = NULL,
     card(
       full_screen = TRUE,
       height = "100%",
@@ -30,9 +35,9 @@ module_data_viewer_ui <- function(id, panel_id) {
         tagList(
           selectInput(
             inputId = ns("data_view_input"),
-            label = "Data Table View",
+            label = NULL,
             choices = choices_list,
-            selected = ifelse(panel_id == "panel_02", "pid_view_02", ""),
+            selected = ifelse(panel_id == "panel_03", "Action Items", ""),
             width = "250px"
           ),
           if (panel_id == "panel_01") {
@@ -61,7 +66,8 @@ module_data_viewer_server <- function(
   db_con,
   db_updated = NULL,
   prop_filter = NULL,
-  focal_pid_rv
+  focal_pid_rv,
+  panel_id = NULL
 ) {
   moduleServer(id, function(input, output, session) {
     ## Load data view metadata table (parameters and attribute names)
@@ -152,7 +158,8 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
-
+      } else if (selected_view == "secured_props_view") {
+        data <- prep_view_secured_properties(db_con, gis_con)
         ## Historical communications data view ----
       } else if (selected_view == "land_secure_comms") {
         data <- prep_view_historical_comms(db_con)
@@ -221,7 +228,13 @@ module_data_viewer_server <- function(
         escape = FALSE,
         options = list(
           pageLength = 10,
+          lengthMenu = list(
+            c(10, 25, 50, 100, -1),
+            c('10', '25', '50', '100', 'All')
+          ),
           scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
           dom = dom_layout,
           buttons = list(
             "copy",
@@ -230,6 +243,7 @@ module_data_viewer_server <- function(
           order = table_order(),
           stateSave = FALSE
         ),
+
         filter = list(
           position = "top",
           clear = TRUE,

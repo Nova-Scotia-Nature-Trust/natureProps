@@ -177,7 +177,13 @@ module_outreach_queries_server <- function(
         data_for_display,
         options = list(
           pageLength = 10,
+          lengthMenu = list(
+            c(10, 25, 50, 100, -1),
+            c('10', '25', '50', '100', 'All')
+          ),
           scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
           dom = dom_layout,
           buttons = list(
             "copy",

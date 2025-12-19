@@ -33,7 +33,7 @@ module_review_data_viewer_ui <- function(id) {
         # Main layout - results card
         card(
           height = "100%",
-          card_header(h5("Table View")),
+          # card_header(h5("Table View")),
           card_body(
             DTOutput(outputId = ns("data_table"), height = "100%")
           )
@@ -142,6 +142,8 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', '100', 'All')
           ),
           scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
           dom = dom_layout,
           buttons = list(
             "copy",

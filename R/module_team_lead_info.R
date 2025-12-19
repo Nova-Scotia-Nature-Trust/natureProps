@@ -175,6 +175,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', 'All')
           ),
           scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
           dom = dom_layout,
           buttons = list(
             "copy",

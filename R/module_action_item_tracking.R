@@ -75,7 +75,7 @@ module_action_item_tracking_ui <- function(id) {
         # Main layout - now just the data viewer
         module_data_viewer_ui(
           ns("action_item_viewer"),
-          panel_id = "panel_02"
+          panel_id = "panel_03"
         )
       )
     )
@@ -311,7 +311,8 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       "action_item_viewer",
       db_con,
       db_updated,
-      prop_filter = reactive(input$property)
+      prop_filter = reactive(input$property),
+      panel_id = "panel_02"
     )
   })
 }
