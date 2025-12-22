@@ -144,6 +144,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Ecological Features",
         module_eco_highlights_ui("ecological_highlights")
+      ),
+      nav_panel(
+        title = "Species Property Lookup",
+        module_species_properties_ui("species_properties")
       )
     )
   ),

@@ -47,6 +47,7 @@ server <- function(input, output, session) {
 
   db_updated <- reactiveVal(0)
   focal_pid_rv <- reactiveVal(NULL)
+  prop_spp_rv <- reactiveVal(NULL)
 
   module_prop_stats_server(
     "prop_stats",
@@ -118,7 +119,8 @@ server <- function(input, output, session) {
     "property_map",
     db_con = db_con,
     gis_con = gis_con,
-    db_updated
+    db_updated,
+    prop_spp_rv
   )
 
   module_review_queries_server("review_queries", db_con, db_updated)
@@ -146,5 +148,13 @@ server <- function(input, output, session) {
     "edit_securement_parcels",
     db_con,
     db_updated
+  )
+
+  module_species_properties_server(
+    "species_properties",
+    db_con,
+    gis_con,
+    db_updated,
+    prop_spp_rv
   )
 }

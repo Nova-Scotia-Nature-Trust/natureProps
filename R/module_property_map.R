@@ -49,6 +49,15 @@ module_property_map_ui <- function(id) {
             "Load NSPRD parcels",
             class = "btn-primary"
           )
+        ),
+        accordion_panel(
+          title = "Species Query",
+          icon = bsicons::bs_icon("tree"),
+          actionButton(
+            ns("load_spp_props"),
+            "Load Properties",
+            class = "btn-primary"
+          )
         )
       ),
       hr(),
@@ -73,7 +82,13 @@ module_property_map_ui <- function(id) {
 }
 
 # Server ----
-module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
+module_property_map_server <- function(
+  id,
+  db_con,
+  gis_con,
+  db_updated = NULL,
+  prop_spp_rv
+) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -82,6 +97,15 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
       format(Sys.time(), "%H:%M:%OS3"),
       "] === MODULE INITIALIZED ==="
     )
+
+    observe({
+      message(
+        "[",
+        format(Sys.time(), "%H:%M:%OS3"),
+        "] prop_spp_rv value: ",
+        paste(prop_spp_rv(), collapse = ", ")
+      )
+    })
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
@@ -337,6 +361,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         addMapPane("papa_pane", zIndex = 430) |>
         addMapPane("papa_pending_pane", zIndex = 435) |>
         addMapPane("db_parcels_pane", zIndex = 440) |>
+        addMapPane("spp_parcels_pane", zIndex = 445) |>
         addMapPane("nsnt_cons_lands_pane", zIndex = 450) |>
         addPolygons(
           data = parcels_sf(),
@@ -518,6 +543,7 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
           )
       }
     })
+
     ## Event :: Get bounding box ----
     observeEvent(input$get_bounds, {
       req(input$map_bounds)
@@ -660,10 +686,85 @@ module_property_map_server <- function(id, db_con, gis_con, db_updated = NULL) {
         )
     })
 
+    ## Event :: Load species properties ----
+    observeEvent(input$load_spp_props, {
+      req(length(prop_spp_rv()) > 0)
+      # Get all parcels for the selected property
+      target_parcels <- parcels_sf() |>
+        filter(property_name %in% prop_spp_rv())
+
+      bbox <- st_bbox(target_parcels)
+
+      leafletProxy(ns("map")) |>
+        clearGroup("NSPRD Parcels") |>
+        hideGroup("DB Parcels") |>
+        clearGroup("Species Parcels") |>
+        addPolygons(
+          data = target_parcels,
+          group = "Species Parcels",
+          fillColor = ~ ecological_pal(ecological_priority),
+          fillOpacity = 0.7,
+          color = ~ securement_pal(securement_priority),
+          weight = 3,
+          label = ~ str_glue("{property_name} - PID: {pid}"),
+          labelOptions = shared_label_opts,
+          popup = ~ paste(
+            "<div style='font-size: 14px;'>",
+            "<b>Property Name:</b>",
+            property_name,
+            "<br>",
+            "<b>PID:</b>",
+            pid,
+            "<br>",
+            "<b>Ecological Priority:</b>",
+            coalesce(as.character(ecological_priority), "Not assigned"),
+            "<br>",
+            "<b>Securement Priority:</b>",
+            coalesce(as.character(securement_priority), "Not assigned"),
+            "<br>",
+            "<b>Phase:</b>",
+            coalesce(as.character(phase), "Not assigned"),
+            "<br>",
+            "<b>Team Lead:</b>",
+            coalesce(as.character(team_lead), "Not assigned"),
+            "<br>",
+            "<b>Property Description:</b>",
+            coalesce(property_description, "N/A"),
+            "<br>",
+            "<b>Landowner:</b>",
+            coalesce(landowner_names, "Unknown"),
+            "<br>",
+            "<b>Size (acres):</b>",
+            coalesce(as.character(round(area_acres, 0)), "Unknown"),
+            "<br>",
+            "<b>Size (hectares):</b>",
+            coalesce(as.character(round(area_ha, 0)), "Unknown"),
+            "<br>",
+            "</div>"
+          ),
+          popupOptions = popupOptions(maxWidth = 500, minWidth = 300),
+          highlight = highlightOptions(
+            weight = 5,
+            color = "black",
+            fillOpacity = 0.9,
+            bringToFront = TRUE
+          ),
+          options = pathOptions(pane = "spp_parcels_pane")
+        ) |>
+        fitBounds(
+          lng1 = bbox[["xmin"]],
+          lat1 = bbox[["ymin"]],
+          lng2 = bbox[["xmax"]],
+          lat2 = bbox[["ymax"]]
+        )
+    })
+
     ## Event :: Reset map view ----
     observeEvent(input$reset_view, {
       leafletProxy(ns("map")) |>
         clearGroup("NSPRD Parcels") |>
+        clearGroup("Species Parcels") |>
+        showGroup("DB Parcels") |>
         setView(lng = -63.36, lat = 45.21, zoom = 8)
 
       updateSelectizeInput(
