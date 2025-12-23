@@ -17,12 +17,12 @@ module_data_viewer_ui <- function(id, panel_id) {
   } else if (panel_id == "panel_02") {
     list(
       "Select a view from the list" = "",
-      "Action Items" = "pid_view_02",
+      "Action Items" = "action_items_view",
       "Secured Property Details" = "secured_props_view"
     )
   } else if (panel_id == "panel_03") {
     list(
-      "Action Items" = "pid_view_02"
+      "Action Items" = "action_items_view"
     )
   }
   ## Card :: Data viewer ----
@@ -70,11 +70,6 @@ module_data_viewer_server <- function(
   panel_id = NULL
 ) {
   moduleServer(id, function(input, output, session) {
-    ## Load data view metadata table (parameters and attribute names)
-    df_view_meta <- read_xlsx(
-      "inputs/field and function mapping tables/df_views.xlsx"
-    )
-
     ## Reactive to capture the selected view
     view_scenario <- reactive({
       input$data_view_input
@@ -94,7 +89,9 @@ module_data_viewer_server <- function(
 
       ## Property contact details view ----
       if (selected_view == "property_contact_details_view") {
-        data <- prep_view_property_contacts(df_view_meta, db_con)
+        data <- dbGetQuery(db_con, "SELECT * FROM view_property_contacts;")
+        attr(data, "order_column") <- 2
+        attr(data, "order_direction") <- "asc"
 
         if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
@@ -108,14 +105,9 @@ module_data_viewer_server <- function(
         }
         ## PID view ----
       } else if (selected_view == "pid_view") {
-        # Use pid_view_04 for unfiltered view in panel_01
-        view_name <- if (id == "panel_01") "pid_view_04" else "pid_view_02"
-        data <- prep_view_pid(df_view_meta, view_name, db_con)
-
-        # if (!is.null(prop_filter)) {
-        #   data <- data |>
-        #     filter(`Property Name` == prop_filter())
-        # }
+        data <- dbGetQuery(db_con, "SELECT * FROM view_pid;")
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
 
         if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
@@ -124,20 +116,20 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
-      } else if (selected_view == "pid_view_02") {
-        # Action items view (panel_02 only, no filtering)
-        data <- prep_view_pid(df_view_meta, "pid_view_02", db_con)
+      } else if (selected_view == "action_items_view") {
+        data <- dbGetQuery(db_con, "SELECT * FROM view_action_items;")
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
+
         if (!is.null(prop_filter) && !is.null(prop_filter())) {
           data <- data |>
             filter(`Property Name` == prop_filter())
         }
         # Communication data view ----
       } else if (selected_view == "communication_data_view") {
-        data <- prep_view_communications(
-          df_view_meta,
-          selected_view = "communication_data_view",
-          db_con
-        )
+        data <- dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
 
         if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
@@ -149,7 +141,9 @@ module_data_viewer_server <- function(
 
         ## Outreach data view ----
       } else if (selected_view == "outreach_view") {
-        data <- prep_view_outreach(df_view_meta, selected_view, db_con)
+        data <- dbGetQuery(db_con, "SELECT * FROM view_outreach;")
+        attr(data, "order_column") <- 4
+        attr(data, "order_direction") <- "desc"
 
         if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
@@ -162,7 +156,12 @@ module_data_viewer_server <- function(
         data <- prep_view_secured_properties(db_con, gis_con)
         ## Historical communications data view ----
       } else if (selected_view == "land_secure_comms") {
-        data <- prep_view_historical_comms(db_con)
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_historical_communications;"
+        )
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
 
         if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>
@@ -173,7 +172,9 @@ module_data_viewer_server <- function(
         }
         ## Property descriptions data view ----
       } else if (selected_view == "property_descriptions") {
-        data <- prep_view_property_descriptions(db_con)
+        data <- dbGetQuery(db_con, "SELECT * FROM view_property_descriptions;")
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
 
         if (apply_filter && !is.null(focal_pid_rv())) {
           data <- data |>

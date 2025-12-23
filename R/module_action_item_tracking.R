@@ -150,17 +150,52 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     })
 
     ## Action item fields and values ----
-    df_view_meta <- read_xlsx(
-      "inputs/field and function mapping tables/df_views.xlsx"
+
+    action_item_fields <- c(
+      "isa_id",
+      "isa_report_id",
+      "intent_letter_id",
+      "ps_agree_id",
+      "easement_id",
+      "env_investigation_id",
+      "title_certificate_id",
+      "appraisal_id",
+      "survey_id",
+      "boundary_agreement_id",
+      "legal_title_mig_id",
+      "ecogifts_id",
+      "approval_cc_id",
+      "approval_board_id",
+      "af_phase_01_id",
+      "af_phase_02_id",
+      "af_phase_03_id",
+      "af_ease_transfer_id",
+      "af_remoteness_letter_id",
+      "af_field_verified_id"
     )
 
-    action_item_fields <- df_view_meta |>
-      filter(action_item_fields) |>
-      pull(db_name)
-
-    action_item_names <- df_view_meta |>
-      filter(action_item_fields) |>
-      pull(df_name)
+    action_item_names <- c(
+      "ISA",
+      "ISA Report",
+      "Letter of Intent",
+      "PS Agreement",
+      "Easement",
+      "Environmental Investigation",
+      "Certificate of Title",
+      "Appraisal",
+      "Survey",
+      "Boundary Agreement",
+      "Legal Title Migration",
+      "Ecogifts",
+      "CC Approval",
+      "Board Approval",
+      "AF Phase1",
+      "AF Phase 2",
+      "AF Phase 3",
+      "AF Easement Transfer",
+      "AF Remoteness",
+      "AF Field Verified"
+    )
 
     action_item_fields <- setNames(action_item_fields, action_item_names)
 

@@ -59,11 +59,6 @@ module_securement_queries_server <- function(
   focal_pids_rv
 ) {
   moduleServer(id, function(input, output, session) {
-    ## Read metadata file ----
-    df_view_meta <- read_xlsx(
-      "inputs/field and function mapping tables/df_views.xlsx"
-    )
-
     # Add this reactive value to track table clearing
     table_data <- reactiveVal(NULL)
 
@@ -198,34 +193,22 @@ module_securement_queries_server <- function(
 
       if (input$query_choice == "Focal area properties") {
         req(input$focal_area)
-        focal_area <- input$focal_area
 
-        data <- prep_view_query_focal_props(
-          df_view_meta,
+        col_name <- "Focus Area (Internal)"
+
+        data <- dbGetQuery(
           db_con,
-          focal_area
+          glue_sql(
+            "SELECT * FROM view_focal_areas_securement WHERE {`col_name`} IN ({input$focal_area*})",
+            .con = db_con
+          )
         )
-
-        data <- data |>
-          mutate(across(is.numeric, ~ round(., 2)))
       } else if (input$query_choice == "Insurance view") {
-        selected_view <- "insurance_view"
-
-        data <- prep_view_query_insurance(
-          df_view_meta,
-          selected_view,
-          db_con
-        )
-
-        data <- data |>
-          arrange(desc(`Date Closed`)) |>
-          mutate(`Size (acres)` = round(`Size (acres)`, 2))
+        data <- dbGetQuery(db_con, "SELECT * FROM view_insurance;")
       } else if (input$query_choice == "Securement action") {
         req(input$closing_year)
-        selected_view <- "pid_view_02"
 
-        data <- prep_view_pid(df_view_meta, selected_view, db_con) |>
-          as_tibble()
+        data <- dbGetQuery(db_con, "SELECT * FROM view_action_items;")
 
         additional_data <- dbGetQuery(
           conn = db_con,
@@ -263,7 +246,7 @@ module_securement_queries_server <- function(
             distinct(`Property Name`, .keep_all = TRUE)
         }
       } else if (input$query_choice == "Property sizes") {
-        data <- prep_view_query_size(db_con)
+        data <- dbGetQuery(db_con, "SELECT * FROM view_property_sizes;")
       }
 
       table_data(data)
