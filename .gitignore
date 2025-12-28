@@ -72,6 +72,3 @@ documents/Docker notes_files/libs/quarto-html/tippy.umd.min.js
 documents/Docker notes_files/libs/quarto-html/tabsets/tabsets.js
 R/functions/prep_view_property_descriptions-Wolf-LT.R
 documents/natureProps TODOs old.docx
-app_data/crown_land.fgb
-app_data/papa.fgb
-app_data/papa_pending.fgb
