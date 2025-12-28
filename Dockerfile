@@ -25,7 +25,7 @@ RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf
 RUN echo 'sanitize_errors false;' >> /etc/shiny-server/shiny-server.conf
 
 # Copy natureProp files and restore its renv environment
-COPY ./natureprops /srv/shiny-server/natureprops
+COPY . /srv/shiny-server/natureprops
 # Change working directory
 WORKDIR /srv/shiny-server/natureprops
 # Restore environment
