@@ -33,13 +33,6 @@ RUN Rscript -e 'install.packages("renv")'
 RUN Rscript -e 'renv::consent(provided = TRUE)'
 RUN Rscript -e 'renv::restore()'
 
-# Copy cons-lands-map files and restore its renv environment
-COPY ./cons-lands-map /srv/shiny-server/cons-lands-map
-WORKDIR /srv/shiny-server/cons-lands-map
-RUN Rscript -e 'install.packages("renv")'
-RUN Rscript -e 'renv::consent(provided = TRUE)'
-RUN Rscript -e 'renv::restore()'
-
 # Set working directory back to Shiny Server root
 WORKDIR /srv/shiny-server
 
