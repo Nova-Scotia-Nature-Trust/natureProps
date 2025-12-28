@@ -46,7 +46,7 @@ WORKDIR /srv/shiny-server/natureprops
 # ----------------------------------------
 # Copy full app
 # ----------------------------------------
-COPY ./natureprops /srv/shiny-server/natureprops
+COPY . /srv/shiny-server/natureprops
 
 # ----------------------------------------
 # Ensure renv library path exists and is writable
