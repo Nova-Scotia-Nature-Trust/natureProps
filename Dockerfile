@@ -1,7 +1,11 @@
-# Install system dependencies
-FROM rocker/shiny-verse
+# ----------------------------------------
+# Base image
+# ----------------------------------------
+FROM rocker/shiny-verse:latest
 
-# Install system dependencies
+# ----------------------------------------
+# System dependencies
+# ----------------------------------------
 RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     libssl-dev \
@@ -21,26 +25,44 @@ RUN apt-get update && apt-get install -y \
     libabsl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf
-RUN echo 'sanitize_errors false;' >> /etc/shiny-server/shiny-server.conf
+# ----------------------------------------
+# Shiny Server config tweaks
+# ----------------------------------------
+RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf \
+ && echo 'sanitize_errors false;' >> /etc/shiny-server/shiny-server.conf
 
-# Copy natureProp files and restore its renv environment
+# ----------------------------------------
+# Copy the app
+# ----------------------------------------
 COPY . /srv/shiny-server/natureprops
-# Change working directory
 WORKDIR /srv/shiny-server/natureprops
-# Restore environment
-RUN Rscript -e 'install.packages("renv")'
-RUN Rscript -e 'renv::consent(provided = TRUE)'
-RUN Rscript -e 'renv::restore()'
 
-# Give Shiny user permission to renv library
+# ----------------------------------------
+# Restore renv environment
+# ----------------------------------------
+RUN Rscript -e 'install.packages("renv")' \
+ && Rscript -e 'renv::consent(provided = TRUE)' \
+ && Rscript -e 'renv::restore(library = "/srv/shiny-server/natureprops/renv/library")'
+
+# ----------------------------------------
+# Fix permissions for runtime
+# ----------------------------------------
 RUN chown -R shiny:shiny /srv/shiny-server/natureprops/renv
 
+# Ensure Shiny sees the renv library
+ENV R_LIBS_USER=/srv/shiny-server/natureprops/renv/library
+
+# ----------------------------------------
 # Set working directory back to Shiny Server root
+# ----------------------------------------
 WORKDIR /srv/shiny-server
 
-# Expose Shiny Server port
+# ----------------------------------------
+# Expose port
+# ----------------------------------------
 EXPOSE 3838
 
+# ----------------------------------------
 # Start Shiny Server
+# ----------------------------------------
 CMD ["/usr/bin/shiny-server"]
