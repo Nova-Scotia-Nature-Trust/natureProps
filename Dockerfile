@@ -33,6 +33,9 @@ RUN Rscript -e 'install.packages("renv")'
 RUN Rscript -e 'renv::consent(provided = TRUE)'
 RUN Rscript -e 'renv::restore()'
 
+# Give Shiny user permission to renv library
+RUN chown -R shiny:shiny /srv/shiny-server/natureprops/renv
+
 # Set working directory back to Shiny Server root
 WORKDIR /srv/shiny-server
 
