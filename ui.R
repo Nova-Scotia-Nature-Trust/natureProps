@@ -1,5 +1,5 @@
 ui <- page_navbar(
-  title = "Nature TRUST Property Database Manager",
+  title = "Nature Trust Property Database Manager",
   useShinyjs(),
   # Add the CSS here for all modules
   tags$head(
