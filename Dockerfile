@@ -46,7 +46,7 @@ WORKDIR /srv/shiny-server/natureprops
 # ----------------------------------------
 # Copy full app
 # ----------------------------------------
-COPY . /srv/shiny-server/natureprops
+COPY ./natureprops /srv/shiny-server/natureprops
 
 # ----------------------------------------
 # Ensure renv library path exists and is writable
@@ -62,17 +62,14 @@ RUN Rscript -e 'install.packages("renv")' \
  && Rscript -e 'renv::restore(project="/srv/shiny-server/natureprops", library="/srv/shiny-server/natureprops/renv/library", prompt=FALSE)'
 
 # ----------------------------------------
-# Write R_LIBS_USER to Renviron.site so Shiny sees it
+# Set working directory back to Shiny Server root
 # ----------------------------------------
-RUN echo "R_LIBS_USER=/srv/shiny-server/natureprops/renv/library" >> /usr/lib/R/etc/Renviron.site
+WORKDIR /srv/shiny-server
 
 # ----------------------------------------
 # Expose Shiny Server port
 # ----------------------------------------
 EXPOSE 3838
-
-# Set working directory back to Shiny Server root
-WORKDIR /srv/shiny-server
 
 # ----------------------------------------
 # Start Shiny Server
