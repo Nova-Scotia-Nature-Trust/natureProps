@@ -29,5 +29,5 @@ jobs:
           context: .
           push: true
           tags: |
-            yourdockerhubuser/your-app-name:latest
-            yourdockerhubuser/your-app-name:${{ github.ref_name }}
+            domhenrynsnt/natureprops:latest
+            domhenrynsnt/natureprops:${{ github.ref_name }}
