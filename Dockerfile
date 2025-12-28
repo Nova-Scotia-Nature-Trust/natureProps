@@ -32,44 +32,47 @@ RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf \
  && echo 'sanitize_errors false;' >> /etc/shiny-server/shiny-server.conf
 
 # ----------------------------------------
+# Environment variables for renv + CRAN
+# ----------------------------------------
+ENV RENV_CONFIG_CACHE_ENABLED=FALSE
+ENV R_LIBS_USER=/srv/shiny-server/natureprops/renv/library
+ENV R_REPOS=https://cloud.r-project.org
+
+# ----------------------------------------
 # Set app directory
 # ----------------------------------------
 WORKDIR /srv/shiny-server/natureprops
 
 # ----------------------------------------
-# Copy renv files first (for caching)
-# ----------------------------------------
-COPY ./renv.lock ./natureprops/renv.lock
-
-# ----------------------------------------
-# Install renv & restore packages
-# ----------------------------------------
-RUN Rscript -e 'install.packages("renv")' \
- && Rscript -e 'renv::consent(provided = TRUE)' \
- && Rscript -e 'renv::restore(library="/srv/shiny-server/natureprops/renv/library", prompt = FALSE)'
-
-# ----------------------------------------
-# Copy the rest of the app
+# Copy full app
 # ----------------------------------------
 COPY . /srv/shiny-server/natureprops
 
 # ----------------------------------------
-# Fix ownership so Shiny can access packages
+# Ensure renv library path exists and is writable
 # ----------------------------------------
-RUN chown -R shiny:shiny /srv/shiny-server/natureprops/renv
+RUN mkdir -p /srv/shiny-server/natureprops/renv/library \
+ && chown -R shiny:shiny /srv/shiny-server/natureprops/renv
 
 # ----------------------------------------
-# Ensure R sees the renv library in all sessions
+# Install renv and restore packages
 # ----------------------------------------
-ENV R_LIBS_USER=/srv/shiny-server/natureprops/renv/library
+RUN Rscript -e 'install.packages("renv")' \
+ && Rscript -e 'renv::consent(provided = TRUE)' \
+ && Rscript -e 'renv::restore(project="/srv/shiny-server/natureprops", library="/srv/shiny-server/natureprops/renv/library", prompt=FALSE)'
 
-# Also write it to Renviron.site for Shiny Server sessions
+# ----------------------------------------
+# Write R_LIBS_USER to Renviron.site so Shiny sees it
+# ----------------------------------------
 RUN echo "R_LIBS_USER=/srv/shiny-server/natureprops/renv/library" >> /usr/lib/R/etc/Renviron.site
 
 # ----------------------------------------
-# Expose port
+# Expose Shiny Server port
 # ----------------------------------------
 EXPOSE 3838
+
+# Set working directory back to Shiny Server root
+WORKDIR /srv/shiny-server
 
 # ----------------------------------------
 # Start Shiny Server
