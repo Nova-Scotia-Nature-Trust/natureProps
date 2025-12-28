@@ -1,77 +1,12 @@
-# ----------------------------------------
-# Base image
-# ----------------------------------------
-FROM rocker/shiny-verse:latest
-
-# ----------------------------------------
-# System dependencies
-# ----------------------------------------
-RUN apt-get update && apt-get install -y \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libxml2-dev \
-    libfontconfig1-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
-    libfreetype6-dev \
-    libpng-dev \
-    libtiff5-dev \
-    libjpeg-dev \
-    libgdal-dev \
-    libgeos-dev \
-    libproj-dev \
-    libudunits2-dev \
-    cmake \
-    libabsl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# ----------------------------------------
-# Shiny Server config tweaks
-# ----------------------------------------
-RUN echo 'preserve_logs true;' >> /etc/shiny-server/shiny-server.conf \
- && echo 'sanitize_errors false;' >> /etc/shiny-server/shiny-server.conf
-
-# ----------------------------------------
-# Environment variables for renv + CRAN
-# ----------------------------------------
-ENV RENV_CONFIG_CACHE_ENABLED=FALSE
-ENV R_LIBS_USER=/srv/shiny-server/natureprops/renv/library
-ENV R_REPOS=https://cloud.r-project.org
-
-# ----------------------------------------
-# Set app directory
-# ----------------------------------------
-WORKDIR /srv/shiny-server/natureprops
-
-# ----------------------------------------
-# Copy full app
-# ----------------------------------------
-COPY . /srv/shiny-server/natureprops
-
-# ----------------------------------------
-# Ensure renv library path exists and is writable
-# ----------------------------------------
-RUN mkdir -p /srv/shiny-server/natureprops/renv/library \
- && chown -R shiny:shiny /srv/shiny-server/natureprops/renv
-
-# ----------------------------------------
-# Install renv and restore packages
-# ----------------------------------------
-RUN Rscript -e 'install.packages("renv")' \
- && Rscript -e 'renv::consent(provided = TRUE)' \
- && Rscript -e 'renv::restore(project="/srv/shiny-server/natureprops", library="/srv/shiny-server/natureprops/renv/library", prompt=FALSE)'
-
-# ----------------------------------------
-# Set working directory back to Shiny Server root
-# ----------------------------------------
-WORKDIR /srv/shiny-server
-
-# ----------------------------------------
-# Expose Shiny Server port
-# ----------------------------------------
+FROM rocker/geospatial:4.4.2
+RUN apt-get update -y && apt-get install -y  make pandoc libpq-dev zlib1g-dev libicu-dev libx11-dev libcurl4-openssl-dev libssl-dev cmake libgdal-dev gdal-bin libgeos-dev libpng-dev libproj-dev libsqlite3-dev libudunits2-dev libfontconfig1-dev libfreetype6-dev libfribidi-dev libharfbuzz-dev libjpeg-dev libtiff-dev libwebp-dev libxml2-dev && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/
+RUN echo "options(renv.config.pak.enabled = FALSE, repos = c(CRAN = 'https://cran.rstudio.com/'), download.file.method = 'libcurl', Ncpus = 4)" | tee /usr/local/lib/R/etc/Rprofile.site | tee /usr/lib/R/etc/Rprofile.site
+RUN R -e 'install.packages("remotes")'
+RUN R -e 'remotes::install_version("renv", version = "1.0.11")'
+COPY renv.lock renv.lock
+RUN --mount=type=cache,id=renv-cache,target=/root/.cache/R/renv R -e 'renv::restore()'
+WORKDIR /srv/shiny-server/
+COPY . /srv/shiny-server/
 EXPOSE 3838
-
-# ----------------------------------------
-# Start Shiny Server
-# ----------------------------------------
-CMD ["/usr/bin/shiny-server"]
+CMD R -e 'shiny::runApp("/srv/shiny-server",host="0.0.0.0",port=3838)'
