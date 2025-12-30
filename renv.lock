@@ -485,13 +485,13 @@
     },
     "curl": {
       "Package": "curl",
-      "Version": "6.0.1",
+      "Version": "7.0.0",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
         "R"
       ],
-      "Hash": "e8ba62486230951fcd2b881c5be23f96"
+      "Hash": "aa27e963d3deccf4bade44d06b976977"
     },
     "data.table": {
       "Package": "data.table",
