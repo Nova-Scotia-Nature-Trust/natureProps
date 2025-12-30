@@ -272,3 +272,7 @@ If for some reason there is a need to rollback and run a previously tagged versi
 Pull the image: `docker pull domhenrynsnt/natureprops:v1.0.1`
 
 Run the image: `docker run -d --name natureprops-prod -p 3838:3838 -e POSTGRES_HOST=[HOSTNAME] -e POSTGRES_USER=[USER] -e POSTGRES_PASSWORD=[PASSWORD] domhenrynsnt/natureprops:v1.0.1`
+
+## Code development
+
+The preferred approach would be to create a branch from main (i.e. `dev`). Then add code to dev and create a pull request. Review and merge the PR. Then at that point create a new tag and release. This is the stage at which the GitHub Action will run.
