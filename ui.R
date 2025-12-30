@@ -62,6 +62,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Team Lead",
         module_team_lead_info_UI("team_lead_info")
+      ),
+      nav_panel(
+        title = "Documentation",
+        includeMarkdown("help/securement_processes.md")
       )
     )
   ),
