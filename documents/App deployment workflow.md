@@ -110,9 +110,9 @@ This section defines **when the workflow runs**.
 
 -   The workflow runs on:
 
-    -   Any push to the `main` branch
+    -   Any push to the `main` branch (this has been disabled but kept here for full explanation of how it can work).
 
-    -   Any push of a Git tag that starts with `v` (e.g. `v1.0.0`, `v2.3.1`)
+    -   Any push of a Git tag that starts with `v` (e.g. `v1.0.0`, `v2.3.1`).
 
 This setup allows the `latest` images to be built from `main` and versioned Docker images to be built from GitHub release tags.
 
