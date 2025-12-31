@@ -187,6 +187,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Funding Details",
         module_edit_funding_ui("edit_funding")
+      ),
+      nav_panel(
+        title = "Appraisals",
+        module_edit_appraisals_ui("edit_appraisals")
       )
     )
   ),
