@@ -58,3 +58,8 @@ DBI::dbExecute(
   readr::read_file("R/sql/create_view_secured_properties.sql"),
   immediate = TRUE
 )
+DBI::dbExecute(
+  db_con,
+  readr::read_file("R/sql/create_view_appraisals.sql"),
+  immediate = TRUE
+)

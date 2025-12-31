@@ -32,14 +32,19 @@ module_outreach_queries_ui <- function(id) {
         # Main layout - Query Result card only
         card(
           height = "100%",
-          card_header(h5("Query Result")),
+          card_header(
+            class = "d-flex justify-content-between align-items-center",
+            h5("Query Result"),
+            downloadButton(
+              outputId = ns("download_query_data"),
+              label = "Download",
+              class = "btn-sm"
+            )
+          ),
           card_body(
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               DTOutput(outputId = ns("view_df"), height = "100%"),
-              layout_columns(),
-              layout_columns(),
-              layout_columns(),
               div(style = "flex-grow: 1;")
             )
           )
@@ -156,11 +161,6 @@ module_outreach_queries_server <- function(
 
     ## Render data table ----
 
-    # Setup table layout
-    dom_layout <- "
-    <'row'<'col-sm-10'l><'col-sm-2 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
-    "
-
     output$view_df <- renderDT({
       # Use req to make sure we only render when we have data
       req(table_data())
@@ -180,12 +180,6 @@ module_outreach_queries_server <- function(
           scrollX = TRUE,
           scrollY = "400px",
           fixedHeader = TRUE,
-          dom = dom_layout,
-          buttons = list(
-            "copy",
-            "excel"
-          ),
-          # order = table_order(),
           stateSave = FALSE,
           searching = TRUE
         ),
@@ -199,5 +193,29 @@ module_outreach_queries_server <- function(
         extensions = c("Buttons")
       )
     })
+
+    ## Download handler ----
+    output$download_query_data <- downloadHandler(
+      filename = function() {
+        query_name <- input$query_choice
+        if (query_name == "") {
+          query_name <- "query_results"
+        }
+        # Clean the query name for filename
+        query_name <- str_replace_all(query_name, " ", "_") |>
+          str_to_lower()
+        glue("{query_name}_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- table_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          # Write empty file if no data
+          write_csv(data.frame(), file)
+        }
+      }
+    )
   })
 }

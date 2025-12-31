@@ -25,7 +25,13 @@ module_team_lead_info_UI <- function(id) {
         height = "auto",
         full_screen = TRUE,
         card_header(
-          h5("Action Items")
+          class = "d-flex justify-content-between align-items-center",
+          h5("Action Items"),
+          downloadButton(
+            outputId = ns("download_actions"),
+            label = "Download",
+            class = "btn-sm"
+          )
         ),
         card_body(
           DTOutput(outputId = ns("actions_table"), height = "auto")
@@ -37,7 +43,13 @@ module_team_lead_info_UI <- function(id) {
         height = "auto",
         full_screen = TRUE,
         card_header(
-          h5("Team Lead Property List")
+          class = "d-flex justify-content-between align-items-center",
+          h5("Team Lead Property List"),
+          downloadButton(
+            outputId = ns("download_properties"),
+            label = "Download",
+            class = "btn-sm"
+          )
         ),
         card_body(
           DTOutput(outputId = ns("properties_table"), height = "auto")
@@ -155,9 +167,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
     })
 
     # Render actions table ----
-    dom_layout <- "
-    <'row'<'col-sm-10'l><'col-sm-2 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
-    "
 
     output$actions_table <- renderDT({
       req(actions_data())
@@ -177,11 +186,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
           scrollX = TRUE,
           scrollY = "400px",
           fixedHeader = TRUE,
-          dom = dom_layout,
-          buttons = list(
-            "copy",
-            "excel"
-          ),
           stateSave = FALSE
         ),
         filter = list(
@@ -212,11 +216,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', 'All')
           ),
           scrollX = TRUE,
-          dom = dom_layout,
-          buttons = list(
-            "copy",
-            "excel"
-          ),
+          scrollY = "400px",
+          fixedHeader = TRUE,
           stateSave = FALSE
         ),
         filter = list(
@@ -229,5 +230,53 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         extensions = c("Buttons")
       )
     })
+
+    ## Download handler for actions ----
+    output$download_actions <- downloadHandler(
+      filename = function() {
+        team_lead <- input$team_lead_choice
+        if (team_lead == "") {
+          team_lead <- "team_lead"
+        }
+        # Clean the team lead name for filename
+        team_lead <- str_replace_all(team_lead, " ", "_") |>
+          str_to_lower()
+        glue("{team_lead}_action_items_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- actions_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          # Write empty file if no data
+          write_csv(data.frame(), file)
+        }
+      }
+    )
+
+    ## Download handler for properties ----
+    output$download_properties <- downloadHandler(
+      filename = function() {
+        team_lead <- input$team_lead_choice
+        if (team_lead == "") {
+          team_lead <- "team_lead"
+        }
+        # Clean the team lead name for filename
+        team_lead <- str_replace_all(team_lead, " ", "_") |>
+          str_to_lower()
+        glue("{team_lead}_properties_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- properties_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          # Write empty file if no data
+          write_csv(data.frame(), file)
+        }
+      }
+    )
   })
 }

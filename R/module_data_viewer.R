@@ -18,7 +18,8 @@ module_data_viewer_ui <- function(id, panel_id) {
     list(
       "Select a view from the list" = "",
       "Action Items" = "action_items_view",
-      "Secured Property Details" = "secured_props_view"
+      "Secured Property Details" = "secured_props_view",
+      "Appraisals" = "appraisals"
     )
   } else if (panel_id == "panel_03") {
     list(
@@ -32,7 +33,8 @@ module_data_viewer_ui <- function(id, panel_id) {
       full_screen = TRUE,
       height = "100%",
       card_header(
-        tagList(
+        class = "d-flex justify-content-between align-items-center",
+        div(
           selectInput(
             inputId = ns("data_view_input"),
             label = NULL,
@@ -50,6 +52,11 @@ module_data_viewer_ui <- function(id, panel_id) {
               )
             )
           }
+        ),
+        downloadButton(
+          outputId = ns("download_data"),
+          label = "Download",
+          class = "btn-sm"
         )
       ),
       card_body(
@@ -87,8 +94,23 @@ module_data_viewer_server <- function(
       selected_view <- view_scenario()
       apply_filter <- input$filter_toggle
 
-      ## Property contact details view ----
-      if (selected_view == "property_contact_details_view") {
+      if (selected_view == "") {
+        data <- NULL
+        ## PID view ----
+      } else if (selected_view == "pid_view") {
+        data <- dbGetQuery(db_con, "SELECT * FROM view_pid;")
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
+
+        if (apply_filter && !is.null(focal_pid_rv())) {
+          data <- data |>
+            filter(PID %in% focal_pid_rv())
+        } else if (apply_filter) {
+          data <- data |>
+            filter(FALSE)
+        }
+        ## Property contact details view ----
+      } else if (selected_view == "property_contact_details_view") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_property_contacts;")
         attr(data, "order_column") <- 2
         attr(data, "order_direction") <- "asc"
@@ -103,29 +125,7 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
-        ## PID view ----
-      } else if (selected_view == "pid_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_pid;")
-        attr(data, "order_column") <- 1
-        attr(data, "order_direction") <- "asc"
-
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(PID %in% focal_pid_rv())
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-      } else if (selected_view == "action_items_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_action_items;")
-        attr(data, "order_column") <- 1
-        attr(data, "order_direction") <- "asc"
-
-        if (!is.null(prop_filter) && !is.null(prop_filter())) {
-          data <- data |>
-            filter(`Property Name` == prop_filter())
-        }
-        # Communication data view ----
+        ## Communication data view ----
       } else if (selected_view == "communication_data_view") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
         attr(data, "order_column") <- 1
@@ -138,7 +138,6 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
-
         ## Outreach data view ----
       } else if (selected_view == "outreach_view") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_outreach;")
@@ -152,8 +151,6 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
-      } else if (selected_view == "secured_props_view") {
-        data <- prep_view_secured_properties(db_con, gis_con)
         ## Historical communications data view ----
       } else if (selected_view == "land_secure_comms") {
         data <- dbGetQuery(
@@ -183,6 +180,7 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
+        ## Landowner & Address data view ----
       } else if (selected_view == "landowner_address") {
         data <- prep_view_landowner_address(db_con)
 
@@ -193,17 +191,28 @@ module_data_viewer_server <- function(
           data <- data |>
             filter(FALSE)
         }
-      } else if (selected_view == "") {
-        data <- NULL
+        ## Action Items view ----
+      } else if (selected_view == "action_items_view") {
+        data <- dbGetQuery(db_con, "SELECT * FROM view_action_items;")
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
+
+        if (!is.null(prop_filter) && !is.null(prop_filter())) {
+          data <- data |>
+            filter(`Property Name` == prop_filter())
+        }
+        ## Secured Property Details view ----
+      } else if (selected_view == "secured_props_view") {
+        data <- prep_view_secured_properties(db_con, gis_con)
+        ## Appraisals view ----
+      } else if (selected_view == "appraisals") {
+        data <- dbGetQuery(db_con, "SELECT * FROM view_appraisals;")
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
       }
 
       return(data)
     })
-
-    # Setup table layout
-    dom_layout <- "
-    <'row'<'col-sm-10'l><'col-sm-2 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
-    "
 
     # Get ordering information
     table_order <- reactive({
@@ -213,7 +222,7 @@ module_data_viewer_server <- function(
       ))
     })
 
-    # Render the datatable
+    ## Render the datatable ----
     output$view_df <- renderDT({
       # req(output_view_data())
 
@@ -236,15 +245,9 @@ module_data_viewer_server <- function(
           scrollX = TRUE,
           scrollY = "400px",
           fixedHeader = TRUE,
-          dom = dom_layout,
-          buttons = list(
-            "copy",
-            "excel"
-          ),
           order = table_order(),
           stateSave = FALSE
         ),
-
         filter = list(
           position = "top",
           clear = TRUE,
@@ -255,5 +258,26 @@ module_data_viewer_server <- function(
         extensions = c("Buttons")
       )
     })
+
+    ## Download handler ----
+    output$download_data <- downloadHandler(
+      filename = function() {
+        view_name <- view_scenario()
+        if (view_name == "") {
+          view_name <- "data"
+        }
+        glue("{view_name}_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- output_view_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          # Write empty file if no data
+          write_csv(data.frame(), file)
+        }
+      }
+    )
   })
 }

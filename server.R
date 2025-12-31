@@ -157,4 +157,6 @@ server <- function(input, output, session) {
     db_updated,
     prop_spp_rv
   )
+
+  module_edit_appraisals_server("edit_appraisals", db_con, db_updated)
 }

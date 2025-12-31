@@ -33,7 +33,15 @@ module_review_data_viewer_ui <- function(id) {
         # Main layout - results card
         card(
           height = "100%",
-          # card_header(h5("Table View")),
+          card_header(
+            class = "d-flex justify-content-between align-items-center",
+            h5("Table View"),
+            downloadButton(
+              outputId = ns("download_table"),
+              label = "Download",
+              class = "btn-sm"
+            )
+          ),
           card_body(
             DTOutput(outputId = ns("data_table"), height = "100%")
           )
@@ -122,9 +130,6 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
     })
 
     # Render data table ----
-    dom_layout <- "
-    <'row'<'col-sm-10'l><'col-sm-2 text-right'B>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>
-    "
 
     output$data_table <- renderDT({
       req(table_data())
@@ -144,11 +149,6 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
           scrollX = TRUE,
           scrollY = "400px",
           fixedHeader = TRUE,
-          dom = dom_layout,
-          buttons = list(
-            "copy",
-            "excel"
-          ),
           stateSave = FALSE
         ),
         filter = list(
@@ -161,5 +161,29 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
         extensions = c("Buttons")
       )
     })
+
+    ## Download handler ----
+    output$download_table <- downloadHandler(
+      filename = function() {
+        table_name <- input$table_choice
+        if (table_name == "") {
+          table_name <- "table_data"
+        }
+        # Clean the table name for filename
+        table_name <- str_replace_all(table_name, " ", "_") |>
+          str_to_lower()
+        glue("{table_name}_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- table_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          # Write empty file if no data
+          write_csv(data.frame(), file)
+        }
+      }
+    )
   })
 }
