@@ -1,4 +1,15 @@
-# Automating app deployment with Docker and GitHub actions
+---
+title: "Automating app deployment with Docker and GitHub actions"
+format:
+  html:
+    toc: true
+    toc-location: left
+    toc-float: true
+    toc-depth: 4
+    toc-expand: 3
+    smooth-scroll: true
+    theme: cosmo
+---
 
 An alternative to building docker images locally, testing them locally, pushing to DockerHub, then pulling them on the server, is to automate the build and deployment process. This is done using Docker and Github actions. The steps to set this up are outlined below.
 
@@ -208,9 +219,10 @@ Two tags are applied to each build:
 
     -   This allows versioned Docker images on Dockerhub to match GitHub releases.
 
-## Server setup
+## Server setup & testing
 
-An alternative to manually pulling images built with the GitHub action is to set up a docker compose file which will automatically check for new images and the pull them in manually and run a container from them (this is done with `watchtower`). First write the docker compose file (below is an example for the natureprops app). Note that the Postgres environement details will need to be filled in. If there are multiple apps running then the ports will need to be different for each so that there are no conflicts. The `interval` is specified in seconds and is the frequency at which `watchtower` will look for updates to images on DockerHub. Names of the two services should also be specific to the particular app.
+### Server setup
+An alternative to specifying the details of each pull and run command is to use a docker compose yml file, which starts a docker service. This makes it easy to stop, start, restart, and update containers after pulling new/updated images. Added bonus is that environmental variables can be set in the compose file. Start by writing the docker compose file (below is an example for the natureprops app). Note that the Postgres environement details will need to be replaced with actual values. If there are multiple apps running then the ports will need to be different for each so that there are no conflicts. Set a unique container name for each service.
 
 Note on ports (when using more than one app): The format is : `-p [HOST_PORT]:[CONTAINER_PORT]`
 
@@ -230,48 +242,60 @@ services:
       POSTGRES_HOST: hostaddress
       POSTGRES_USER: username
       POSTGRES_PASSWORD: userpassword
-
-  watchtower-natureprops:
-    image: containrrr/watchtower:latest
-    container_name: watchtower-np
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 300  
 ```
 
-The following commands can be used to control the natureprops-app service. First need to navigate to the folder in which the compose file is stored.
-
-`cd /srv/shinyapps/natureprops`  
-`ls`
-
-``` bash
-# Start the natureprops-app service
-docker compose up -d natureprops-app  watchtower-natureprops
-
-# View logs for natureprops-app (container must be running)
-docker compose logs -f natureprops-app  watchtower-natureprops
-
-# Stop natureprops-app
-docker compose stop natureprops-app  watchtower-natureprops
-
-# Restart natureprops-app
-docker compose restart natureprops-app  watchtower-natureprops
-```
-
-To get the file onto the server follow these steps:
+To get the compose file onto the server follow these steps:
 
 1.  `sudo mkdir -p /srv/shinyapps/natureprops`. This creates an empty folder for the docker compose setup.
 2.  `sudo chown -R nsnt_admin:nsnt_admin /srv/shinyapps/natureprops`. This changes ownership so that nsnt_admin (non-root) can edit files.
 3.  `cd /srv/shinyapps/natureprops ls -l`. Check folder exists.
-4.  `scp docker-compose.yml nsnt_admin@SERVER_ADDRESS:/srv/shinyapps/natureprops/`. Copy the `docker-compose.yml` file from local machine to server folder.\
-5.  `docker compose up -d`. Run the service in detached mode.
+4.  `scp docker-compose.yml nsnt_admin@SERVER_ADDRESS:/srv/shinyapps/natureprops/`. Copy the `docker-compose.yml` file from local machine to server folder.
+
+The following commands can be used to control the natureprops-app service. First need to navigate to the folder in which the compose file is stored.
+
+
+``` bash
+# Navigate to the folder with the compose file
+`cd /srv/shinyapps/natureprops`  
+
+# Check folder contents
+`ls`
+
+# Pull the latest version of the image specified in the compose file
+docker compose pull
+
+# Start the natureprops-app service
+docker compose up -d 
+
+# View logs for natureprops-app (container must be running)
+docker compose logs
+
+# Stop natureprops-app
+docker compose stop 
+
+# Restart natureprops-app
+docker compose restart
+```
 
 If for some reason there is a need to rollback and run a previously tagged version of the image from DockerHub use the following commands (after stopping the service):
 
 Pull the image: `docker pull domhenrynsnt/natureprops:v1.0.1`
 
 Run the image: `docker run -d --name natureprops-prod -p 3838:3838 -e POSTGRES_HOST=[HOSTNAME] -e POSTGRES_USER=[USER] -e POSTGRES_PASSWORD=[PASSWORD] domhenrynsnt/natureprops:v1.0.1`
+
+A note on Docker maintenance: Get images using `docker images -a`. Delete image using by first removing container `docker rm [CONTAINER NAME]`, then `docker rmi [IMAGE ID]`. Then look for dangling images using `docker images -f dangling=true`, then prune them using `docker image prune`.
+
+### Testing remote images locally
+
+Once images have been built via GitHub actions they are available on DockerHub for testing before `docker compose pull` and `docker compose up -d`. The process is similar to that of running on the server in that a local docker compose file is created which can be used to quickly pull and start containers, and store the environment variables.
+
+Begin by stopping and removing all containers with `docker rm -f $(docker ps -aq)`.
+
+Then navigate to `C:\Users\dominic\deploy_docker_apps`.
+
+Pull latest image with `docker compose -f docker-compose-np pull` (note that the `-f` flag is used to specify a custome file name).
+
+Then start the service with `docker compose -f docker-compose-np up -d`.
 
 ## Code development
 
