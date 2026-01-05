@@ -88,14 +88,11 @@ module_prop_stats_UI <- function(id) {
           )
         )
       ),
-
-      # Right card: NSNT ownership information
       card(
         height = "auto",
-        card_header(
-          h5("Other Info")
-        ),
-        card_body()
+        card_body(
+          plotOutput(ns("closing_year_plot"))
+        )
       )
     )
   )
@@ -347,6 +344,61 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
         unit = NULL,
         custom_color = NULL
       )
+    })
+
+    plot_data <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+
+        plot_data <- dbGetQuery(
+          db_con,
+          "SELECT
+          pr.id,
+          sp.probability_value,
+          pr.anticipated_closing_year,
+          ph.phase_value
+        FROM
+          properties pr
+          JOIN securement_probability sp ON pr.securement_probability_id = sp.id
+          JOIN phase ph ON pr.phase_id = ph.id
+        WHERE
+          securement_probability_id IS NOT NULL;"
+        ) |>
+          as_tibble()
+      }
+    })
+
+    output$closing_year_plot <- renderPlot({
+      plot_data() |>
+        ggplot(aes(x = anticipated_closing_year, fill = probability_value)) +
+        geom_bar(
+          position = position_dodge2(preserve = "single"),
+          color = "black",
+          linewidth = 0.3
+        ) +
+        scale_fill_manual(
+          values = c(
+            "Confirmed" = "#2E7D32",
+            "Expected" = "#1976D2",
+            "Potential" = "#d36912ff"
+          )
+        ) +
+        scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+        labs(
+          title = "Project Status",
+          x = "Anticipated Closing Year",
+          y = "Number of Properties",
+          fill = "Securement Probability"
+        ) +
+        theme(
+          axis.text.x = element_text(size = 18),
+          axis.text.y = element_text(size = 18),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
+          plot.title = element_text(size = 20),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 18)
+        )
     })
   })
 }
