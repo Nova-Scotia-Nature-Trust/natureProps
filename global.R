@@ -19,6 +19,7 @@ library(leaflet)
 library(leaflet.extras)
 library(leafem)
 library(sf)
+library(thematic)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
@@ -45,6 +46,8 @@ if (USE_AUTH) {
 }
 
 VERSION <- "2.4.5"
+
+thematic_shiny(font = "auto")
 
 # Tester PIDs:
 # 05311154
