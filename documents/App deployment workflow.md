@@ -39,7 +39,7 @@ Note that the `/renv` should be added to the `.dockerignore` file. It's not an i
 
 2.  If `natureprops-dev` container is running, first stop the container and remove it before building new testing version using `docker stop natureprops-dev`, `docker rm natureprops-dev` and `docker rmi natureprops`.
 
-3.  Build the image by running `docker build -t natureprops .`.
+3.  Build the image by running `docker build -t natureprops .`. Note that building in this way will make use of Docker's local image cache. In order to replicate what a build using GitHub actions would look like use: `docker buildx build --no-cache --progress=plain --load -t natureprops .`. To build locally without `buildx`, use: `docker build --no-cache -t natureprops .`.
 
 4.  Once the image is built, test it locally by running `docker run -d --name natureprops-dev -p 3838:3838 natureprops`. Access to the app will be through `localhost:3838`. The name of the container and image can the same (although they needn't be). Note that the .Renviron file is available when building locally but not when building in GitHub Actions. This is because it is not tracked with version control because it contains server login information. That means `env` parameters don't need to be specified when using `docker run`.
 
@@ -63,14 +63,13 @@ If logs aren't available try running the app directly using `docker exec -it nat
 
 ## Create GitHub Action
 
-The action instructions are written as a `yml` file in the `./.gitub/workflows` folder. This is the `docker.yml` file used to create an action to deploy the natureProps app (GitHb automatically detects the action when the file is created). This GitHub Actions workflow automatically builds and pushes a Docker image for the Shiny app whenever code is pushed to the `main` branch or when a version tag is created.
+The action instructions are written as a `yml` file in the `./.gitub/workflows` folder. This is the `docker.yml` file used to create an action to deploy the natureProps app (GitHb automatically detects the action when the file is created). This GitHub Actions workflow automatically builds and pushes a Docker image for the Shiny app whenever a repository version tag is created during a release. The last two lines handle caching in order to speed up the build (see [here](https://www.blacksmith.sh/blog/cache-is-king-a-guide-for-docker-layer-caching-in-github-actions) for more information about the cache setup).
 
 ``` yml
 name: Build and Push Docker image
 
 on:
   push:
-    branches: [ "main" ]
     tags:
       - "v*"
 
@@ -99,6 +98,8 @@ jobs:
           tags: |
             domhenrynsnt/natureprops:latest
             domhenrynsnt/natureprops:${{ github.ref_name }}
+          cache-from: type=registry,ref=domhenrynsnt/natureprops:latest
+          cache-to: type=inline,mode=min
 ```
 
 Below is an annotated explanation of what the commands in the file are doing.
