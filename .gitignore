@@ -55,7 +55,7 @@ inputs/field and function mapping tables/ss_to_db_fields.xlsx
 
 *.Rproj
 
-.dockerignore
+
 /dev
 documents/natureProps TODOs.docx
 documents/Docker notes_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css

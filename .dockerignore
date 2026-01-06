@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Rproj
+*.log
+renv/
+scratch.R
+dev/
+documents/
+inputs/
+copy_docker_files_.ps1
