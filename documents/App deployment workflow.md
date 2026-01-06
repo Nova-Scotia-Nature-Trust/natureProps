@@ -31,6 +31,8 @@ It's a good idea to locally test that the build is successful before going furth
 
 Copy app code files, Docker config file, Docker ignore file, renv.lock file, and data files to the `natureprops` folder within the deploy apps folder. To do this run the `copy_docker_files.ps1` script. Run command is `.\copy_docker_files.ps1`. Note the `F8` can be used to run a single/multiple selected lines in the terminal.
 
+Note that the `/renv` should be added to the `.dockerignore` file. It's not an issue when building locally (because that folder is not copied to the deploy apps directory), but it is tracked on the GitHub repo so when then image is built using GitHub actions then it will by default copy the `/renv` folder. This causes issues with renv recognising where the local library is. It's also important not to track the `.Rprofile` file. 
+
 ### Test Locally
 
 1.  Open terminal in `docker_deploy_apps` directory. Tip: use `CTRL + R` to search for terminal commands. Use same shortcut to cycle through search results.
@@ -46,8 +48,6 @@ Copy app code files, Docker config file, Docker ignore file, renv.lock file, and
 Note that the .Renviron file is available when building locally but not when building in GitHub Actions. This is because it is not tracked with version control because it contains server login information. That means `env` parameters don't need to be specified when using `docker run`.
 
 A note on Docker maintenance: Get images using `docker images -a`. Delete image using by first removing container `docker rm [CONTAINER NAME]`, then `docker rmi [IMAGE ID]`. Then look for dangling images using `docker images -f dangling=true`, then prune them using `docker image prune`.
-
-There has been an issue with the `renv/activate.R` file not being available during the build (because renv folder is ignored). Check that this file is removed from `.Rprofile` before building to stop R giving instruction to run a file that doesn't exist.
 
 ### Debugging
 
@@ -109,7 +109,7 @@ Below is an annotated explanation of what the commands in the file are doing.
 name: Build and Push Docker image 
 ```
 
--   This is the **human-readable name** of the workflow and it appears in the **Actions tab** in GitHub.
+-   This is the human-readable name of the workflow and it appears in the Actions tab in GitHub.
 
 ### Trigger conditions (`on`)
 
@@ -117,7 +117,7 @@ name: Build and Push Docker image
 on:   push:     branches: [ "main" ]     tags:       - "v*" 
 ```
 
-This section defines **when the workflow runs**.
+This section defines when the workflow runs.
 
 -   The workflow runs on:
 
@@ -133,11 +133,11 @@ This setup allows the `latest` images to be built from `main` and versioned Dock
 jobs:   build:     runs-on: ubuntu-latest 
 ```
 
--   A workflow consists of one or more **jobs.** This workflow has a single job named `build.` The job runs on GitHub’s hosted Ubuntu Linux runner.
+-   A workflow consists of one or more jobs. This workflow has a single job named `build.` The job runs on GitHub’s hosted Ubuntu Linux runner.
 
 ### Job steps
 
-Each job is made up of **steps**, which are executed in order.
+Each job is made up of steps, which are executed in order.
 
 #### 1. Check out the repository
 
@@ -197,7 +197,7 @@ These are set and stored in the GitHub repository under Settings -\> Secrets and
 
 Two tags are applied to each build:
 
-1.  **`latest`**
+1.  `latest`
 
     ``` yml
     domhenrynsnt/natureprops:latest 
@@ -226,8 +226,8 @@ An alternative to specifying the details of each pull and run command is to use 
 
 Note on ports (when using more than one app): The format is : `-p [HOST_PORT]:[CONTAINER_PORT]`
 
--   **3030** = Port on the host machine (your server at 192.168.1.51)
--   **3838** = Port inside the container where Shiny Server is listening
+-   3030 = Port on the host machine (your server at 192.168.1.51)
+-   3838 = Port inside the container where Shiny Server is listening
 -   Inside the container, Shiny Server runs on port 3838 (standard Shiny Server port). When you access `192.168.1.51:3030`, Docker forwards that traffic to port 3838 inside the container.
 
 ``` yml
