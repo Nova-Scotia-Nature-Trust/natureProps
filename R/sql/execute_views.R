@@ -1,3 +1,6 @@
+purrr::walk(list.files("R/functions", full.names = TRUE), source)
+db_con <- create_db_pool("dummydb")
+
 DBI::dbExecute(
   db_con,
   readr::read_file("R/sql/create_view_focal_areas_outreach.sql"),

@@ -189,7 +189,7 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
           JOIN parcels pa ON pr.id = pa.property_id
           LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
         WHERE
-          pr.ownership_id IS NOT NULL AND pr.ownership_id != 7"
+          pr.ownership_id IS NOT NULL AND pr.ownership_id NOT IN (7, 14)"
       ) |>
         pull(acres) |>
         sum()
@@ -208,7 +208,7 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
           JOIN parcels pa ON pr.id = pa.property_id
           LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
         WHERE
-          pr.ownership_id NOT IN (7, 11, 12, 13);"
+          pr.ownership_id NOT IN (7, 11, 12, 13, 14);"
       ) |>
         pull(acres) |>
         sum()

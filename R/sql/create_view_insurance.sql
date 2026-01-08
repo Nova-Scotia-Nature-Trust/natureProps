@@ -32,7 +32,8 @@ WHERE
    (
       11,
       12,
-      13
+      13,
+      14
    )
 GROUP BY
    pr.id,

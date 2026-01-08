@@ -34,7 +34,7 @@ FROM
       parcel_info pi 
       ON pi.parcel_id = pa.id 
 WHERE
-   pr.ownership_id IS NOT NULL 
+   pr.ownership_id IS NOT NULL AND pr.ownership_id NOT IN (7, 14) 
 GROUP BY
    pr.id,
    pr.property_name_public,

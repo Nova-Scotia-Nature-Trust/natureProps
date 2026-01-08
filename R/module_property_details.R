@@ -87,7 +87,7 @@ module_property_details_ui <- function(id) {
             div(
               style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
               tags$label(
-                "Property & Opportunity Overview",
+                "Property & Opportunity Description",
                 `for` = ns("property_description")
               ),
               popover(

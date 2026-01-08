@@ -291,7 +291,7 @@ module_edit_securement_properties_server <- function(
           ),
           textAreaInput(
             inputId = ns("edit_property_description"),
-            label = "Property Description",
+            label = "Property & Opportunity Description",
             value = if (
               !is.null(record) && !is.na(record$property_description)
             ) {

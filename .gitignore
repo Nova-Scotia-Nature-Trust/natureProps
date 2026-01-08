@@ -77,3 +77,7 @@ documents/App deployment workflow.html
 documents/App deployment workflow_files
 watchtower-compose.yml
 .Rprofile
+documents/user_guide_02_files
+documents/user_guide_files
+documents/*.html
+documents/user_guide*

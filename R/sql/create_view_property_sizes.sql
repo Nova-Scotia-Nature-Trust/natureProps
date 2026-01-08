@@ -30,6 +30,6 @@ FROM
       ON pa.id = pi.parcel_id 
 WHERE
    pr.ownership_id IS NOT NULL 
-   AND pr.ownership_id != 7 
+   AND pr.ownership_id NOT IN (7, 14)
 ORDER BY
    pr.property_name, pid;

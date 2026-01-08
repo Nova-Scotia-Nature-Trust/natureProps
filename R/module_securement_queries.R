@@ -134,7 +134,7 @@ module_securement_queries_server <- function(
           "SELECT DISTINCT fa.internal_value 
           FROM focus_area_internal fa
           INNER JOIN properties props ON fa.id = props.focus_area_internal_id
-          WHERE props.ownership_id NOT IN (11, 12, 13)
+          WHERE props.ownership_id NOT IN (11, 12, 13, 14)
           ORDER BY fa.internal_value;",
           .con = db_con
         )

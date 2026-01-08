@@ -25,7 +25,7 @@ WITH prop_with_pids AS
 SELECT
    pwp.property_name AS "Property Name",
    fa.internal_value AS "Internal Focus Area",
-   pwp.property_description AS "Property Description",
+   pwp.property_description AS "Property & Opportunity Description",
    pwp.pids AS "PIDs" 
 FROM
    prop_with_pids AS pwp 
