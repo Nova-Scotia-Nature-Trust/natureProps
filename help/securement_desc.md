@@ -1,1 +1,0 @@
-An overview of where we are in the active securement phase. If there are issues explain them. Action required data from the spreadsheet.  

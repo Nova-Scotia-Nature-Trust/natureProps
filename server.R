@@ -106,7 +106,6 @@ server <- function(input, output, session) {
     db_updated,
     focal_pid_rv
   )
-  # module_edit_records_server("edit_records", db_con, db_updated)
   module_securement_queries_server(
     "securement_query",
     db_con,

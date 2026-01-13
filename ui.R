@@ -65,7 +65,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Documentation",
-        includeMarkdown("help/securement_processes.md")
+        includeMarkdown("popups/securement_processes.md")
       )
     )
   ),
@@ -160,10 +160,6 @@ ui <- page_navbar(
     icon = bs_icon("pencil-square"),
     navset_card_tab(
       height = "100%",
-      # nav_panel(
-      #   title = "Properties/Parcels",
-      #   module_edit_records_ui("edit_records")
-      # ),
       nav_panel(
         title = "Securement Details (Properties)",
         module_edit_securement_properties_ui("edit_securement_properties"),

@@ -43,8 +43,8 @@ module_internal_communications_UI <- function(id) {
                       icon("question-circle"),
                       style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
                     ),
-                    "Some useful information",
-                    title = "Property Help",
+                    "Information to follow",
+                    title = "Help",
                     placement = "right"
                   )
                 )
@@ -90,8 +90,8 @@ module_internal_communications_UI <- function(id) {
                       icon("question-circle"),
                       style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
                     ),
-                    "Useful information",
-                    title = "Parcel Help",
+                    "Information to follow",
+                    title = "Help",
                     placement = "right"
                   )
                 )

@@ -1,0 +1,1 @@
+This field is intended to capture an overview of where a property is within the securement process. It should provide a brief summary of where we are in the securement process, whether there are any issues hindering progress, and what actions are required to ensure securement progress.

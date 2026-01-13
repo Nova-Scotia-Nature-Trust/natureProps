@@ -49,7 +49,7 @@ module_action_item_tracking_ui <- function(id) {
                 icon("question-circle"),
                 style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
               ),
-              includeMarkdown("help/securement_desc.md"),
+              includeMarkdown("popups/securement_desc.md"),
               title = "Securement Description Help",
               placement = "top"
             )

@@ -265,7 +265,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
                   icon("question-circle"),
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
-                includeMarkdown("help/prop_opp_overview.md"),
+                includeMarkdown("popups/prop_opp_overview.md"),
                 title = "Property Overview Help",
                 placement = "top"
               )
@@ -282,7 +282,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
                   icon("question-circle"),
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
-                includeMarkdown("help/phase_desc.md"),
+                includeMarkdown("popups/phase_desc.md"),
                 title = "Phase Description Help",
                 placement = "top"
               )
@@ -303,7 +303,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
                   icon("question-circle"),
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
-                includeMarkdown("help/prop_contact_desc.md"),
+                includeMarkdown("popups/prop_contact_desc.md"),
                 title = "Property Contact Help",
                 placement = "top"
               )
@@ -323,7 +323,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
                   icon("question-circle"),
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
-                includeMarkdown("help/securement_desc.md"),
+                includeMarkdown("popups/securement_desc.md"),
                 title = "Securement Status Help",
                 placement = "top"
               )

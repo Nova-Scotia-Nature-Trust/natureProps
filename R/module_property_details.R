@@ -95,7 +95,7 @@ module_property_details_ui <- function(id) {
                   icon("question-circle"),
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
-                includeMarkdown("help/prop_opp_overview.md"),
+                includeMarkdown("popups/prop_opp_overview.md"),
                 title = "Property Description Help",
                 placement = "top"
               )
@@ -110,9 +110,25 @@ module_property_details_ui <- function(id) {
           ),
           div(
             style = "margin-top: 20px;",
+            div(
+              style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+              tags$label(
+                "Stewardship Concerns",
+                `for` = ns("stewardship_concerns")
+              ),
+              popover(
+                div(
+                  icon("question-circle"),
+                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+                ),
+                includeMarkdown("popups/stewardship_concerns.md"),
+                title = "Stewardship Concerns Help",
+                placement = "top"
+              )
+            ),
             textAreaInput(
               ns("stewardship_concerns"),
-              label = "Stewardship Concerns",
+              label = NULL,
               value = "",
               # placeholder = "Enter any information around potential stewardship issues",
               height = "100px",

@@ -250,31 +250,35 @@ module_review_queries_server <- function(
     })
 
     # Render plot ----
-    output$view_plot <- renderPlot({
-      req(plot_data())
+    output$view_plot <- renderCachedPlot(
+      {
+        req(plot_data())
 
-      # Count properties by focal area
-      chart_data <- plot_data() |>
-        count(focal_area, name = "property_count") |>
-        arrange(desc(property_count))
+        chart_data <- plot_data() |>
+          count(focal_area, name = "property_count") |>
+          arrange(desc(property_count))
 
-      # Create bar plot
-      ggplot(
-        chart_data,
-        aes(x = reorder(focal_area, property_count), y = property_count)
-      ) +
-        geom_col(fill = "#2C3E50", alpha = 0.8) +
-        coord_flip() +
-        labs(
-          title = "Properties by Focal Area",
-          x = "Focal Area",
-          y = "Number of Properties"
+        ggplot(
+          chart_data,
+          aes(x = reorder(focal_area, property_count), y = property_count)
         ) +
-        theme_minimal(base_size = 14) +
-        theme(
-          plot.title = element_text(hjust = 0.5, face = "bold"),
-          panel.grid.major.y = element_blank()
-        )
-    })
+          geom_col(fill = "#2C3E50", alpha = 0.8) +
+          coord_flip() +
+          labs(
+            title = "Properties by Focal Area",
+            x = "Focal Area",
+            y = "Number of Properties"
+          ) +
+          theme(
+            plot.title = element_text(hjust = 0.5, face = "bold"),
+            axis.text = element_text(size = 14),
+            axis.title = element_text(size = 14),
+            panel.grid.major.y = element_blank()
+          )
+      },
+      cacheKeyExpr = {
+        list(plot_data())
+      }
+    )
   })
 }

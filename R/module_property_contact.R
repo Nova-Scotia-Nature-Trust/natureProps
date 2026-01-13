@@ -90,7 +90,7 @@ module_property_contact_ui <- function(id) {
                   icon("question-circle"),
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
-                includeMarkdown("help/prop_contact_desc.md"),
+                includeMarkdown("popups/prop_contact_desc.md"),
                 title = "Property Contact Help",
                 placement = "top"
               )

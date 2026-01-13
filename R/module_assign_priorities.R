@@ -47,8 +47,8 @@ module_assign_priorities_ui <- function(id) {
                       icon("question-circle"),
                       style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
                     ),
-                    "Some useful information",
-                    title = "Property Help",
+                    includeMarkdown("popups/probability_securement_desc.md"),
+                    title = "Help",
                     placement = "right"
                   )
                 )
@@ -95,8 +95,8 @@ module_assign_priorities_ui <- function(id) {
                       icon("question-circle"),
                       style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
                     ),
-                    "Useful information",
-                    title = "Parcel Help",
+                    "More information to come",
+                    title = "Help",
                     placement = "right"
                   )
                 )
