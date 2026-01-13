@@ -38,12 +38,16 @@
 populate_nsprd_tables <- function(pid_list, prd_con, db_con) {
   # pid_list = pid_input
 
-  prd_field_names <- read_xlsx("inputs/field and function mapping tables/nsprd_field_names.xlsx")
+  # prd_field_names <- read_xlsx("inputs/field and function mapping tables/nsprd_field_names.xlsx")
+  prd_field_names <- dbReadTable(db_con, "prd_field_names")
 
   ## parcel_info ----
   pid_info_raw <- dbGetQuery(
     prd_con,
-    glue_sql("SELECT * FROM pidmstrs WHERE pid IN ({pid_list*})", .con = prd_con)
+    glue_sql(
+      "SELECT * FROM pidmstrs WHERE pid IN ({pid_list*})",
+      .con = prd_con
+    )
   ) |>
     as_tibble()
 
@@ -72,7 +76,10 @@ populate_nsprd_tables <- function(pid_list, prd_con, db_con) {
   ## parcel_madd ----
   pid_mailing_address_raw <- dbGetQuery(
     prd_con,
-    glue_sql("SELECT * FROM maddress WHERE pid IN ({pid_list*})", .con = prd_con)
+    glue_sql(
+      "SELECT * FROM maddress WHERE pid IN ({pid_list*})",
+      .con = prd_con
+    )
   ) |>
     as_tibble()
 
@@ -99,7 +106,10 @@ populate_nsprd_tables <- function(pid_list, prd_con, db_con) {
   ## parcel_padd ----
   pid_address_raw <- dbGetQuery(
     prd_con,
-    glue_sql("SELECT * FROM pidaddress WHERE pid IN ({pid_list*})", .con = prd_con)
+    glue_sql(
+      "SELECT * FROM pidaddress WHERE pid IN ({pid_list*})",
+      .con = prd_con
+    )
   ) |>
     as_tibble()
 
@@ -123,7 +133,10 @@ populate_nsprd_tables <- function(pid_list, prd_con, db_con) {
   # landowners  ----
   pid_names_raw <- dbGetQuery(
     prd_con,
-    glue_sql("SELECT * FROM pidnames WHERE pid IN ({pid_list*})", .con = prd_con)
+    glue_sql(
+      "SELECT * FROM pidnames WHERE pid IN ({pid_list*})",
+      .con = prd_con
+    )
   ) |>
     as_tibble()
 
