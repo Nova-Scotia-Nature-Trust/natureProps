@@ -291,11 +291,19 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         deframe()
     })
 
-    property_choices <- reactive({
-      dbReadTable(db_con, "properties") |>
-        arrange(property_name) |>
-        select(property_name, id) |>
+    get_property_choices <- function(db_con) {
+      dbGetQuery(
+        db_con,
+        "SELECT property_name, id FROM properties ORDER BY property_name"
+      ) |>
         deframe()
+    }
+
+    property_choices <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      get_property_choices(db_con)
     })
 
     ## Populate UI inputs ----
