@@ -108,12 +108,11 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
     })
 
     ## Reactive value :: Selected record ----
-    # Initialize with default empty values
     selected_record <- reactiveVal(tibble(
       id = NA_integer_,
       property_name = "",
       llt_funding_secured = FALSE,
-      fund_federal_id = NA_integer_,
+      fund_federal_ids = list(integer(0)),
       campaign_id = NA_integer_
     ))
 
@@ -123,22 +122,33 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
 
       property_id <- input$property_name
 
-      query <- glue_sql(
+      # Get property details
+      property_query <- glue_sql(
         "SELECT 
           id,
           property_name,
           llt_funding_secured,
-          fund_federal_id,
           campaign_id
         FROM properties 
         WHERE id = {property_id}",
         .con = db_con
       )
 
-      record <- dbGetQuery(db_con, query)
+      property_record <- dbGetQuery(db_con, property_query)
 
-      if (nrow(record) == 1) {
-        selected_record(record)
+      # Get associated federal funds from junction table
+      funds_query <- glue_sql(
+        "SELECT fund_federal_id 
+        FROM property_fund_federal 
+        WHERE property_id = {property_id}",
+        .con = db_con
+      )
+
+      funds_record <- dbGetQuery(db_con, funds_query)
+
+      if (nrow(property_record) == 1) {
+        property_record$fund_federal_ids <- list(funds_record$fund_federal_id)
+        selected_record(property_record)
       }
     })
 
@@ -146,7 +156,6 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
     output$edit_fields_ui <- renderUI({
       record <- selected_record()
 
-      # Extract values if record exists, otherwise NULL
       property_name_text <- if (isTruthy(record$property_name)) {
         paste0("Editing: ", record$property_name)
       } else {
@@ -162,18 +171,18 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
         layout_columns(
           col_widths = c(6, 6),
           selectizeInput(
-            inputId = ns("edit_fund_federal_id"),
+            inputId = ns("edit_fund_federal_ids"),
             label = "Federal Funding",
-            choices = c("", fund_federal_choices()),
-            selected = if (!is.na(record$fund_federal_id)) {
-              record$fund_federal_id
+            choices = fund_federal_choices(),
+            selected = if (length(record$fund_federal_ids[[1]]) > 0) {
+              record$fund_federal_ids[[1]]
             } else {
-              ""
+              NULL
             },
-            multiple = FALSE,
+            multiple = TRUE,
             options = list(
               create = FALSE,
-              placeholder = "Select federal funding"
+              placeholder = "Select one or more federal funds"
             )
           ),
           selectizeInput(
@@ -208,20 +217,12 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
     observeEvent(input$submit_edit, {
       req(input$property_name)
 
-      db_id <- as.integer(input$property_name)
+      property_id <- as.integer(input$property_name)
 
-      # Build update tibble
-      update_tibble <- tibble(
-        id = db_id,
+      # Update properties table (campaign and llt funding)
+      property_update <- tibble(
+        id = property_id,
         llt_funding_secured = as.logical(input$edit_llt_funding_secured),
-        fund_federal_id = if (
-          is.null(input$edit_fund_federal_id) ||
-            input$edit_fund_federal_id == ""
-        ) {
-          NA_integer_
-        } else {
-          as.integer(input$edit_fund_federal_id)
-        },
         campaign_id = if (
           is.null(input$edit_campaign_id) ||
             input$edit_campaign_id == ""
@@ -232,13 +233,30 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
         }
       )
 
-      # Update the record
       dbx::dbxUpdate(
         db_con,
         table = "properties",
-        records = update_tibble,
+        records = property_update,
         where_cols = "id"
       )
+
+      # Insert federal fund associations if any selected
+      if (
+        !is.null(input$edit_fund_federal_ids) &&
+          length(input$edit_fund_federal_ids) > 0
+      ) {
+        junction_records <- tibble(
+          property_id = property_id,
+          fund_federal_id = as.integer(input$edit_fund_federal_ids)
+        )
+
+        dbx::dbxUpsert(
+          db_con,
+          table = "property_fund_federal",
+          records = junction_records,
+          where_cols = c("property_id", "fund_federal_id")
+        )
+      }
 
       # Signal update
       if (!is.null(db_updated)) {
@@ -259,11 +277,12 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_edit, {
+      # Reset to empty template
       selected_record(tibble(
         id = NA_integer_,
         property_name = "",
         llt_funding_secured = FALSE,
-        fund_federal_id = NA_integer_,
+        fund_federal_ids = list(integer(0)),
         campaign_id = NA_integer_
       ))
 
