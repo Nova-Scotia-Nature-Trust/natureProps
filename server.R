@@ -114,12 +114,19 @@ server <- function(input, output, session) {
   )
   module_review_projects_server("project_review", db_con, db_updated)
 
-  module_property_map_server(
-    "property_map",
+  # module_property_map_server(
+  #   "property_map",
+  #   db_con = db_con,
+  #   gis_con = gis_con,
+  #   db_updated,
+  #   prop_spp_rv
+  # )
+
+  module_property_mapbox_server(
+    "property_mapbox",
     db_con = db_con,
     gis_con = gis_con,
-    db_updated,
-    prop_spp_rv
+    db_updated
   )
 
   module_review_queries_server("review_queries", db_con, db_updated)
@@ -158,4 +165,12 @@ server <- function(input, output, session) {
   )
 
   module_edit_appraisals_server("edit_appraisals", db_con, db_updated)
+
+  module_edit_property_contacts_server(
+    "edit_property_contact_details",
+    db_con,
+    db_updated
+  )
+
+  module_securement_review_server("securement_review", db_con, db_updated)
 }

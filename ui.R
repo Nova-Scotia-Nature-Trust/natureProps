@@ -121,7 +121,7 @@ ui <- page_navbar(
     )
   ),
   nav_panel(
-    title = "Review",
+    title = "Project Review",
     icon = bs_icon("clipboard-data"),
     navset_card_tab(
       height = "100%",
@@ -130,7 +130,11 @@ ui <- page_navbar(
         module_review_projects_ui("project_review")
       ),
       nav_panel(
-        title = "Assign Priorities",
+        title = "Active Projects Review",
+        module_securement_review_ui("securement_review")
+      ),
+      nav_panel(
+        title = "Assign Securement Values",
         module_assign_priorities_ui("assign_priorities")
       ),
       nav_panel(
@@ -169,6 +173,10 @@ ui <- page_navbar(
         module_edit_securement_parcels_ui("edit_securement_parcels"),
       ),
       nav_panel(
+        title = "Property Contact Details",
+        module_edit_property_contacts_ui("edit_property_contact_details"),
+      ),
+      nav_panel(
         title = "Team Actions",
         module_edit_team_actions_ui("edit_team"),
       ),
@@ -195,9 +203,13 @@ ui <- page_navbar(
     icon = bs_icon("map"),
     navset_card_tab(
       height = "100%",
+      # nav_panel(
+      #   title = "Priority Map",
+      #   module_property_map_ui("property_map")
+      # ),
       nav_panel(
-        title = "Priority Map",
-        module_property_map_ui("property_map")
+        title = "MAPBOX WOAH HOT DAYYMMMN!",
+        module_property_mapbox_ui("property_mapbox")
       ),
       nav_panel(
         title = "ArcGIS Online Map",
