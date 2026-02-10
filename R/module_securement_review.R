@@ -307,6 +307,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
           "Closing Year",
           "Closing Date",
           "Securement Probability",
+          "Phase",
           "Securement Status"
         ) |>
         arrange(`Property Name`)
