@@ -108,9 +108,12 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
       query_01 <- glue_sql(
         "
-        SELECT property_description, phase_id_description, 
+        SELECT p.property_description, 
+               p.phase_id_description, 
+               p.securement_action_description,
                tl.team_value as team_lead, 
-               ph.phase_value as phase, p.stewardship_concerns
+               ph.phase_value as phase, 
+               p.stewardship_concerns
         FROM properties p
         LEFT JOIN team_lead tl ON p.team_lead_id = tl.id 
         LEFT JOIN phase ph ON p.phase_id = ph.id
@@ -128,38 +131,38 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
       query_02 <- glue_sql(
         "   
-        SELECT par.pid, par.securement_action_description, 
-        con.property_contact_description, con.name_last, con.name_first
-        FROM parcels par
-        LEFT JOIN properties prop ON par.property_id = prop.id
-        LEFT JOIN property_contact_details con ON par.property_contact_id = con.id  
-        WHERE prop.property_name = {prop_name};
+        SELECT pa.pid,                
+               con.property_contact_description, 
+               con.name_last, 
+               con.name_first
+        FROM parcels pa
+        LEFT JOIN properties pr ON pa.property_id = pr.id
+        LEFT JOIN parcel_property_contact ppc ON pa.id = ppc.parcel_id
+        LEFT JOIN property_contact_details con ON ppc.property_contact_id = con.id  
+        WHERE pr.property_name = {prop_name};
         ",
         .con = db_con
       )
 
       record_02 <- dbGetQuery(db_con, query_02) |>
-        summarise(
-          pids = paste(pid, collapse = ", "),
-          securement_description = paste(
-            unique(securement_action_description),
-            collapse = ", "
+        mutate(
+          contact_desc = if_else(
+            !is.na(property_contact_description),
+            str_glue(" - {property_contact_description}"),
+            ""
           ),
-          property_contact_description = paste(
-            unique(property_contact_description),
-            collapse = ", "
-          ),
-          property_contact_name = paste(
-            unique(str_glue("{name_first} {name_last}")),
-            collapse = ", "
-          )
+          contact_pair = str_glue("{name_first} {name_last}{contact_desc}")
         ) |>
-        mutate(across(
-          everything(),
-          ~ str_remove_all(.x, ",\\s*NA(?:\\s+NA)?") |> # Remove ", NA" or ", NA NA"
-            str_remove_all("^NA(?:\\s+NA)?(?:,\\s*)?") |> # Remove leading "NA" or "NA NA"
-            str_squish()
-        )) # Remove extra whitespace
+        summarise(
+          pids = paste(unique(pid), collapse = ", "),
+          property_contacts = paste(unique(contact_pair), collapse = "<br>")
+        ) |>
+        mutate(
+          across(
+            everything(),
+            ~ str_remove_all(.x, "^NA(?:\\s+NA)?") |> str_squish()
+          )
+        )
 
       query_03 <- glue_sql(
         "   
@@ -309,10 +312,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               )
             ),
             br(),
-            df$property_contact_name,
-            br(),
-            br(),
-            df$property_contact_description
+            HTML(df$property_contacts)
           ),
           div(
             div(
@@ -329,7 +329,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               )
             ),
             br(),
-            df$securement_description
+            df$securement_action_description
           )
         ),
         hr(),
