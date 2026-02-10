@@ -17,13 +17,17 @@ module_data_viewer_ui <- function(id, panel_id) {
   } else if (panel_id == "panel_02") {
     list(
       "Select a view from the list" = "",
-      "Action Items" = "action_items_view",
+      "Action Items (long)" = "action_items_view",
+      "Action Items (wide)" = "action_items_view_wide",
       "Secured Property Details" = "secured_props_view",
-      "Appraisals" = "appraisals"
+      "Appraisals" = "appraisals",
+      "Property Sizes" = "property_sizes",
+      "Insurance View" = "insurance"
     )
   } else if (panel_id == "panel_03") {
     list(
-      "Action Items" = "action_items_view"
+      "Action Items (long)" = "action_items_view",
+      "Action Items (wide)" = "action_items_view_wide"
     )
   }
   ## Card :: Data viewer ----
@@ -193,7 +197,32 @@ module_data_viewer_server <- function(
         }
         ## Action Items view ----
       } else if (selected_view == "action_items_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_action_items;")
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_securement_action_items;"
+        )
+        attr(data, "order_column") <- 1
+        attr(data, "order_direction") <- "asc"
+
+        if (!is.null(prop_filter) && !is.null(prop_filter())) {
+          data <- data |>
+            filter(`Property Name` == prop_filter())
+        }
+        ## Action Items Wide view ----
+      } else if (selected_view == "action_items_view_wide") {
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_securement_action_items;"
+        )
+
+        data <- data |>
+          select("Property Name", "Action Item", "Status") |>
+          pivot_wider(
+            id_cols = "Property Name",
+            names_from = "Action Item",
+            values_from = "Status"
+          )
+
         attr(data, "order_column") <- 1
         attr(data, "order_direction") <- "asc"
 
@@ -207,6 +236,14 @@ module_data_viewer_server <- function(
         ## Appraisals view ----
       } else if (selected_view == "appraisals") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_appraisals;")
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
+      } else if (selected_view == "property_sizes") {
+        data <- dbGetQuery(db_con, "SELECT * FROM view_property_sizes;")
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
+      } else if (selected_view == "insurance") {
+        data <- dbGetQuery(db_con, "SELECT * FROM view_insurance;")
         attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
       }
@@ -237,7 +274,7 @@ module_data_viewer_server <- function(
         data_for_display,
         escape = FALSE,
         options = list(
-          pageLength = 10,
+          pageLength = 50,
           lengthMenu = list(
             c(10, 25, 50, 100, -1),
             c('10', '25', '50', '100', 'All')
