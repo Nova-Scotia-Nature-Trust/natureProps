@@ -159,6 +159,7 @@ module_edit_securement_properties_server <- function(
           property_description,
           phase_id,
           phase_id_description,
+          phase_id_change,
           phase_id_followup,
           team_lead_id,
           project_region_id,
@@ -281,12 +282,21 @@ module_edit_securement_properties_server <- function(
             resize = "vertical"
           ),
           dateInput(
+            inputId = ns("edit_phase_id_change"),
+            label = "Phase Change Date",
+            value = if (!is.null(record) && !is.na(record$phase_id_change)) {
+              record$phase_id_change
+            } else {
+              as.Date(NA)
+            }
+          ),
+          dateInput(
             inputId = ns("edit_phase_id_followup"),
             label = "Phase Follow-up Date",
             value = if (!is.null(record) && !is.na(record$phase_id_followup)) {
               record$phase_id_followup
             } else {
-              NULL
+              as.Date(NA)
             }
           ),
           textAreaInput(
@@ -356,100 +366,172 @@ module_edit_securement_properties_server <- function(
     ## Event :: Write changes ----
     observeEvent(input$submit_edit, {
       req(input$property_name)
+      req(selected_record())
 
+      original <- selected_record()
+      message("ORIGINAL RECORD")
+      print(str(original))
+      print(original)
+
+      old_phase <- if (isTruthy(original$phase_id)) {
+        as.integer(original$phase_id)
+      } else {
+        NA_integer_
+      }
+      new_phase <- if (isTruthy(input$edit_phase_id)) {
+        as.integer(input$edit_phase_id)
+      } else {
+        NA_integer_
+      }
+
+      phase_changed <- !identical(old_phase, new_phase)
+
+      message("PHASE CHANGED:", phase_changed)
+
+      message("OLD DESC ORIGINAL:", original$phase_id_description)
+      message("NEW DESC ORIGINAL:", input$edit_phase_id_description)
+
+      old_desc <- if (isTruthy(original$phase_id_description)) {
+        trimws(original$phase_id_description)
+      } else {
+        NA_character_
+      }
+
+      new_desc <- if (isTruthy(input$edit_phase_id_description)) {
+        trimws(input$edit_phase_id_description)
+      } else {
+        NA_character_
+      }
+
+      desc_changed <- !identical(old_desc, new_desc)
+
+      message("OLD DESC CHANGED:", old_desc)
+      message("NEW DESC CHANGED:", new_desc)
+      message("DESC CHANGED:", desc_changed)
+
+      message("original$phase_id_change :: ", original$phase_id_change)
+      message("input$edit_phase_id_change :: ", str(input$edit_phase_id_change))
+
+      old_change_dt <- if (!isTruthy(original$phase_id_change)) {
+        as.Date(NA)
+      } else {
+        as.Date(original$phase_id_change)
+      }
+
+      message("OLD DATE :", old_change_dt)
+
+      new_change_dt <- if (!isTruthy(input$edit_phase_id_change)) {
+        as.Date(NA)
+      } else {
+        as.Date(input$edit_phase_id_change)
+      }
+
+      message("NEW DATE :", new_change_dt)
+
+      date_changed <- !identical(old_change_dt, new_change_dt)
+
+      message("DATE CHANGED:", date_changed)
+
+      message("CHECK 1:", !desc_changed || new_desc == "")
+      message("CHECK 2:", !date_changed || is.na(new_change_dt))
+
+      # ---- Validation ----
+      if (phase_changed) {
+        if (!desc_changed || new_desc == "") {
+          shinyalert(
+            title = "Phase Description Required",
+            text = "You changed the phase, but the Phase Description was not updated. Please explain the change.",
+            type = "warning"
+          )
+          return()
+        }
+
+        if (!date_changed || is.na(new_change_dt)) {
+          shinyalert(
+            title = "Phase Change Date Required",
+            text = "You changed the phase, but the Phase Change Date was not updated. Please update the date.",
+            type = "warning"
+          )
+          return()
+        }
+      }
+
+      message("CHECKS PASSED")
+
+      # ---- Build tibble for update ----
       db_id <- as.integer(input$property_name)
 
-      # Build update tibble
       update_tibble <- tibble(
         id = db_id,
-        property_name = if (
-          is.null(input$edit_property_name) ||
-            input$edit_property_name == ""
-        ) {
-          NA_character_
-        } else {
+
+        phase_id = new_phase,
+
+        phase_id_description = new_desc,
+
+        phase_id_change = new_change_dt,
+
+        property_name = if (isTruthy(input$edit_property_name)) {
           input$edit_property_name
-        },
-        property_name_public = if (
-          is.null(input$edit_property_name_public) ||
-            input$edit_property_name_public == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+
+        property_name_public = if (isTruthy(input$edit_property_name_public)) {
           input$edit_property_name_public
+        } else {
+          NA_character_
         },
+
         focus_area_internal_id = if (
-          is.null(input$edit_focus_area_internal_id) ||
-            input$edit_focus_area_internal_id == ""
+          isTruthy(input$edit_focus_area_internal_id)
         ) {
-          NA_integer_
-        } else {
           as.integer(input$edit_focus_area_internal_id)
-        },
-        property_description = if (
-          is.null(input$edit_property_description) ||
-            input$edit_property_description == ""
-        ) {
-          NA_character_
         } else {
+          NA_integer_
+        },
+
+        property_description = if (isTruthy(input$edit_property_description)) {
           input$edit_property_description
-        },
-        phase_id = if (
-          is.null(input$edit_phase_id) ||
-            input$edit_phase_id == ""
-        ) {
-          NA_integer_
         } else {
-          as.integer(input$edit_phase_id)
-        },
-        phase_id_description = if (
-          is.null(input$edit_phase_id_description) ||
-            input$edit_phase_id_description == ""
-        ) {
           NA_character_
-        } else {
-          input$edit_phase_id_description
         },
-        phase_id_followup = if (is.null(input$edit_phase_id_followup)) {
-          NA_character_
+
+        phase_id_followup = if (isTruthy(input$edit_phase_id_followup)) {
+          as.Date(input$edit_phase_id_followup)
         } else {
-          as.character(input$edit_phase_id_followup)
+          as.Date(NA)
         },
-        team_lead_id = if (
-          is.null(input$edit_team_lead_id) ||
-            input$edit_team_lead_id == ""
-        ) {
-          NA_integer_
-        } else {
+
+        team_lead_id = if (isTruthy(input$edit_team_lead_id)) {
           as.integer(input$edit_team_lead_id)
-        },
-        project_region_id = if (
-          is.null(input$edit_project_region_id) ||
-            input$edit_project_region_id == ""
-        ) {
-          NA_integer_
         } else {
+          NA_integer_
+        },
+
+        project_region_id = if (isTruthy(input$edit_project_region_id)) {
           as.integer(input$edit_project_region_id)
-        },
-        source_id = if (
-          is.null(input$edit_source_id) ||
-            input$edit_source_id == ""
-        ) {
+        } else {
           NA_integer_
-        } else {
-          as.integer(input$edit_source_id)
         },
-        stewardship_concerns = if (
-          is.null(input$edit_stewardship_concerns) ||
-            input$edit_stewardship_concerns == ""
-        ) {
-          NA_character_
+
+        source_id = if (isTruthy(input$edit_source_id)) {
+          as.integer(input$edit_source_id)
         } else {
+          NA_integer_
+        },
+
+        stewardship_concerns = if (isTruthy(input$edit_stewardship_concerns)) {
           input$edit_stewardship_concerns
+        } else {
+          NA_character_
         }
       )
 
-      # Update the record
+      message("DATA FRAME BUILT CORRECTLY")
+      message("UPDATE TIBBLE")
+      print(glimpse(update_tibble))
+
+      # ---- Update DB ----
       dbx::dbxUpdate(
         db_con,
         table = "properties",
@@ -457,7 +539,7 @@ module_edit_securement_properties_server <- function(
         where_cols = "id"
       )
 
-      # Signal update
+      # ---- Signal update ----
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
       }
@@ -465,13 +547,15 @@ module_edit_securement_properties_server <- function(
       shinyalert(
         title = "Success",
         text = str_glue(
-          "Securement properties for {selected_record()$property_name} have been successfully updated"
+          "Database fields for {selected_record()$property_name} have been successfully updated"
         ),
         type = "success",
         closeOnEsc = TRUE,
         closeOnClickOutside = TRUE,
         timer = 10000
       )
+
+      selected_record(NULL)
     })
 
     ## Event :: Clear inputs ----
