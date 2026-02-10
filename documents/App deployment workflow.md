@@ -243,6 +243,7 @@ services:
       POSTGRES_HOST: hostaddress
       POSTGRES_USER: username
       POSTGRES_PASSWORD: userpassword
+      MAPBOX_PUBLIC_TOKEN: token
 ```
 
 To get the compose file onto the server follow these steps:
@@ -294,9 +295,9 @@ Begin by stopping and removing all containers with `docker rm -f $(docker ps -aq
 
 Then navigate to `C:\Users\dominic\deploy_docker_apps`.
 
-Pull latest image with `docker compose -f docker-compose-np pull` (note that the `-f` flag is used to specify a custome file name).
+Pull latest image with `docker compose -f docker-compose-np.yml pull` (note that the `-f` flag is used to specify a custome file name).
 
-Then start the service with `docker compose -f docker-compose-np up -d`.
+Then start the service with `docker compose -f docker-compose-np.yml up -d`.
 
 ## Code development
 
