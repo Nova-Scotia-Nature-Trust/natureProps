@@ -101,6 +101,7 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
           id,
           property_name,
           price_asking,
+          price_offer,
           price_purchase,
           donated_value,
           hst
@@ -131,6 +132,12 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
 
       price_asking_val <- if (!is.null(record) && !is.na(record$price_asking)) {
         record$price_asking
+      } else {
+        NULL
+      }
+
+      price_offer_val <- if (!is.null(record) && !is.na(record$price_offer)) {
+        record$price_offer
       } else {
         NULL
       }
@@ -172,6 +179,13 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
             min = 0,
             step = 1000
           ),
+          numericInput(
+            inputId = ns("edit_price_offer"),
+            label = "Offer Price",
+            value = price_offer_val,
+            min = 0,
+            step = 1000
+          )
         ),
         layout_columns(
           col_widths = c(6, 6),
@@ -212,6 +226,11 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
           NA_real_
         } else {
           as.numeric(input$edit_price_asking)
+        },
+        price_offer = if (is.null(input$edit_price_offer)) {
+          NA_real_
+        } else {
+          as.numeric(input$edit_price_offer)
         },
         price_purchase = if (is.null(input$edit_price_purchase)) {
           NA_real_
@@ -269,6 +288,7 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       )
 
       updateNumericInput(session, "edit_price_asking", value = NULL)
+      updateNumericInput(session, "edit_price_offer", value = NULL)
       updateNumericInput(session, "edit_price_purchase", value = NULL)
       updateNumericInput(session, "edit_donated_value", value = NULL)
       updateNumericInput(session, "edit_hst", value = NULL)
