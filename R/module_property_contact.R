@@ -192,58 +192,59 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     iv_create$add_rule("name_first_input", sv_required())
     iv_create$add_rule("name_last_input", sv_required())
     iv_create$add_rule("pid_input_property_contact", sv_required())
-    iv_create$add_rule("pid_input_property_contact", function(value) {
-      if (length(value) == 0) {
-        return(NULL)
-      }
 
-      # Query parcels table to check for existing property_contact_id
-      existing_contacts <- dbGetQuery(
-        db_con,
-        glue_sql(
-          "SELECT pid, property_contact_id FROM parcels WHERE pid IN ({value*}) AND property_contact_id IS NOT NULL;",
-          .con = db_con
-        )
-      )
+    # iv_create$add_rule("pid_input_property_contact", function(value) {
+    #   if (length(value) == 0) {
+    #     return(NULL)
+    #   }
 
-      if (nrow(existing_contacts) > 0) {
-        pids_with_contacts <- paste(existing_contacts$pid, collapse = ", ")
-        return(glue(
-          "Property contact already exists for the following PID(s): {pids_with_contacts}"
-        ))
-      } else {
-        return(NULL)
-      }
-    })
+    #   # Query parcels table to check for existing property_contact_id
+    #   existing_contacts <- dbGetQuery(
+    #     db_con,
+    #     glue_sql(
+    #       "SELECT pid, property_contact_id FROM parcels WHERE pid IN ({value*}) AND property_contact_id IS NOT NULL;",
+    #       .con = db_con
+    #     )
+    #   )
+
+    #   if (nrow(existing_contacts) > 0) {
+    #     pids_with_contacts <- paste(existing_contacts$pid, collapse = ", ")
+    #     return(glue(
+    #       "Property contact already exists for the following PID(s): {pids_with_contacts}"
+    #     ))
+    #   } else {
+    #     return(NULL)
+    #   }
+    # })
 
     iv_create$enable()
 
     ## Input validation for updating existing contact ----
     iv_update <- InputValidator$new()
     iv_update$add_rule("pid_input_update", sv_required())
-    iv_update$add_rule("pid_input_update", function(value) {
-      if (length(value) == 0) {
-        return(NULL)
-      }
+    # iv_update$add_rule("pid_input_update", function(value) {
+    #   if (length(value) == 0) {
+    #     return(NULL)
+    #   }
 
-      # Query parcels table to check for existing property_contact_id
-      existing_contacts <- dbGetQuery(
-        db_con,
-        glue_sql(
-          "SELECT pid, property_contact_id FROM parcels WHERE pid IN ({value*}) AND property_contact_id IS NOT NULL;",
-          .con = db_con
-        )
-      )
+    #   # Query parcels table to check for existing property_contact_id
+    #   existing_contacts <- dbGetQuery(
+    #     db_con,
+    #     glue_sql(
+    #       "SELECT pid, property_contact_id FROM parcels WHERE pid IN ({value*}) AND property_contact_id IS NOT NULL;",
+    #       .con = db_con
+    #     )
+    #   )
 
-      if (nrow(existing_contacts) > 0) {
-        pids_with_contacts <- paste(existing_contacts$pid, collapse = ", ")
-        return(glue(
-          "The following PID(s) is already assigned to a property contact: {pids_with_contacts}"
-        ))
-      } else {
-        return(NULL)
-      }
-    })
+    #   if (nrow(existing_contacts) > 0) {
+    #     pids_with_contacts <- paste(existing_contacts$pid, collapse = ", ")
+    #     return(glue(
+    #       "The following PID(s) is already assigned to a property contact: {pids_with_contacts}"
+    #     ))
+    #   } else {
+    #     return(NULL)
+    #   }
+    # })
 
     iv_update$add_rule("contact_select", sv_required())
     iv_update$enable()
@@ -334,24 +335,68 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       db_updated(db_updated() + 1)
 
       ## Get new contact ID
-      property_contact_id <- new_property_contact |>
-        left_join(dbReadTable(db_con, "property_contact_details")) |>
+      # property_contact_id <- new_property_contact |>
+      #   left_join(dbReadTable(db_con, "property_contact_details")) |>
+      #   pull(id)
+
+      ## NEED TO MAKE THIS ROBUST SO THAT IT HANDLES DUPLICATE NAMES
+      property_contact_id <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "
+          SELECT id
+          FROM property_contact_details
+          WHERE
+            name_first = {input$name_first_input}
+            AND name_last  = {input$name_last_input}
+            AND email IS NOT DISTINCT FROM {input$email_input}
+          ORDER BY id DESC
+          LIMIT 1
+          ",
+          .con = db_con
+        )
+      ) |>
         pull(id)
 
-      ## Assign the contact ID to relevant PIDs
+      ## Write property contact ID and parcel ID to junction table
+      get_parcel_ids <- glue_sql(
+        "SELECT id FROM parcels WHERE pid IN ({input$pid_input_property_contact*})",
+        .con = db_con
+      )
+
+      parcel_ids <- dbGetQuery(db_con, get_parcel_ids) |>
+        pull(id)
+
       if (length(input$pid_input_property_contact) > 0) {
-        dbx::dbxUpdate(
+        dbx::dbxInsert(
           db_con,
-          table = "parcels",
+          table = "parcel_property_contact",
           records = tibble(
-            pid = input$pid_input_property_contact,
-            property_contact_id
-          ),
-          where_cols = c("pid")
+            parcel_id = parcel_ids,
+            property_contact_id = rep(
+              x = property_contact_id,
+              times = length(parcel_ids)
+            )
+          )
         )
       } else {
         message("NO PID ASSOCIATED WITH PROPERTY CONTACT")
       }
+
+      ## Assign the contact ID to relevant PIDs
+      # if (length(input$pid_input_property_contact) > 0) {
+      #   dbx::dbxUpdate(
+      #     db_con,
+      #     table = "parcels",
+      #     records = tibble(
+      #       pid = input$pid_input_property_contact,
+      #       property_contact_id
+      #     ),
+      #     where_cols = c("pid")
+      #   )
+      # } else {
+      #   message("NO PID ASSOCIATED WITH PROPERTY CONTACT")
+      # }
     })
 
     ## Event :: Update property contact with new PIDs ----
@@ -368,16 +413,34 @@ module_property_contact_server <- function(id, db_con, db_updated) {
         return()
       }
 
-      ## Update parcels table with the property_contact_id
-      dbx::dbxUpdate(
-        db_con,
-        table = "parcels",
-        records = tibble(
-          pid = input$pid_input_update,
-          property_contact_id = as.integer(input$contact_select)
-        ),
-        where_cols = c("pid")
+      # Add to junction table
+      get_parcel_ids <- glue_sql(
+        "SELECT id FROM parcels WHERE pid IN ({input$pid_input_update*})",
+        .con = db_con
       )
+
+      parcel_ids <- dbGetQuery(db_con, get_parcel_ids) |>
+        pull(id)
+
+      dbx::dbxInsert(
+        db_con,
+        table = "parcel_property_contact",
+        records = tibble(
+          parcel_id = parcel_ids,
+          property_contact_id = as.integer(input$contact_select)
+        )
+      )
+
+      ## Update parcels table with the property_contact_id
+      # dbx::dbxUpdate(
+      #   db_con,
+      #   table = "parcels",
+      #   records = tibble(
+      #     pid = input$pid_input_update,
+      #     property_contact_id = as.integer(input$contact_select)
+      #   ),
+      #   where_cols = c("pid")
+      # )
 
       db_updated(db_updated() + 1)
 
