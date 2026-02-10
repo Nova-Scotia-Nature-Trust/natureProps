@@ -21,7 +21,7 @@ Copy-Item -Path "$source_path\postgres_auth_config.yml" -Destination $destinatio
 Copy-Item -Path "$source_path\.dockerignore" -Destination $destination_path_01 -Force
 Copy-Item -Path "$source_path\renv.lock" -Destination $destination_path_01 -Force
 
-Copy-Item -Path "$source_path\help" -Destination $destination_path_01 -Recurse -Force
+Copy-Item -Path "$source_path\popups" -Destination $destination_path_01 -Recurse -Force
 Copy-Item -Path "$source_path\app_data" -Destination $destination_path_01 -Recurse -Force
 Copy-Item -Path "$source_path\R" -Destination $destination_path_01 -Recurse -Force
 

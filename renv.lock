@@ -1193,6 +1193,29 @@
       ],
       "Hash": "7ce2733a9826b3aeb1775d56fd305472"
     },
+    "mapgl": {
+      "Package": "mapgl",
+      "Version": "0.4.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "base64enc",
+        "classInt",
+        "geojsonsf",
+        "grDevices",
+        "htmltools",
+        "htmlwidgets",
+        "jsonlite",
+        "png",
+        "rlang",
+        "sf",
+        "shiny",
+        "terra",
+        "viridisLite"
+      ],
+      "Hash": "6d5b0f00074dd86e82b157d89b0c87d1"
+    },
     "markdown": {
       "Package": "markdown",
       "Version": "2.0",

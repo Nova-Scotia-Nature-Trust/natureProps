@@ -16,16 +16,14 @@ module_securement_queries_ui <- function(id) {
             "Select query",
             choices = c(
               "",
-              "Insurance view",
               "Focal area properties",
-              "Securement action",
-              "Property sizes"
+              "Securement action"
             ),
             multiple = FALSE,
             width = "100%"
           ),
           # Conditional UI for additional inputs
-          uiOutput(ns("conditional_contact_ui")),
+          uiOutput(ns("conditional_query_ui")),
           actionButton(
             inputId = ns("run_query"),
             label = "Run query",
@@ -71,7 +69,7 @@ module_securement_queries_server <- function(
     table_data <- reactiveVal(NULL)
 
     ## Conditional UI (based on query select) ----
-    output$conditional_contact_ui <- renderUI({
+    output$conditional_query_ui <- renderUI({
       ns <- session$ns
 
       req(input$query_choice)
@@ -108,12 +106,12 @@ module_securement_queries_server <- function(
               create = FALSE,
               placeholder = "Select a probability"
             )
-          ),
-          input_switch(
-            ns("prop_view"),
-            "Properties only",
-            value = FALSE
           )
+          # input_switch(
+          #   ns("prop_view"),
+          #   "Properties only",
+          #   value = FALSE
+          # )
         )
       } else {
         return(NULL)
@@ -211,32 +209,55 @@ module_securement_queries_server <- function(
             .con = db_con
           )
         )
-      } else if (input$query_choice == "Insurance view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_insurance;")
       } else if (input$query_choice == "Securement action") {
         req(input$closing_year)
 
-        data <- dbGetQuery(db_con, "SELECT * FROM view_action_items;")
-
-        additional_data <- dbGetQuery(
-          conn = db_con,
-          statement = "
-          SELECT par.pid, 
-                prop.anticipated_closing_year,
-                se.probability_value
-          FROM parcels par
-          LEFT JOIN properties prop ON par.property_id = prop.id
-          LEFT JOIN securement_probability se ON prop.securement_probability_id = se.id;"
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_securement_action_items;"
         )
 
         data <- data |>
-          left_join(additional_data, join_by(PID == pid))
+          select("Property Name", "Action Item", "Status") |>
+          pivot_wider(
+            id_cols = "Property Name",
+            names_from = "Action Item",
+            values_from = "Status"
+          )
+
+        # additional_data <- dbGetQuery(
+        #   conn = db_con,
+        #   statement = "
+        #   SELECT par.pid,
+        #         prop.anticipated_closing_year,
+        #         se.probability_value
+        #   FROM parcels par
+        #   LEFT JOIN properties prop ON par.property_id = prop.id
+        #   LEFT JOIN securement_probability se ON prop.securement_probability_id = se.id;"
+        # )
+
+        additional_data <- dbGetQuery(
+          conn = db_con,
+          statement = '
+          SELECT pr.property_name AS "Property Name", 
+                pr.anticipated_closing_year AS "Closing Year",
+                pr.anticipated_closing_date AS "Closing Date",
+                pr.securement_action_description AS "Securement Status",
+                se.probability_value AS "Securement Probability"
+          FROM properties pr
+          LEFT JOIN securement_probability se ON pr.securement_probability_id = se.id;'
+        )
 
         data <- data |>
-          relocate(anticipated_closing_year, probability_value) |>
-          rename(
-            `Closing Year` = anticipated_closing_year,
-            `Securement Probability` = probability_value
+          left_join(additional_data, join_by("Property Name"))
+
+        data <- data |>
+          relocate(
+            "Property Name",
+            "Closing Year",
+            "Closing Date",
+            "Securement Probability",
+            "Securement Status"
           )
 
         # Filter by securement probability if selected
@@ -249,12 +270,10 @@ module_securement_queries_server <- function(
           filter(`Closing Year` == input$closing_year) |>
           arrange(`Property Name`)
 
-        if (input$prop_view == TRUE) {
-          data <- data |>
-            distinct(`Property Name`, .keep_all = TRUE)
-        }
-      } else if (input$query_choice == "Property sizes") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_property_sizes;")
+        # if (input$prop_view == TRUE) {
+        #   data <- data |>
+        #     distinct(`Property Name`, .keep_all = TRUE)
+        # }
       }
 
       table_data(data)
@@ -267,10 +286,8 @@ module_securement_queries_server <- function(
         inputId = "query_choice",
         choices = c(
           "",
-          "Insurance view",
           "Focal area properties",
-          "Securement action",
-          "Property sizes"
+          "Securement action"
         ),
         selected = character(0),
         server = TRUE
@@ -318,7 +335,7 @@ module_securement_queries_server <- function(
       DT::datatable(
         data_for_display,
         options = list(
-          pageLength = 10,
+          pageLength = 50,
           lengthMenu = list(
             c(10, 25, 50, 100, -1),
             c('10', '25', '50', '100', 'All')

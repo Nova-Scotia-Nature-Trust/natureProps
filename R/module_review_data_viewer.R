@@ -141,7 +141,7 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
       DT::datatable(
         data_for_display,
         options = list(
-          pageLength = 10,
+          pageLength = 50,
           lengthMenu = list(
             c(10, 25, 50, 100, -1),
             c('10', '25', '50', '100', 'All')

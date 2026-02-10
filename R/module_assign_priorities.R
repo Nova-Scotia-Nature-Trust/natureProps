@@ -1,4 +1,6 @@
 # UI ----
+
+## CHANGE THIS NAME TO "SECUREMENT STATUS"
 module_assign_priorities_ui <- function(id) {
   ns <- NS(id)
 
@@ -12,23 +14,53 @@ module_assign_priorities_ui <- function(id) {
         sidebar = sidebar(
           "",
           open = TRUE,
-          selectizeInput(
-            ns("property"),
-            "Select property",
-            choices = NULL,
+          accordion(
+            id = ns("sidebar_accordion"),
+            open = "assign_values",
             multiple = FALSE,
-            width = "80%"
-          ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Record",
-            class = "btn-success"
-          ),
-          actionButton(
-            inputId = ns("clear_inputs"),
-            label = "Clear Inputs",
-            class = "btn-secondary"
-          ),
+            accordion_panel(
+              title = "Assign Values",
+              value = "assign_values",
+              icon = bs_icon("pencil-square"),
+              selectizeInput(
+                ns("property"),
+                "Select property",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("load_record"),
+                label = "Load Record",
+                class = "btn-success",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("clear_inputs"),
+                label = "Clear Inputs",
+                class = "btn-secondary",
+                width = "100%"
+              )
+            ),
+            accordion_panel(
+              title = "Initiate Action Tracking",
+              value = "tracking",
+              icon = bs_icon("clipboard-check"),
+              selectizeInput(
+                ns("property_setup"),
+                "Select property",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("setup_template"),
+                label = "Setup Securement Action Template",
+                class = "btn-primary",
+                width = "100%"
+              )
+            )
+          )
         ),
         div(
           style = "height: 100%; display: flex; flex-direction: column;",
@@ -69,7 +101,40 @@ module_assign_priorities_ui <- function(id) {
                       label = "Anticipated Closing Year",
                       value = "",
                       placeholder = "e.g., 2025/26"
+                    ),
+                    dateInput(
+                      ns("closing_date"),
+                      "Anticipated Closing Date",
+                      value = NA
+                    ),
+                    dateInput(
+                      ns("conditions_date"),
+                      "APS Conditions Date",
+                      value = NA
                     )
+                  ),
+                  div(
+                    style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
+                    tags$label(
+                      "Securement action notes",
+                      `for` = ns("securement_notes")
+                    ),
+                    popover(
+                      div(
+                        icon("question-circle"),
+                        style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
+                      ),
+                      includeMarkdown("popups/securement_desc.md"),
+                      title = "Securement Notes Help",
+                      placement = "top"
+                    )
+                  ),
+                  textAreaInput(
+                    ns("securement_notes"),
+                    label = NULL,
+                    "",
+                    height = "150px",
+                    width = "100%"
                   ),
                   actionButton(
                     inputId = ns("submit_edit_properties"),
@@ -169,6 +234,8 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         return("Years must be consecutive (e.g., 2025/26, not 2025/27)")
       }
     })
+    iv$add_rule("securement_prob", sv_required())
+    iv$add_rule("closing_year", sv_required())
 
     iv$enable()
 
@@ -176,9 +243,16 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     get_property_choices <- function(db_con) {
       dbGetQuery(
         db_con,
-        "SELECT property_name FROM properties ORDER BY property_name"
+        "SELECT DISTINCT
+        pr.id,
+        pr.property_name
+      FROM
+        securement_action_items sai
+        LEFT JOIN properties pr ON pr.id = sai.property_id
+      ORDER BY
+        property_name;"
       ) |>
-        pull(property_name)
+        pull("property_name")
     }
 
     get_securement_prob_choices <- function(db_con) {
@@ -201,6 +275,9 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
           p.property_name, 
           p.securement_probability_id,
           p.anticipated_closing_year,
+          p.anticipated_closing_date,
+          p.aps_conditions_date,
+          p.securement_action_description,
           pa.priority_ecological_ranking_id,
           pa.priority_securement_ranking_id
         FROM properties p
@@ -233,6 +310,39 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       get_ranking_choices(db_con)
     })
 
+    ## Property list for setup (without securement data) ----
+    props_setup_reactive <- reactive({
+      db_updated()
+      dbGetQuery(
+        db_con,
+        "SELECT
+          pr.id,
+          pr.property_name
+        FROM
+          properties pr
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM securement_action_items sai
+          WHERE sai.property_id = pr.id
+        )
+        ORDER BY
+          pr.property_name;"
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "property_setup",
+        choices = setNames(
+          props_setup_reactive()$id,
+          props_setup_reactive()$property_name
+        ),
+        selected = isolate(input$property_setup),
+        server = TRUE
+      )
+    })
+
     ## Observer :: Update inputs ----
     observe({
       # Only update when db_updated changes
@@ -244,9 +354,12 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       current_selections <- list(
         property = isolate(input$property),
         securement_prob = isolate(input$securement_prob),
+        closing_year = isolate(input$closing_year),
+        closing_date = isolate(input$closing_date),
+        conditions_date = isolate(input$conditions_date),
+        securement_notes = isolate(input$securement_notes),
         ecological_priority = isolate(input$ecological_priority),
-        securement_priority = isolate(input$securement_priority),
-        closing_year = isolate(input$closing_year)
+        securement_priority = isolate(input$securement_priority)
       )
 
       # Update inputs
@@ -269,6 +382,24 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         session,
         "closing_year",
         value = current_selections$closing_year
+      )
+
+      updateDateInput(
+        session,
+        "closing_date",
+        value = current_selections$closing_date
+      )
+
+      updateDateInput(
+        session,
+        "conditions_date",
+        value = current_selections$conditions_date
+      )
+
+      updateTextInput(
+        session,
+        "securement_notes",
+        value = current_selections$securement_notes
       )
 
       updateSelectizeInput(
@@ -308,6 +439,24 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
           session,
           inputId = "closing_year",
           value = unique(record$anticipated_closing_year)
+        )
+
+        updateDateInput(
+          session,
+          inputId = "closing_date",
+          value = unique(record$anticipated_closing_date)
+        )
+
+        updateDateInput(
+          session,
+          inputId = "conditions_date",
+          value = unique(record$aps_conditions_date)
+        )
+
+        updateTextInput(
+          session,
+          inputId = "securement_notes",
+          value = unique(record$securement_action_description)
         )
 
         updateSelectizeInput(
@@ -401,15 +550,46 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         return()
       }
 
+      or_na <- function(x, na) {
+        if (isTruthy(x)) x else na
+      }
+
       df <- tibble(
         property_name = input$property,
         securement_probability_id = input$securement_prob,
-        anticipated_closing_year = if_else(
-          input$closing_year == "" | is.null(input$closing_year),
-          NA_character_,
-          input$closing_year
+        anticipated_closing_year = or_na(input$closing_year, NA_character_),
+        anticipated_closing_date = or_na(input$closing_date, as.Date(NA)),
+        aps_conditions_date = or_na(input$conditions_date, as.Date(NA)),
+        securement_action_description = or_na(
+          input$securement_notes,
+          NA_character_
         )
       )
+
+      # df <- tibble(
+      #   property_name = input$property,
+      #   securement_probability_id = input$securement_prob,
+      #   anticipated_closing_year = if_else(
+      #     !isTruthy(input$closing_year),
+      #     NA_character_,
+      #     input$closing_year
+      #   ),
+      #   anticipated_closing_date = if_else(
+      #     !isTruthy(input$closing_date),
+      #     as.Date(NA),
+      #     input$closing_date
+      #   ),
+      #   aps_conditions_date = if_else(
+      #     !isTruthy(input$conditions_date),
+      #     as.Date(NA),
+      #     input$conditions_date
+      #   ),
+      #   securement_action_description = if_else(
+      #     !isTruthy(input$securement_notes),
+      #     NA_character_,
+      #     input$securement_notes
+      #   )
+      # )
 
       print(df)
 
@@ -480,6 +660,36 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       )
     })
 
+    ## Event :: Setup template action ----
+    observeEvent(input$setup_template, {
+      req(input$property_setup)
+
+      action_type_ids <- dbGetQuery(db_con, "SELECT id FROM action_item_type")
+
+      action_structure <- expand.grid(
+        action_item_type_id = action_type_ids$id,
+        property_id = input$property_setup
+      )
+
+      append_db_data(
+        "securement_action_items",
+        data = action_structure,
+        con = db_con,
+        silent = TRUE
+      )
+
+      db_updated(db_updated() + 1)
+
+      shinyalert(
+        title = "Success",
+        text = glue::glue(
+          "Template created with {nrow(action_structure)} action items"
+        ),
+        type = "success",
+        timer = 5000
+      )
+    })
+
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
@@ -503,6 +713,24 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         inputId = "closing_year",
         value = "",
         placeholder = "e.g., 2025/26"
+      )
+
+      updateDateInput(
+        session,
+        inputId = "closing_date",
+        value = NA
+      )
+
+      updateDateInput(
+        session,
+        inputId = "conditions_date",
+        value = NA
+      )
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_notes",
+        value = ""
       )
 
       updateSelectizeInput(

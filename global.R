@@ -20,13 +20,18 @@ library(leaflet.extras)
 library(leafem)
 library(sf)
 library(thematic)
+library(mapgl)
+library(shinycssloaders)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
 # Create database connection
-db_con <- create_db_pool("dummydb")
+db_con <- create_db_pool("nsnt-properties")
 prd_con <- create_db_pool("nsprd")
 gis_con <- create_db_pool("nsnt_gis")
+
+# Old
+# db_con <- create_db_pool("dummydb-dev")
 # gis_con <- create_db_pool("gis")
 
 # Register cleanup when app stops
