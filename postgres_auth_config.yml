@@ -11,7 +11,7 @@ connect_every_request: false
 connect:
   drv: !expr RPostgres::Postgres()
   host: !expr Sys.getenv("POSTGRES_HOST")
-  dbname: "dummydb"
+  dbname: "nsnt-properties"
   port: 5432
   user: !expr Sys.getenv("POSTGRES_USER")
   password: !expr Sys.getenv("POSTGRES_PASSWORD")
