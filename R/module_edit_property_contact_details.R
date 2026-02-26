@@ -267,66 +267,47 @@ module_edit_property_contacts_server <- function(
       # Build update tibble
       update_tibble <- tibble(
         id = contact_id,
-        name_last = if (
-          is.null(input$edit_name_last) ||
-            input$edit_name_last == ""
-        ) {
-          NA_character_
-        } else {
+        name_last = if (isTruthy(input$edit_name_last)) {
           as.character(input$edit_name_last)
-        },
-        name_first = if (
-          is.null(input$edit_name_first) ||
-            input$edit_name_first == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        name_first = if (isTruthy(input$edit_name_first)) {
           as.character(input$edit_name_first)
-        },
-        email = if (
-          is.null(input$edit_email) ||
-            input$edit_email == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        email = if (isTruthy(input$edit_email)) {
           as.character(input$edit_email)
-        },
-        phone_home = if (
-          is.null(input$edit_phone_home) ||
-            input$edit_phone_home == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        phone_home = if (isTruthy(input$edit_phone_home)) {
           as.character(input$edit_phone_home)
-        },
-        phone_cell = if (
-          is.null(input$edit_phone_cell) ||
-            input$edit_phone_cell == ""
-        ) {
+        } else {
           NA_character_
-        } else {
-          as.character(input$edit_phone_cell)
         },
-        dnc = if (is.null(input$edit_dnc)) {
-          FALSE
+        phone_cell = if (isTruthy(input$edit_phone_cell)) {
+          as.character(input$edit_phone_cell)
         } else {
+          NA_character_
+        },
+        dnc = if (isTruthy(input$edit_dnc)) {
           as.logical(input$edit_dnc)
+        } else {
+          FALSE
         },
         property_contact_description = if (
-          is.null(input$edit_property_contact_description) ||
-            input$edit_property_contact_description == ""
+          isTruthy(input$edit_property_contact_description)
         ) {
-          NA_character_
-        } else {
           as.character(input$edit_property_contact_description)
-        },
-        re_constituent_id = if (
-          is.null(input$edit_re_constituent_id) ||
-            input$edit_re_constituent_id == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        re_constituent_id = if (isTruthy(input$edit_re_constituent_id)) {
           as.character(input$edit_re_constituent_id)
+        } else {
+          NA_character_
         }
       )
 

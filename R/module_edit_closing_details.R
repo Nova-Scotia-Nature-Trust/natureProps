@@ -142,8 +142,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
       date_closed_fiscal = NA_character_,
       ecogift_number = NA_character_,
       public_view = FALSE,
-      notes_sensitivity = NA_character_,
-      notes_other = NA_character_
+      notes_sensitivity = NA_character_
     ))
 
     ## Event :: Load record ----
@@ -164,8 +163,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
           date_closed_fiscal,
           ecogift_number,
           public_view,
-          notes_sensitivity,
-          notes_other
+          notes_sensitivity          
         FROM properties 
         WHERE id = {property_id}",
         .con = db_con
@@ -259,7 +257,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
             value = if (!is.na(record$date_closed)) {
               record$date_closed
             } else {
-              NULL
+              as.Date(NA)
             }
           ),
           textInput(
@@ -301,17 +299,6 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
           },
           rows = 3,
           resize = "vertical"
-        ),
-        textAreaInput(
-          inputId = ns("edit_notes_other"),
-          label = "Notes (Other)",
-          value = if (!is.na(record$notes_other)) {
-            record$notes_other
-          } else {
-            ""
-          },
-          rows = 3,
-          resize = "vertical"
         )
       )
     })
@@ -319,86 +306,54 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
     ## Event :: Write changes ----
     observeEvent(input$submit_edit, {
       req(input$property_name)
-
-      # Check validation before proceeding
-      if (!iv$is_valid()) {
-        return()
-      }
-
+      req(iv$is_valid())
       db_id <- as.integer(input$property_name)
 
       # Build update tibble
       update_tibble <- tibble(
         id = db_id,
         acquisition_securement_type_id = if (
-          is.null(input$edit_acquisition_securement_type_id) ||
-            input$edit_acquisition_securement_type_id == ""
+          isTruthy(input$edit_acquisition_securement_type_id)
         ) {
-          NA_integer_
-        } else {
           as.integer(input$edit_acquisition_securement_type_id)
-        },
-        ownership_id = if (
-          is.null(input$edit_ownership_id) ||
-            input$edit_ownership_id == ""
-        ) {
+        } else {
           NA_integer_
-        } else {
+        },
+        ownership_id = if (isTruthy(input$edit_ownership_id)) {
           as.integer(input$edit_ownership_id)
-        },
-        owner_name = if (
-          is.null(input$edit_owner_name) ||
-            input$edit_owner_name == ""
-        ) {
-          NA_character_
         } else {
+          NA_integer_
+        },
+        owner_name = if (isTruthy(input$edit_owner_name)) {
           input$edit_owner_name
-        },
-        donor_vendor = if (
-          is.null(input$edit_donor_vendor) ||
-            input$edit_donor_vendor == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        donor_vendor = if (isTruthy(input$edit_donor_vendor)) {
           input$edit_donor_vendor
-        },
-        date_closed = if (is.null(input$edit_date_closed)) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        date_closed = if (isTruthy(input$edit_date_closed)) {
           as.character(input$edit_date_closed)
-        },
-        date_closed_fiscal = if (
-          is.null(input$edit_date_closed_fiscal) ||
-            input$edit_date_closed_fiscal == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        date_closed_fiscal = if (isTruthy(input$edit_date_closed_fiscal)) {
           input$edit_date_closed_fiscal
-        },
-        ecogift_number = if (
-          is.null(input$edit_ecogift_number) ||
-            input$edit_ecogift_number == ""
-        ) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        ecogift_number = if (isTruthy(input$edit_ecogift_number)) {
           input$edit_ecogift_number
+        } else {
+          NA_character_
         },
         public_view = as.logical(input$edit_public_view),
-        notes_sensitivity = if (
-          is.null(input$edit_notes_sensitivity) ||
-            input$edit_notes_sensitivity == ""
-        ) {
-          NA_character_
-        } else {
+        notes_sensitivity = if (isTruthy(input$edit_notes_sensitivity)) {
           input$edit_notes_sensitivity
-        },
-        notes_other = if (
-          is.null(input$edit_notes_other) ||
-            input$edit_notes_other == ""
-        ) {
-          NA_character_
         } else {
-          input$edit_notes_other
+          NA_character_
         }
       )
 
@@ -441,8 +396,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
         date_closed_fiscal = NA_character_,
         ecogift_number = NA_character_,
         public_view = FALSE,
-        notes_sensitivity = NA_character_,
-        notes_other = NA_character_
+        notes_sensitivity = NA_character_
       ))
 
       # Clear the sidebar filter

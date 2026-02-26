@@ -223,13 +223,10 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
       property_update <- tibble(
         id = property_id,
         llt_funding_secured = as.logical(input$edit_llt_funding_secured),
-        campaign_id = if (
-          is.null(input$edit_campaign_id) ||
-            input$edit_campaign_id == ""
-        ) {
-          NA_integer_
-        } else {
+        campaign_id = if (isTruthy(input$edit_campaign_id)) {
           as.integer(input$edit_campaign_id)
+        } else {
+          NA_integer_
         }
       )
 
@@ -240,21 +237,32 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
         where_cols = "id"
       )
 
-      # Insert federal fund associations if any selected
-      if (
-        !is.null(input$edit_fund_federal_ids) &&
-          length(input$edit_fund_federal_ids) > 0
-      ) {
-        junction_records <- tibble(
-          property_id = property_id,
-          fund_federal_id = as.integer(input$edit_fund_federal_ids)
-        )
+      # --- Replace federal fund associations ---
+      selected_funds <- if (!is.null(input$edit_fund_federal_ids)) {
+        as.integer(input$edit_fund_federal_ids)
+      } else {
+        integer(0)
+      }
 
-        dbx::dbxUpsert(
+      # Remove all current associations for this property
+      dbExecute(
+        db_con,
+        glue_sql(
+          "DELETE FROM property_fund_federal
+           WHERE property_id = {property_id}",
+          .con = db_con
+        )
+      )
+
+      # Insert new associations if any
+      if (length(selected_funds) > 0) {
+        dbx::dbxInsert(
           db_con,
           table = "property_fund_federal",
-          records = junction_records,
-          where_cols = c("property_id", "fund_federal_id")
+          records = tibble(
+            property_id = property_id,
+            fund_federal_id = selected_funds
+          )
         )
       }
 
