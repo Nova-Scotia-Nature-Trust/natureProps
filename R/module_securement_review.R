@@ -140,20 +140,33 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
     table_data <- reactiveVal(NULL)
 
     ## Properties reactive ----
+    # properties_reactive <- reactive({
+    #   if (!is.null(db_updated)) {
+    #     db_updated()
+    #   }
+
+    #   dbGetQuery(
+    #     conn = db_con,
+    #     statement = "
+    #       SELECT DISTINCT pr.id, pr.property_name
+    #       FROM properties pr
+    #       INNER JOIN view_securement_action_items vai
+    #         ON pr.property_name = vai.\"Property Name\"
+    #       ORDER BY pr.property_name;
+    #     "
+    #   )
+    # })
+
     properties_reactive <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
+      db_updated()
 
       dbGetQuery(
-        conn = db_con,
-        statement = "
-          SELECT DISTINCT pr.id, pr.property_name 
-          FROM properties pr
-          INNER JOIN view_securement_action_items vai 
-            ON pr.property_name = vai.\"Property Name\"
-          ORDER BY pr.property_name;
-        "
+        db_con,
+        "SELECT DISTINCT sai.property_id AS id, 
+                pr.property_name 
+        FROM securement_action_items AS sai
+        JOIN properties AS pr ON sai.property_id = pr.id
+        ORDER BY pr.property_name;"
       )
     })
 
@@ -293,6 +306,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
                 pr.anticipated_closing_year AS "Closing Year",
                 pr.anticipated_closing_date AS "Closing Date",
                 pr.securement_action_description AS "Securement Status",
+                pr.aps_conditions_date AS "APS Date",
                 se.probability_value AS "Securement Probability",
                 ph.phase_value AS "Phase"
           FROM properties pr
@@ -308,7 +322,8 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
           "Closing Date",
           "Securement Probability",
           "Phase",
-          "Securement Status"
+          "Securement Status",
+          "APS Date"
         ) |>
         arrange(`Property Name`)
 
