@@ -115,16 +115,38 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     iv$enable()
 
     ## Property list for action items (with securement data) ----
+    # props_action_reactive <- reactive({
+    #   db_updated()
+    #   dbGetQuery(
+    #     db_con,
+    #     "SELECT id, property_name FROM properties
+    #      WHERE securement_probability_id IS NOT NULL
+    #            OR anticipated_closing_date IS NOT NULL
+    #      ORDER BY property_name;"
+    #   )
+    # })
+
     props_action_reactive <- reactive({
       db_updated()
+
       dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties 
-         WHERE securement_probability_id IS NOT NULL 
-               OR anticipated_closing_date IS NOT NULL
-         ORDER BY property_name;"
+        "SELECT DISTINCT sai.property_id AS id,
+                pr.property_name
+        FROM securement_action_items AS sai
+        LEFT JOIN properties AS pr ON sai.property_id = pr.id
+        ORDER BY pr.property_name;"
       )
     })
+
+    # props_action_reactive <- reactive({
+    #   db_updated()
+
+    #   dbGetQuery(
+    #     db_con,
+    #     'SELECT DISTINCT "Property Name" FROM view_securement_action_items ORDER BY "Property Name";'
+    #   )
+    # })
 
     observe({
       updateSelectizeInput(
@@ -139,7 +161,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
-    # ## Property list for setup (without securement data) ----
+    # ## Property list for setup (without securement data)
     # props_setup_reactive <- reactive({
     #   db_updated()
     #   dbGetQuery(
@@ -172,7 +194,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         pull(property_name)
     })
 
-    # ## Setup template action ----
+    # Setup template action
     # observeEvent(input$setup_template, {
     #   req(input$property_setup)
 

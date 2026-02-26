@@ -65,6 +65,11 @@ module_securement_queries_server <- function(
   focal_pids_rv
 ) {
   moduleServer(id, function(input, output, session) {
+    iv_create <- InputValidator$new()
+    iv_create$add_rule("closing_year", sv_required())
+    iv_create$add_rule("securement_probability", sv_required())
+    iv_create$enable()
+
     # Add this reactive value to track table clearing
     table_data <- reactiveVal(NULL)
 
@@ -145,11 +150,14 @@ module_securement_queries_server <- function(
         db_updated()
       }
       # Query database for Closing Years
-      dbGetQuery(
-        conn = db_con,
-        statement = "SELECT DISTINCT anticipated_closing_year FROM properties;"
-      ) |>
-        pull()
+      c(
+        dbGetQuery(
+          conn = db_con,
+          statement = "SELECT DISTINCT anticipated_closing_year FROM properties;"
+        ) |>
+          pull(),
+        "Unassigned"
+      )
     })
 
     securement_probability_reactive <- reactive({
@@ -157,6 +165,7 @@ module_securement_queries_server <- function(
         db_updated()
       }
       # Query database for Securement Probability values
+
       dbGetQuery(
         conn = db_con,
         statement = "SELECT DISTINCT probability_value 
@@ -211,6 +220,7 @@ module_securement_queries_server <- function(
         )
       } else if (input$query_choice == "Securement action") {
         req(input$closing_year)
+        req(input$securement_probability)
 
         data <- dbGetQuery(
           db_con,
@@ -224,28 +234,19 @@ module_securement_queries_server <- function(
             names_from = "Action Item",
             values_from = "Status"
           )
-
-        # additional_data <- dbGetQuery(
-        #   conn = db_con,
-        #   statement = "
-        #   SELECT par.pid,
-        #         prop.anticipated_closing_year,
-        #         se.probability_value
-        #   FROM parcels par
-        #   LEFT JOIN properties prop ON par.property_id = prop.id
-        #   LEFT JOIN securement_probability se ON prop.securement_probability_id = se.id;"
-        # )
-
         additional_data <- dbGetQuery(
           conn = db_con,
           statement = '
           SELECT pr.property_name AS "Property Name", 
-                pr.anticipated_closing_year AS "Closing Year",
-                pr.anticipated_closing_date AS "Closing Date",
-                pr.securement_action_description AS "Securement Status",
-                se.probability_value AS "Securement Probability"
+                 COALESCE(pr.anticipated_closing_year, \'Unassigned\') AS "Closing Year",
+                 pr.anticipated_closing_date AS "Closing Date",
+                 pr.securement_action_description AS "Securement Status",
+                 se.probability_value AS "Securement Probability",
+                 ph.phase_value AS "Phase"
           FROM properties pr
-          LEFT JOIN securement_probability se ON pr.securement_probability_id = se.id;'
+          LEFT JOIN securement_probability se ON pr.securement_probability_id = se.id
+          LEFT JOIN phase ph ON pr.phase_id = ph.id
+          WHERE se.probability_value IS NOT NULL;'
         )
 
         data <- data |>
@@ -257,23 +258,21 @@ module_securement_queries_server <- function(
             "Closing Year",
             "Closing Date",
             "Securement Probability",
+            "Phase",
             "Securement Status"
           )
 
-        # Filter by securement probability if selected
-        if (isTruthy(input$securement_probability)) {
-          data <- data |>
-            filter(`Securement Probability` %in% input$securement_probability)
-        }
+        no_current_action <- additional_data |>
+          filter(!`Property Name` %in% data$`Property Name`)
 
         data <- data |>
-          filter(`Closing Year` == input$closing_year) |>
+          bind_rows(no_current_action) |>
           arrange(`Property Name`)
 
-        # if (input$prop_view == TRUE) {
-        #   data <- data |>
-        #     distinct(`Property Name`, .keep_all = TRUE)
-        # }
+        data <- data |>
+          filter(`Securement Probability` %in% input$securement_probability) |>
+          filter(`Closing Year` %in% input$closing_year) |>
+          arrange(`Property Name`)
       }
 
       table_data(data)

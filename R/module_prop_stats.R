@@ -352,17 +352,17 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
 
         plot_data <- dbGetQuery(
           db_con,
-          "SELECT
+          'SELECT
           pr.id,
           sp.probability_value,
-          pr.anticipated_closing_year,
+          COALESCE(pr.anticipated_closing_year, \'Unassigned\') as anticipated_closing_year,
           ph.phase_value
         FROM
           properties pr
           JOIN securement_probability sp ON pr.securement_probability_id = sp.id
           JOIN phase ph ON pr.phase_id = ph.id
         WHERE
-          securement_probability_id IS NOT NULL;"
+          securement_probability_id IS NOT NULL;'
         ) |>
           as_tibble()
       }
@@ -383,7 +383,7 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
             "Potential" = "#d36912ff"
           )
         ) +
-        scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+        scale_y_continuous(breaks = scales::breaks_width(2)) +
         labs(
           title = "Project Status",
           x = "Anticipated Closing Year",

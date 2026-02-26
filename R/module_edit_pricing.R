@@ -222,33 +222,32 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       # Build update tibble
       update_tibble <- tibble(
         id = db_id,
-        price_asking = if (is.null(input$edit_price_asking)) {
-          NA_real_
-        } else {
+        price_asking = if (isTruthy(input$edit_price_asking)) {
           as.numeric(input$edit_price_asking)
-        },
-        price_offer = if (is.null(input$edit_price_offer)) {
-          NA_real_
         } else {
+          NA_real_
+        },
+        price_offer = if (isTruthy(input$edit_price_offer)) {
           as.numeric(input$edit_price_offer)
-        },
-        price_purchase = if (is.null(input$edit_price_purchase)) {
-          NA_real_
         } else {
+          NA_real_
+        },
+        price_purchase = if (isTruthy(input$edit_price_purchase)) {
           as.numeric(input$edit_price_purchase)
-        },
-        donated_value = if (is.null(input$edit_donated_value)) {
-          NA_real_
         } else {
+          NA_real_
+        },
+        donated_value = if (isTruthy(input$edit_donated_value)) {
           as.numeric(input$edit_donated_value)
-        },
-        hst = if (is.null(input$edit_hst)) {
-          NA_real_
         } else {
+          NA_real_
+        },
+        hst = if (isTruthy(input$edit_hst)) {
           as.numeric(input$edit_hst)
+        } else {
+          NA_real_
         }
       )
-
       # Update the record
       dbx::dbxUpdate(
         db_con,

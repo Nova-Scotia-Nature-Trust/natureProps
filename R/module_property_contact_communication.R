@@ -235,11 +235,7 @@ module_property_contact_communication_server <- function(
       req(input$communication_purpose_id)
       req(input$date_contacted)
       req(input$communication_description)
-
-      # Check validation before proceeding
-      if (!iv$is_valid()) {
-        return()
-      }
+      req(iv$is_valid())
 
       if (input$communication_type == "Property Contact Communication") {
         req(input$property_contact_id)

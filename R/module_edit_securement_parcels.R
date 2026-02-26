@@ -351,7 +351,7 @@ module_edit_securement_parcels_server <- function(
             value = if (!is.null(record) && !is.na(record$date_added)) {
               record$date_added
             } else {
-              NULL
+              as.Date(NA)
             }
           ),
           dateInput(
@@ -360,7 +360,7 @@ module_edit_securement_parcels_server <- function(
             value = if (!is.null(record) && !is.na(record$date_updated)) {
               record$date_updated
             } else {
-              NULL
+              as.Date(NA)
             }
           )
         )
@@ -392,65 +392,55 @@ module_edit_securement_parcels_server <- function(
       # Build update tibble
       update_tibble <- tibble(
         pid = pid,
-        acquisition_type_id = if (
-          is.null(input$edit_acquisition_type_id) ||
-            input$edit_acquisition_type_id == ""
-        ) {
-          NA_integer_
-        } else {
+        acquisition_type_id = if (isTruthy(input$edit_acquisition_type_id)) {
           as.integer(input$edit_acquisition_type_id)
-        },
-        date_added = if (is.null(input$edit_date_added)) {
-          NA_character_
         } else {
+          NA_integer_
+        },
+        date_added = if (isTruthy(input$edit_date_added)) {
           as.character(input$edit_date_added)
-        },
-        date_updated = if (is.null(input$edit_date_updated)) {
-          NA_character_
         } else {
+          NA_character_
+        },
+        date_updated = if (isTruthy(input$edit_date_updated)) {
           as.character(input$edit_date_updated)
+        } else {
+          NA_character_
         },
         priority_securement_ranking_id = if (
-          is.null(input$edit_priority_securement_ranking_id) ||
-            input$edit_priority_securement_ranking_id == ""
+          isTruthy(input$edit_priority_securement_ranking_id)
         ) {
-          NA_integer_
-        } else {
           as.integer(input$edit_priority_securement_ranking_id)
+        } else {
+          NA_integer_
         },
         priority_ecological_ranking_id = if (
-          is.null(input$edit_priority_ecological_ranking_id) ||
-            input$edit_priority_ecological_ranking_id == ""
+          isTruthy(input$edit_priority_ecological_ranking_id)
         ) {
-          NA_integer_
-        } else {
           as.integer(input$edit_priority_ecological_ranking_id)
+        } else {
+          NA_integer_
         },
         size_confirmed_ha = size_confirmed_ha,
         size_confirmed_acres = size_confirmed_acres,
-        size_confirmed_notes = if (
-          is.null(input$edit_size_confirmed_notes) ||
-            input$edit_size_confirmed_notes == ""
-        ) {
-          NA_character_
-        } else {
+        size_confirmed_notes = if (isTruthy(input$edit_size_confirmed_notes)) {
           as.character(input$edit_size_confirmed_notes)
-        },
-        af_transaction = if (is.null(input$edit_af_transaction)) {
-          NA
         } else {
+          NA_character_
+        },
+        af_transaction = if (isTruthy(input$edit_af_transaction)) {
           as.logical(input$edit_af_transaction)
+        } else {
+          NA
         },
         landowner_interest_ranking_id = if (
-          is.null(input$edit_landowner_interest_ranking_id) ||
-            input$edit_landowner_interest_ranking_id == ""
+          isTruthy(input$edit_landowner_interest_ranking_id)
         ) {
-          NA_integer_
-        } else {
           as.integer(input$edit_landowner_interest_ranking_id)
+        } else {
+          NA_integer_
         }
       )
-
       # Update the record
       dbx::dbxUpdate(
         db_con,
@@ -493,7 +483,7 @@ module_edit_securement_parcels_server <- function(
         session,
         inputId = "pid",
         selected = "",
-        choices = NULL,
+        choices = character(0),
         options = list(
           create = FALSE,
           placeholder = "First select a property"

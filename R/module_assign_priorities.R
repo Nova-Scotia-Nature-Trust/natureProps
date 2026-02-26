@@ -240,15 +240,29 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     iv$enable()
 
     ## Helper functions ----
+    # get_property_choices <- function(db_con) {
+    #   dbGetQuery(
+    #     db_con,
+    #     "SELECT DISTINCT
+    #     pr.id,
+    #     pr.property_name
+    #   FROM
+    #     securement_action_items sai
+    #     LEFT JOIN properties pr ON pr.id = sai.property_id
+    #   ORDER BY
+    #     property_name;"
+    #   ) |>
+    #     pull("property_name")
+    # }
+
     get_property_choices <- function(db_con) {
       dbGetQuery(
         db_con,
         "SELECT DISTINCT
-        pr.id,
-        pr.property_name
+        id,
+        property_name
       FROM
-        securement_action_items sai
-        LEFT JOIN properties pr ON pr.id = sai.property_id
+       properties 
       ORDER BY
         property_name;"
       ) |>
@@ -321,10 +335,12 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         FROM
           properties pr
         WHERE NOT EXISTS (
-          SELECT 1
-          FROM securement_action_items sai
-          WHERE sai.property_id = pr.id
+            SELECT 1
+            FROM securement_action_items sai
+            WHERE sai.property_id = pr.id
         )
+        AND pr.securement_probability_id IS NOT NULL
+        AND pr.anticipated_closing_year IS NOT NULL
         ORDER BY
           pr.property_name;"
       )
@@ -544,11 +560,7 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     ## Event :: Write changes (property) ----
     observeEvent(input$submit_edit_properties, {
       req(input$property, input$securement_prob)
-
-      # Check validation before proceeding
-      if (!iv$is_valid()) {
-        return()
-      }
+      req(iv$is_valid())
 
       or_na <- function(x, na) {
         if (isTruthy(x)) x else na

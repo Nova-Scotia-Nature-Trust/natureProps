@@ -109,7 +109,7 @@ module_internal_communications_UI <- function(id) {
                   dateInput(
                     ns("due_date"),
                     "Due Date",
-                    value = NULL,
+                    value = as.Date(NA),
                     width = "100%"
                   ),
                   textAreaInput(

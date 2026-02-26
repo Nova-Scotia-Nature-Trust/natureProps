@@ -76,6 +76,11 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    ## Input validation ----
+    iv <- InputValidator$new()
+    iv$add_rule("edit_action_item_description", sv_required())
+    iv$enable()
+
     ## Reactive :: Team lead choices ----
     team_lead_choices <- reactive({
       dbGetQuery(
@@ -232,25 +237,25 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
     ## Event :: Write changes ----
     observeEvent(input$submit_edit, {
       req(input$record_id)
-
+      req(iv$is_valid())
       db_id <- as.integer(input$record_id)
 
       # Build update tibble
       update_tibble <- tibble(
         id = db_id,
-        team_lead_id = if (input$edit_team_lead_id == "") {
-          NA_integer_
-        } else {
+        team_lead_id = if (isTruthy(input$edit_team_lead_id)) {
           as.integer(input$edit_team_lead_id)
+        } else {
+          NA_integer_
         },
         action_item_description = if (
-          input$edit_action_item_description == ""
+          isTruthy(input$edit_action_item_description)
         ) {
-          NA_character_
-        } else {
           input$edit_action_item_description
+        } else {
+          NA_character_
         },
-        due_date = if (length(input$edit_due_date) > 0) {
+        due_date = if (isTruthy(input$edit_due_date)) {
           format(input$edit_due_date, "%Y-%m-%d")
         } else {
           as.Date(NA)

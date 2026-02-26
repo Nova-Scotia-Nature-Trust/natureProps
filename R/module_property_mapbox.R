@@ -30,7 +30,10 @@ module_property_mapbox_ui <- function(id) {
             label = "Parcel (PID)",
             choices = NULL,
             multiple = FALSE,
-            options = list(placeholder = "Select parcel")
+            options = list(
+              placeholder = "Type to search...",
+              maxOptions = 50 # Limit displayed options for performance
+            )
           ),
           actionButton(
             ns("load_parcel"),
@@ -120,24 +123,21 @@ module_property_mapbox_server <- function(
       )
     })
 
-    parcel_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
+    parcel_choices <- dbGetQuery(
+      gis_con,
+      "SELECT pid 
+        FROM parcels WHERE pid != '00000000' 
+        ORDER BY pid;"
+    ) |>
+      pull(pid)
 
-      dbGetQuery(db_con, "SELECT pid FROM parcels ORDER BY pid;") |>
-        pull(pid)
-    })
-
-    observe({
-      updateSelectizeInput(
-        session,
-        "parcel",
-        choices = c("", parcel_choices()),
-        selected = "",
-        server = TRUE
-      )
-    })
+    updateSelectizeInput(
+      session,
+      "parcel",
+      choices = parcel_choices,
+      selected = character(0),
+      server = TRUE
+    )
 
     # ---- Parcel & Property Data ----
     all_parcels_data <- reactive({
@@ -425,7 +425,17 @@ module_property_mapbox_server <- function(
     # ---- Zoom to Parcel ----
     observeEvent(input$load_parcel, {
       req(input$parcel != "")
-      target <- parcels_sf() |> filter(pid == input$parcel)
+
+      # target <- parcels_sf() |> filter(pid == input$parcel)
+
+      target <- st_read(
+        dsn = gis_con,
+        query = glue_sql(
+          "SELECT geom FROM parcels WHERE pid = {input$parcel}; ",
+          .con = gis_con
+        )
+      )
+
       mapboxgl_proxy("map") |> fit_bounds(target, animate = TRUE)
     })
 
