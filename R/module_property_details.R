@@ -385,11 +385,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       req(input$phase_id)
       req(input$source)
       req(input$team_lead)
-
-      # Check validation before proceeding
-      if (!iv$is_valid()) {
-        return()
-      }
+      req(iv$is_valid())
 
       # Check if any PIDs already exist in the database
       existing_pids <- dbReadTable(db_con, "parcels") |>
