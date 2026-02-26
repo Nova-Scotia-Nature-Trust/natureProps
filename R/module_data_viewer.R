@@ -201,7 +201,7 @@ module_data_viewer_server <- function(
           db_con,
           "SELECT * FROM view_securement_action_items;"
         )
-        attr(data, "order_column") <- 1
+        attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
 
         if (!is.null(prop_filter) && !is.null(prop_filter())) {
@@ -223,7 +223,7 @@ module_data_viewer_server <- function(
             values_from = "Status"
           )
 
-        attr(data, "order_column") <- 1
+        attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
 
         if (!is.null(prop_filter) && !is.null(prop_filter())) {
