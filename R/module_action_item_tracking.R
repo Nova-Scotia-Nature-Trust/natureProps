@@ -7,33 +7,18 @@ module_action_item_tracking_ui <- function(id) {
     card(
       full_screen = FALSE,
       height = "100%",
+      # Sidebar ----
       layout_sidebar(
         sidebar = sidebar(
-          title = "Assign Securement Actions",
+          title = NULL,
           open = TRUE,
           width = 300,
           accordion(
             open = FALSE,
             multiple = FALSE,
-            # accordion_panel(
-            #   title = "Setup Template",
-            #   value = "setup_panel",
-            #   selectizeInput(
-            #     ns("property_setup"),
-            #     "Select property",
-            #     choices = NULL,
-            #     multiple = FALSE,
-            #     width = "100%"
-            #   ),
-            #   actionButton(
-            #     inputId = ns("setup_template"),
-            #     label = "Setup Securement Action Template",
-            #     class = "btn-primary",
-            #     width = "100%"
-            #   )
-            # ),
+            # Accordion Panel 01 ----
             accordion_panel(
-              title = "Action Item Details",
+              title = "Property & Action Type",
               value = "details_panel",
               selectizeInput(
                 ns("property"),
@@ -48,7 +33,11 @@ module_action_item_tracking_ui <- function(id) {
                 choices = NULL,
                 multiple = TRUE,
                 width = "100%"
-              ),
+              )
+            ),
+            # Accordion Panel 02 ----
+            accordion_panel(
+              title = "Status, Dates & Lead",
               dateInput(
                 ns("action_due_date"),
                 "Action Due Date",
@@ -73,27 +62,32 @@ module_action_item_tracking_ui <- function(id) {
                 "Action Completed Date",
                 value = NA
               ),
+            ),
+            # Accordion Panel 03 ----
+            accordion_panel(
+              title = "Notes",
               textAreaInput(
                 ns("action_item_notes"),
                 label = "Action Item Notes",
                 "",
-                height = "150px",
+                height = "200px",
                 width = "100%"
-              ),
-              actionButton(
-                inputId = ns("submit_actions"),
-                label = "Submit Action",
-                class = "btn-primary"
-              ),
-              actionButton(
-                inputId = ns("clear_inputs"),
-                label = "Clear Inputs",
-                class = "btn-secondary"
               )
             )
+          ),
+          # Action Buttons ----
+          actionButton(
+            inputId = ns("submit_edits"),
+            label = "Submit Edits",
+            class = "btn-primary"
+          ),
+          actionButton(
+            inputId = ns("clear_inputs"),
+            label = "Clear Inputs",
+            class = "btn-secondary"
           )
         ),
-        # Main layout - data viewer
+        # Module UI :: Data View ----
         module_data_viewer_ui(
           ns("action_item_viewer"),
           panel_id = "panel_03"
@@ -110,25 +104,11 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     iv <- InputValidator$new()
     iv$add_rule("property", sv_required())
     iv$add_rule("action_item_type", sv_required())
-    # iv$add_rule("action_item_status", sv_required())
-    # iv$add_rule("team_lead", sv_required())
     iv$enable()
 
-    ## Property list for action items (with securement data) ----
-    # props_action_reactive <- reactive({
-    #   db_updated()
-    #   dbGetQuery(
-    #     db_con,
-    #     "SELECT id, property_name FROM properties
-    #      WHERE securement_probability_id IS NOT NULL
-    #            OR anticipated_closing_date IS NOT NULL
-    #      ORDER BY property_name;"
-    #   )
-    # })
-
-    props_action_reactive <- reactive({
+    ## Reactive :: Property List ----
+    property_list <- reactive({
       db_updated()
-
       dbGetQuery(
         db_con,
         "SELECT DISTINCT sai.property_id AS id,
@@ -139,93 +119,29 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
-    # props_action_reactive <- reactive({
-    #   db_updated()
-
-    #   dbGetQuery(
-    #     db_con,
-    #     'SELECT DISTINCT "Property Name" FROM view_securement_action_items ORDER BY "Property Name";'
-    #   )
-    # })
-
     observe({
       updateSelectizeInput(
         session,
         "property",
         choices = setNames(
-          props_action_reactive()$id,
-          props_action_reactive()$property_name
+          property_list()$id,
+          property_list()$property_name
         ),
         selected = isolate(input$property),
         server = TRUE
       )
     })
 
-    # ## Property list for setup (without securement data)
-    # props_setup_reactive <- reactive({
-    #   db_updated()
-    #   dbGetQuery(
-    #     db_con,
-    #     "SELECT id, property_name FROM properties
-    #      WHERE securement_probability_id IS NULL
-    #            AND anticipated_closing_date IS NULL
-    #      ORDER BY property_name;"
-    #   )
-    # })
-
-    # observe({
-    #   updateSelectizeInput(
-    #     session,
-    #     "property_setup",
-    #     choices = setNames(
-    #       props_setup_reactive()$id,
-    #       props_setup_reactive()$property_name
-    #     ),
-    #     selected = isolate(input$property_setup),
-    #     server = TRUE
-    #   )
-    # })
-
+    ## Reactive :: Selected Property ----
     selected_property_name <- reactive({
       req(input$property)
-
-      props_action_reactive() |>
+      property_list() |>
         filter(id == input$property) |>
         pull(property_name)
     })
 
-    # Setup template action
-    # observeEvent(input$setup_template, {
-    #   req(input$property_setup)
-
-    #   action_type_ids <- dbGetQuery(db_con, "SELECT id FROM action_item_type")
-
-    #   action_structure <- expand.grid(
-    #     action_item_type_id = action_type_ids$id,
-    #     property_id = input$property_setup
-    #   )
-
-    #   append_db_data(
-    #     "securement_action_items",
-    #     data = action_structure,
-    #     con = db_con,
-    #     silent = TRUE
-    #   )
-
-    #   db_updated(db_updated() + 1)
-
-    #   shinyalert(
-    #     title = "Success",
-    #     text = glue::glue(
-    #       "Template created with {nrow(action_structure)} action items"
-    #     ),
-    #     type = "success",
-    #     timer = 5000
-    #   )
-    # })
-
-    ## Action item types ----
-    action_item_types <- reactive({
+    ## Reactive :: Action Item Types ----
+    action_item_type <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
@@ -238,16 +154,16 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         session,
         "action_item_type",
         choices = setNames(
-          action_item_types()$id,
-          action_item_types()$type_value
+          action_item_type()$id,
+          action_item_type()$type_value
         ),
         selected = isolate(input$action_item_type),
         server = TRUE
       )
     })
 
-    ## Action item statuses ----
-    action_item_statuses <- reactive({
+    ## Reactive :: Action Item Status ----
+    action_item_status <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
@@ -260,16 +176,16 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         session,
         "action_item_status",
         choices = setNames(
-          action_item_statuses()$id,
-          action_item_statuses()$status_value
+          action_item_status()$id,
+          action_item_status()$status_value
         ),
         selected = isolate(input$action_item_status),
         server = TRUE
       )
     })
 
-    ## Team leads ----
-    team_leads <- reactive({
+    ## Reactive :: Team Lead ----
+    team_lead <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
@@ -281,66 +197,80 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         "team_lead",
-        choices = setNames(team_leads()$id, team_leads()$team_value),
+        choices = setNames(
+          team_lead()$id,
+          team_lead()$team_value
+        ),
         selected = isolate(input$team_lead),
         server = TRUE
       )
     })
 
-    ## Upsert action item ----
-    observeEvent(input$submit_actions, {
+    ## Observe Event :: Submit Action Edit ----
+    observeEvent(input$submit_edits, {
       req(iv$is_valid())
-      req(input$action_item_type)
 
-      # Start with all selected action types
-      upsert_records <- tibble(
+      # At least one of these fields must be populated
+      req(
+        any(
+          isTruthy(input$action_due_date),
+          isTruthy(input$team_lead),
+          isTruthy(input$action_item_status),
+          isTruthy(input$action_item_notes),
+          isTruthy(input$action_completed_date)
+        )
+      )
+
+      # Minimum starting point
+      updated_data <- tibble(
         property_id = input$property,
         action_item_type_id = input$action_item_type
       )
 
-      # Dynamically add optional fields only if they are truthy
+      # Add field to the dataframe if they're truthy
       if (isTruthy(input$action_due_date)) {
-        upsert_records <- upsert_records |>
+        updated_data <- updated_data |>
           mutate(action_due_date = input$action_due_date)
       }
       if (isTruthy(input$team_lead)) {
-        upsert_records <- upsert_records |>
+        updated_data <- updated_data |>
           mutate(team_lead_id = input$team_lead)
       }
       if (isTruthy(input$action_item_status)) {
-        upsert_records <- upsert_records |>
+        updated_data <- updated_data |>
           mutate(action_item_status_id = input$action_item_status)
       }
       if (isTruthy(input$action_item_notes)) {
-        upsert_records <- upsert_records |>
+        updated_data <- updated_data |>
           mutate(action_item_notes = input$action_item_notes)
       }
       if (isTruthy(input$action_completed_date)) {
-        upsert_records <- upsert_records |>
+        updated_data <- updated_data |>
           mutate(action_completed_date = input$action_completed_date)
       }
 
-      # Upsert to DB
-      dbx::dbxUpsert(
+      # Write changes to database
+      dbx::dbxUpdate(
         db_con,
         table = "securement_action_items",
-        records = upsert_records,
+        records = updated_data,
         where_cols = c("property_id", "action_item_type_id")
       )
 
       db_updated(db_updated() + 1)
 
+      # Return message
       shinyalert(
         title = "Success",
         text = glue::glue(
-          "{nrow(upsert_records)} action items updated for {selected_property_name()}"
+          "{nrow(updated_data)} action items updated for {selected_property_name()}"
         ),
         type = "success",
         timer = 5000
       )
     })
 
-    ## Clear inputs ----
+    ## Observe Event :: Clear Inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(session, "property", selected = character(0))
       updateSelectizeInput(session, "action_item_type", selected = character(0))
@@ -351,11 +281,11 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       )
       updateSelectizeInput(session, "team_lead", selected = character(0))
       updateTextAreaInput(session, "action_item_notes", value = "")
-      updateDateInput(session, "action_due_date", value = NA)
-      updateDateInput(session, "action_completed_date", value = NA)
+      updateDateInput(session, "action_due_date", value = as.Date(NA))
+      updateDateInput(session, "action_completed_date", value = as.Date(NA))
     })
 
-    ## Data viewer ----
+    ## Module Server :: Data Viewer ----
     module_data_viewer_server(
       "action_item_viewer",
       db_con,
