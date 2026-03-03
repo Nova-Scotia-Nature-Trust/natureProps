@@ -85,7 +85,8 @@ module_property_mapbox_ui <- function(id) {
         withSpinner(
           mapboxglOutput(ns("map"), height = "600px"),
           type = 4,
-          color = "#0d51c5ff"
+          color = "#0d51c5ff",
+          fill = TRUE
         )
       )
     )
