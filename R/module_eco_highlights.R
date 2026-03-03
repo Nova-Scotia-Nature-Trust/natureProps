@@ -97,10 +97,7 @@ module_eco_highlights_ui <- function(id) {
               "Select Property",
               choices = NULL,
               multiple = FALSE,
-              width = "100%",
-              options = list(
-                placeholder = "Choose a property"
-              )
+              width = "100%"
             ),
             actionButton(
               inputId = ns("load_highlights"),

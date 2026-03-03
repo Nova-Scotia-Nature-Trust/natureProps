@@ -7,7 +7,7 @@ module_edit_appraisals_ui <- function(id) {
       full_screen = TRUE,
       height = "100%",
       layout_sidebar(
-        ## Sidebar inputs ----
+        ## Sidebar ----
         sidebar = sidebar(
           "",
           open = TRUE,
@@ -40,7 +40,7 @@ module_edit_appraisals_ui <- function(id) {
             class = "btn-secondary"
           )
         ),
-        ## Main panel ----
+        ## Main Panel ----
         div(
           style = "height: 100%; display: flex; flex-direction: column;",
           card(
