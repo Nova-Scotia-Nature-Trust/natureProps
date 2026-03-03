@@ -90,7 +90,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Data Viewer",
-        module_data_viewer_ui("records_view", panel_id = "panel_01")
+        module_data_viewer_ui("records_view", panel_id = "outreach_panel")
       ),
       nav_panel(
         title = "Queries",
@@ -104,14 +104,14 @@ ui <- page_navbar(
     navset_card_tab(
       height = "100%",
       nav_panel(
-        title = "Action Items",
+        title = "Securement Action Items",
         module_action_item_tracking_ui("action_items")
       ),
       nav_panel(
         title = "Data Viewer",
         module_data_viewer_ui(
           "securement_records_view",
-          panel_id = "panel_02"
+          panel_id = "securement_panel"
         )
       ),
       nav_panel(
@@ -135,7 +135,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Assign Securement Values",
-        module_assign_priorities_ui("assign_priorities")
+        module_assign_securement_values_ui("assign_priorities")
       ),
       nav_panel(
         title = "Internal Communications",
@@ -208,7 +208,7 @@ ui <- page_navbar(
       #   module_property_map_ui("property_map")
       # ),
       nav_panel(
-        title = "MAPBOX WOAH HOT DAYYMMMN!",
+        title = "Property Map",
         module_property_mapbox_ui("property_mapbox")
       ),
       nav_panel(

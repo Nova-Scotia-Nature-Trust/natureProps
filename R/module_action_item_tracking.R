@@ -90,7 +90,7 @@ module_action_item_tracking_ui <- function(id) {
         # Module UI :: Data View ----
         module_data_viewer_ui(
           ns("action_item_viewer"),
-          panel_id = "panel_03"
+          panel_id = "action_item_panel"
         )
       )
     )
@@ -291,7 +291,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       db_con,
       db_updated,
       prop_filter = selected_property_name,
-      panel_id = "panel_03"
+      panel_id = "action_item_panel"
     )
   })
 }

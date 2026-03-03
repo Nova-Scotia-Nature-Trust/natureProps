@@ -37,7 +37,7 @@ module_securement_review_ui <- function(id) {
             ),
             accordion_panel(
               title = "Dates & Securement Probability",
-              value = "edit_panel_01",
+              value = "edit_outreach_panel",
               selectizeInput(
                 ns("closing_year"),
                 "Closing Year",
