@@ -396,13 +396,8 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       dbGetQuery(db_con, query)
     }
 
-    ## Observer :: Update inputs ----
+    ## Observer :: Update non-lookup value inputs ----
     observe({
-      # Only update when db_updated changes
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-
       updateTextInput(
         session,
         "closing_year",
@@ -431,7 +426,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     ## Reactive Value :: Selected Record ----
     selected_record <- reactiveVal(NULL)
 
-    ## Event :: Load Record  ----
+    ## Event :: Load Property Record  ----
     observeEvent(input$load_record, {
       req(input$property)
       record <- load_property_record(db_con, input$property) |>
