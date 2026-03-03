@@ -13,7 +13,7 @@ module_edit_appraisals_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("property_name"),
-            label = "Property Name",
+            label = "Select Property",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,

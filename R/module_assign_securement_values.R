@@ -23,7 +23,7 @@ module_assign_securement_values_ui <- function(id) {
               icon = bs_icon("pencil-square"),
               selectizeInput(
                 ns("property"),
-                "Select property",
+                "Select Property",
                 choices = NULL,
                 multiple = FALSE,
                 width = "100%"
@@ -49,7 +49,7 @@ module_assign_securement_values_ui <- function(id) {
               icon = bs_icon("clipboard-check"),
               selectizeInput(
                 ns("property_iat"),
-                "Select property",
+                "Select Property",
                 choices = NULL,
                 multiple = FALSE,
                 width = "100%"

@@ -22,7 +22,7 @@ module_action_item_tracking_ui <- function(id) {
               value = "details_panel",
               selectizeInput(
                 ns("property"),
-                "Select property",
+                "Select Property",
                 choices = NULL,
                 multiple = FALSE,
                 width = "100%"

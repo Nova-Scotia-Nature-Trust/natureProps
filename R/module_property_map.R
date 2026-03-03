@@ -17,7 +17,7 @@ module_property_map_ui <- function(id) {
             choices = NULL,
             multiple = FALSE,
             options = list(
-              placeholder = "Select property"
+              placeholder = "Select Property"
             )
           ),
           actionButton(

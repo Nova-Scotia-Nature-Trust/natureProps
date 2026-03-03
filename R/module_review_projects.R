@@ -13,7 +13,7 @@ module_review_projects_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             ns("property"),
-            "Select property",
+            "Select Property",
             choices = NULL,
             multiple = FALSE,
             width = "80%"

@@ -17,7 +17,7 @@ module_property_mapbox_ui <- function(id) {
             label = "Property",
             choices = NULL,
             multiple = FALSE,
-            options = list(placeholder = "Select property")
+            options = list(placeholder = "Select Property")
           ),
           actionButton(
             ns("load_property"),

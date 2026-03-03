@@ -15,7 +15,7 @@ module_internal_communications_UI <- function(id) {
           open = TRUE,
           selectizeInput(
             ns("property"),
-            "Select property",
+            "Select Property",
             choices = NULL,
             multiple = FALSE,
             width = "80%"

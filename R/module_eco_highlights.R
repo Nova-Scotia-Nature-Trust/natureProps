@@ -94,7 +94,7 @@ module_eco_highlights_ui <- function(id) {
             width = 300,
             selectizeInput(
               ns("property"),
-              "Select property",
+              "Select Property",
               choices = NULL,
               multiple = FALSE,
               width = "100%",
