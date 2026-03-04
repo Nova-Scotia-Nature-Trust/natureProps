@@ -11,32 +11,56 @@ module_edit_appraisals_ui <- function(id) {
         sidebar = sidebar(
           "",
           open = TRUE,
-          selectizeInput(
-            inputId = ns("property_name"),
-            label = "Select Property",
-            choices = NULL,
-            selected = NULL,
+          accordion(
+            id = ns("sidebar_accordion"),
+            open = FALSE,
             multiple = FALSE,
-            options = list(
-              create = FALSE,
-              placeholder = "Search or select property"
+            accordion_panel(
+              title = "Add New Appraisal",
+              value = "add_values",
+              selectizeInput(
+                inputId = ns("property_new"),
+                label = "Select Property",
+                choices = NULL,
+                selected = NULL
+              ),
+              actionButton(
+                inputId = ns("add_record"),
+                label = "Submit Appraisal",
+                class = "btn-success"
+              )
+            ),
+            accordion_panel(
+              title = "Edit Exisiting Appraisal",
+              value = "edit_values",
+              selectizeInput(
+                inputId = ns("property_exists"),
+                label = "Select Property",
+                choices = NULL,
+                selected = NULL
+              ),
+              selectizeInput(
+                inputId = ns("appraisal"),
+                label = "Select Appraisal",
+                choices = NULL,
+                selected = NULL
+              ),
+              actionButton(
+                inputId = ns("load_record"),
+                label = "Load Appraisal",
+                class = "btn-success"
+              ),
+              hr(),
+              actionButton(
+                inputId = ns("submit_edit"),
+                label = "Submit Edits",
+                class = "btn-primary"
+              )
             )
           ),
           actionButton(
-            inputId = ns("load_record"),
-            label = "Load Appraisals",
-            class = "btn-success"
-          ),
-          uiOutput(ns("appraisal_select_ui")), # Change this to conditional UI
-          hr(),
-          actionButton(
-            inputId = ns("submit_edit"),
-            label = "Submit Changes",
-            class = "btn-primary"
-          ),
-          actionButton(
             inputId = ns("clear_edit"),
-            label = "Clear",
+            label = "Clear Values",
             class = "btn-secondary"
           )
         ),
@@ -67,62 +91,137 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    ## Reactive :: Property choices ----
-    property_choices <- reactive({
+    ## Input validation ----
+    iv <- InputValidator$new()
+    iv$add_rule("edit_appraisal_date", sv_required())
+    iv$add_rule("edit_appraisal_value", sv_required())
+    iv$add_rule("edit_appraiser_name", sv_required())
+    iv$enable()
+
+    ## Reactive :: Property List New ----
+    property_list_new <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties ORDER BY property_name;"
-      ) |>
-        select(property_name, id) |>
-        deframe()
+        "SELECT DISTINCT id, property_name FROM properties 
+         ORDER BY property_name;"
+      )
     })
 
-    ## Update property dropdown ----
     observe({
       updateSelectizeInput(
         session,
-        inputId = "property_name",
-        choices = c("", property_choices()),
-        selected = "",
+        "property_new",
+        choices = setNames(
+          property_list_new()$id,
+          property_list_new()$property_name
+        ),
+        selected = isolate(input$property_new),
         server = TRUE
       )
     })
 
-    ## Reactive value :: Appraisals for property ----
-    property_appraisals <- reactiveVal(NULL)
+    property_name_new <- reactiveVal(NULL)
 
-    ## Reactive value :: Selected appraisal record ----
-    selected_record <- reactiveVal(NULL)
-
-    ## Conditional UI :: Appraisal select ----
-    output$appraisal_select_ui <- renderUI({
-      appraisals <- property_appraisals()
-
-      if (!is.null(appraisals) && nrow(appraisals) > 0) {
-        appraisal_choices <- setNames(
-          appraisals$id,
-          paste0(
-            appraisals$appraiser_name,
-            " (",
-            format(as.Date(appraisals$appraisal_date), "%Y-%m-%d"),
-            ")"
-          )
-        )
-
-        selectInput(
-          inputId = ns("appraisal_select"),
-          label = "Select Appraisal",
-          choices = c("Select an appraisal..." = "", appraisal_choices),
-          selected = ""
-        )
-      }
+    observe({
+      req(input$property_new)
+      name <- property_list_new() |>
+        filter(id == input$property_new) |>
+        pull(property_name)
+      property_name_new(name)
     })
+
+    ## Reactive :: Property List Exisiting ----
+    property_list_exists <- reactive({
+      db_updated()
+      dbGetQuery(
+        db_con,
+        "SELECT DISTINCT ap.property_id as id, pr.property_name
+        FROM appraisals ap
+        LEFT JOIN properties pr ON ap.property_id = pr.id
+        ORDER BY property_name;"
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "property_exists",
+        choices = setNames(
+          property_list_exists()$id,
+          property_list_exists()$property_name
+        ),
+        selected = isolate(input$property_exists),
+        server = TRUE
+      )
+    })
+
+    property_name_exists <- reactiveVal(NULL)
+
+    observe({
+      req(input$property_exists)
+      name <- property_list_exists() |>
+        filter(id == input$property_exists) |>
+        pull(property_name)
+      property_name_exists(name)
+    })
+
+    ## Reactive Value :: Property Appraisal ----
+    property_appraisal <- reactiveVal(NULL)
+
+    ## Reactive :: Exisiting Appraisal ----
+    appraisal_list <- reactive({
+      db_updated()
+
+      appraisal_ids <- dbGetQuery(
+        db_con,
+        "SELECT 
+          a.id,
+          a.property_id,
+          a.appraisal_date,
+          a.appraiser_name
+        FROM appraisals a
+        ORDER BY a.appraisal_date DESC;"
+      )
+
+      req(input$property_exists)
+
+      appraisal_data <- appraisal_ids |>
+        filter(property_id == input$property_exists)
+
+      app_list <- setNames(
+        appraisal_data$id,
+        paste0(
+          appraisal_data$appraiser_name,
+          " (",
+          format(as.Date(appraisal_data$appraisal_date), "%Y-%m-%d"),
+          ")"
+        )
+      )
+      return(app_list)
+    })
+
+    ## Observe :: Current Apprasial ID ----
+    observeEvent(
+      input$property_exists,
+      {
+        req(isTruthy(input$property_exists))
+
+        updateSelectizeInput(
+          session,
+          inputId = "appraisal",
+          choices = appraisal_list(),
+          selected = isolate(input$appraisal),
+          server = TRUE
+        )
+      },
+      ignoreInit = FALSE
+    )
 
     ## Event :: Load appraisals for property ----
     observeEvent(input$load_record, {
-      req(input$property_name)
-
-      property_id <- input$property_name
+      req(input$property_exists)
+      req(input$appraisal)
 
       query <- glue_sql(
         "SELECT 
@@ -135,79 +234,22 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
           p.property_name
         FROM appraisals a
         JOIN properties p ON a.property_id = p.id
-        WHERE a.property_id = {property_id}
-        ORDER BY a.appraisal_date DESC",
+        WHERE a.property_id = {input$property_exists} AND a.id = {input$appraisal}",
         .con = db_con
       )
 
-      appraisals <- dbGetQuery(db_con, query)
-
-      if (nrow(appraisals) > 0) {
-        property_appraisals(appraisals)
-      } else {
-        # No appraisals exist - set up for new entry
-        property_appraisals(NULL)
-
-        # Get property name for display
-        property_name <- dbGetQuery(
-          db_con,
-          glue_sql(
-            "SELECT property_name FROM properties WHERE id = {property_id}",
-            .con = db_con
-          )
-        )$property_name
-
-        # Create a placeholder record for the new appraisal
-        new_record <- tibble(
-          id = NA_integer_,
-          property_id = as.integer(property_id),
-          appraisal_date = NA_Date_,
-          appraiser_name = NA_character_,
-          appraisal_value = NA_real_,
-          appraisal_notes = NA_character_,
-          property_name = property_name
-        )
-
-        selected_record(new_record)
-
-        shinyalert(
-          title = "No Appraisals Found",
-          text = "No existing appraisals for this property. You can add a new one in this form.",
-          type = "info",
-          closeOnEsc = TRUE,
-          closeOnClickOutside = TRUE
-        )
-      }
-    })
-
-    ## Event :: Select appraisal to edit ----
-    observeEvent(input$appraisal_select, {
-      req(input$appraisal_select)
-      req(property_appraisals())
-
-      appraisal_id <- as.integer(input$appraisal_select)
-
-      record <- property_appraisals() |>
-        filter(id == appraisal_id)
-
-      if (nrow(record) == 1) {
-        selected_record(record)
-      } else {
-        selected_record(NULL)
-      }
+      appraisal <- dbGetQuery(db_con, query)
+      property_appraisal(appraisal)
     })
 
     ## Create UI for database fields ----
     output$edit_fields_ui <- renderUI({
-      record <- selected_record()
+      record <- property_appraisal()
 
-      # Extract values if record exists, otherwise NULL
       property_name_text <- if (!is.null(record)) {
-        if (is.na(record$id)) {
-          paste0("Adding new appraisal for: ", record$property_name)
-        } else {
-          paste0("Editing appraisal for: ", record$property_name)
-        }
+        paste0("Editing appraisal for: ", record$property_name)
+      } else if (isTruthy(input$property_new)) {
+        paste0("Adding new appraisal for: ", property_name_new())
       } else {
         "No appraisal selected"
       }
@@ -283,113 +325,100 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
-    ## Event :: Write changes ----
+    ## Event :: Submit Edits ----
     observeEvent(input$submit_edit, {
-      req(selected_record())
+      req(!is.null(property_appraisal()))
+      req(input$appraisal)
 
-      current_record <- selected_record()
+      appraisal_id <- input$appraisal
 
-      # Check if this is a new record (no id) or an update
-      is_new_record <- is.na(current_record$id)
-
-      if (is_new_record) {
-        # Insert new appraisal
-        insert_tibble <- tibble(
-          property_id = current_record$property_id,
-          appraisal_date = if (!is.null(input$edit_appraisal_date)) {
-            as.Date(input$edit_appraisal_date)
-          } else {
-            NA_Date_
-          },
-          appraiser_name = if (
-            !is.null(input$edit_appraiser_name) &&
-              input$edit_appraiser_name != ""
-          ) {
-            input$edit_appraiser_name
-          } else {
-            NA_character_
-          },
-          appraisal_value = if (!is.null(input$edit_appraisal_value)) {
-            as.numeric(input$edit_appraisal_value)
-          } else {
-            NA_real_
-          },
-          appraisal_notes = if (
-            !is.null(input$edit_appraisal_notes) &&
-              input$edit_appraisal_notes != ""
-          ) {
-            input$edit_appraisal_notes
-          } else {
-            NA_character_
-          }
-        )
-
-        # Insert the record
-        dbx::dbxInsert(
-          db_con,
-          table = "appraisals",
-          records = insert_tibble
-        )
-
-        success_message <- str_glue(
-          "New appraisal for {current_record$property_name} has been successfully created"
-        )
-      } else {
-        # Update existing appraisal
-        req(input$appraisal_select)
-        appraisal_id <- as.integer(input$appraisal_select)
-
-        update_tibble <- tibble(
-          id = appraisal_id,
-          appraisal_date = if (!is.null(input$edit_appraisal_date)) {
-            as.Date(input$edit_appraisal_date)
-          } else {
-            NA_Date_
-          },
-          appraiser_name = if (
-            !is.null(input$edit_appraiser_name) &&
-              input$edit_appraiser_name != ""
-          ) {
-            input$edit_appraiser_name
-          } else {
-            NA_character_
-          },
-          appraisal_value = if (!is.null(input$edit_appraisal_value)) {
-            as.numeric(input$edit_appraisal_value)
-          } else {
-            NA_real_
-          },
-          appraisal_notes = if (
-            !is.null(input$edit_appraisal_notes) &&
-              input$edit_appraisal_notes != ""
-          ) {
-            input$edit_appraisal_notes
-          } else {
-            NA_character_
-          }
-        )
-
-        # Update the record
-        dbx::dbxUpdate(
-          db_con,
-          table = "appraisals",
-          records = update_tibble,
-          where_cols = "id"
-        )
-
-        success_message <- str_glue(
-          "Appraisal for {current_record$property_name} has been successfully updated"
-        )
+      valid_or_na <- function(x, na) {
+        if (isTruthy(x)) x else na
       }
 
-      # Signal update
+      update_df <- tibble(
+        id = input$appraisal,
+        appraisal_date = valid_or_na(
+          as.Date(input$edit_appraisal_date),
+          NA_Date_
+        ),
+        appraiser_name = valid_or_na(
+          input$edit_appraiser_name,
+          NA_character_
+        ),
+        appraisal_value = valid_or_na(
+          as.numeric(input$edit_appraisal_value),
+          NA_real_
+        ),
+        appraisal_notes = valid_or_na(
+          input$edit_appraisal_notes,
+          NA_character_
+        )
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "appraisals",
+        records = update_df,
+        where_cols = "id"
+      )
+
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
       }
 
       shinyalert(
         title = "Success",
-        text = success_message,
+        text = str_glue(
+          "Appraisal for {property_name_exists()} has been successfully updated"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+    })
+
+    ## Event :: Add Record ----
+    observeEvent(input$add_record, {
+      req(input$property_new)
+      req(iv$is_valid())
+
+      valid_or_na <- function(x, na) {
+        if (isTruthy(x)) x else na
+      }
+
+      new_record <- tibble(
+        property_id = input$property_new,
+        appraisal_date = valid_or_na(
+          as.Date(input$edit_appraisal_date),
+          NA_Date_
+        ),
+        appraiser_name = valid_or_na(input$edit_appraiser_name, NA_character_),
+        appraisal_value = valid_or_na(
+          as.numeric(input$edit_appraisal_value),
+          NA_real_
+        ),
+        appraisal_notes = valid_or_na(input$edit_appraisal_notes, NA_character_)
+      )
+
+      dbx::dbxInsert(
+        db_con,
+        table = "appraisals",
+        records = new_record
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      property_appraisal(new_record)
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "New appraisal for {property_name_new()} has been successfully created"
+        ),
         type = "success",
         closeOnEsc = TRUE,
         closeOnClickOutside = TRUE,
@@ -399,19 +428,36 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_edit, {
-      selected_record(NULL)
-      property_appraisals(NULL)
+      property_appraisal(NULL)
 
-      # Clear the sidebar filters
       updateSelectizeInput(
         session,
-        inputId = "property_name",
-        selected = "",
-        choices = c("", property_choices()),
-        server = TRUE
+        inputId = "appraisal",
+        choices = character(0),
+        selected = character(0)
       )
 
-      updateDateInput(session, "edit_appraisal_date", value = NA)
+      updateSelectizeInput(
+        session,
+        inputId = "property_exists",
+        choices = setNames(
+          property_list_exists()$id,
+          property_list_exists()$property_name
+        ),
+        selected = character(0)
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "property_new",
+        choices = setNames(
+          property_list_new()$id,
+          property_list_new()$property_name
+        ),
+        selected = character(0)
+      )
+
+      updateDateInput(session, "edit_appraisal_date", value = as.Date(NA))
       updateTextInput(session, "edit_appraiser_name", value = "")
       updateNumericInput(session, "edit_appraisal_value", value = NA)
       updateTextAreaInput(session, "edit_appraisal_notes", value = "")
