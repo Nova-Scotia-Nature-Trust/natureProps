@@ -258,7 +258,8 @@ module_property_mapbox_server <- function(
 
     # ---- Render Map with All Layers ----
     output$map <- renderMapboxgl({
-      priority_pal <- RColorBrewer::brewer.pal(5, "RdYlBu")
+      # priority_pal <- RColorBrewer::brewer.pal(5, "RdYlBu")
+      priority_pal <- c("#D7191C", "#FDAE61", "#FFFFBF", "#CFC6E8", "#9B8AC6")
 
       mapboxgl(
         mapbox_style("satellite-streets"),
@@ -356,7 +357,7 @@ module_property_mapbox_server <- function(
           id = "nsnt_conservation_lands_layer",
           source = "nsnt_conservation_lands",
           source_layer = "public.nsnt_conservation_lands",
-          fill_color = "blue",
+          fill_color = "#3F5F7A",
           fill_opacity = 0.9,
           tooltip = "property_name_public"
         ) |>
