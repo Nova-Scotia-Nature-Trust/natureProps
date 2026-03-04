@@ -280,7 +280,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
           property_list()$id,
           property_list()$property_name
         ),
-        selected = character(0),
+        selected = isolate(input$update_property),
         server = TRUE
       )
     })

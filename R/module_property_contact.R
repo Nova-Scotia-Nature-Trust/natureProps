@@ -221,6 +221,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
           pid_list()$id,
           pid_list()$pid
         ),
+        selected = isolate(input$pid),
         server = TRUE
       )
     })
@@ -233,6 +234,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
           pid_list()$id,
           pid_list()$pid
         ),
+        selected = isolate(input$pid_update),
         server = TRUE
       )
     })
@@ -260,7 +262,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
           contacts()$id,
           contacts()$display_label
         ),
-        selected = character(0),
+        selected = isolate(input$contact),
         server = TRUE
       )
     })
@@ -358,7 +360,9 @@ module_property_contact_server <- function(id, db_con, db_updated) {
         text = glue(
           "Successfully linked {length(input$pid_update)} PID(s) to the property contact."
         ),
-        type = "success"
+        type = "success",
+        closeOnClickOutside = FALSE,
+        timer = 10000
       )
 
       ## Clear inputs after successful update
