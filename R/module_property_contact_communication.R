@@ -3,6 +3,7 @@ module_property_contact_communication_ui <- function(id) {
   ns <- NS(id)
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
+    ## Card :: Outreach & Contact Communication ----
     card(
       full_screen = TRUE,
       height = "100%",
@@ -20,7 +21,7 @@ module_property_contact_communication_ui <- function(id) {
                 "Property Contact Communication",
                 "Outreach"
               ),
-              selected = ""
+              selected = character(0)
             ),
             uiOutput(ns("conditional_contact_ui"))
           ),
@@ -60,7 +61,6 @@ module_property_contact_communication_ui <- function(id) {
               width = "100%"
             )
           ),
-          # Buttons section
           div(
             style = "margin-top: 20px;",
             actionButton(
@@ -96,60 +96,49 @@ module_property_contact_communication_server <- function(
     iv$add_rule("date_contacted", sv_required())
     iv$enable()
 
-    ## Conditionally add validation rules based on communication type
-    observe({
-      req(input$communication_type)
-      if (input$communication_type == "Property Contact Communication") {
-        iv$add_rule("property_contact_id", sv_required())
-      } else {
-        iv$add_rule("pid_input", sv_required())
-      }
+    iv_pid <- InputValidator$new()
+    iv_pid$add_rule("pid", sv_required())
+    iv_pid$enable()
+
+    iv_contact <- InputValidator$new()
+    iv_contact$add_rule("contact", sv_required())
+    iv_contact$enable()
+
+    ## Reactive :: Property Contacts ----
+    contacts <- reactive({
+      db_updated()
+      contacts <- dbReadTable(db_con, "property_contact_details") |>
+        mutate(
+          display_name = glue("{name_first} {name_last} (ID:{id})"),
+          display_label = if_else(
+            !is.na(email) & email != "",
+            glue("{display_name} - {email}"),
+            display_name
+          )
+        ) |>
+        arrange(name_last, name_first)
     })
 
-    ## Populate UI inputs ----
-
-    # Define a reactive for property contact that depends on db_updated, if provided
-    property_contact_ids <- reactive({
-      # Only try to use db_updated if it is not NULL.
-      if (!is.null(db_updated)) {
-        db_updated() # Creates the reactive dependency; ignore the return value.
-      }
-      # Query database for property contacts
+    ## Reactive :: PID List ----
+    pid_list <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
-        "SELECT id, name_last, name_first FROM property_contact_details;"
-      ) |>
-        mutate(name = str_glue("{name_first} {name_last} (ID:{id})")) |>
-        arrange(name_last) %>%
-        {
-          setNames(.$id, .$name)
-        }
+        "SELECT DISTINCT id, pid FROM parcels 
+         ORDER BY pid;"
+      )
     })
 
-    # Define choices for PID input
-    pid_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated() # Creates the reactive dependency; ignore the return value.
-      }
+    ## Lookup tables ----
+    method <- dbGetQuery(
+      db_con,
+      "SELECT * FROM communication_method ORDER BY method_value"
+    )
 
-      dbGetQuery(db_con, "SELECT pid FROM parcels;") |>
-        pull() |>
-        sort()
-    })
-
-    method_choices <- reactive({
-      dbReadTable(db_con, "communication_method") %>%
-        {
-          setNames(.$id, .$method_value)
-        } # Magic
-    })
-
-    purpose_choices <- reactive({
-      dbReadTable(db_con, "communication_purpose") %>%
-        {
-          setNames(.$id, .$purpose_value)
-        } # Magic
-    })
+    purpose <- dbGetQuery(
+      db_con,
+      "SELECT * FROM communication_purpose ORDER BY purpose_value"
+    )
 
     ## Conditional UI ----
     output$conditional_contact_ui <- renderUI({
@@ -159,7 +148,7 @@ module_property_contact_communication_server <- function(
 
       if (input$communication_type == "Property Contact Communication") {
         selectizeInput(
-          ns("property_contact_id"),
+          ns("contact"),
           "Select Property Contact ID",
           choices = NULL,
           multiple = FALSE,
@@ -170,7 +159,7 @@ module_property_contact_communication_server <- function(
         )
       } else if (input$communication_type == "Outreach") {
         selectizeInput(
-          inputId = ns("pid_input"),
+          inputId = ns("pid"),
           label = "Select PID(s):",
           choices = NULL,
           multiple = TRUE,
@@ -182,67 +171,67 @@ module_property_contact_communication_server <- function(
       }
     })
 
-    # Then in an observe block, update the input after it's created
+    ## Observe :: Inputs For Conditional UI ----
     observe({
       req(input$communication_type)
 
       if (input$communication_type == "Property Contact Communication") {
-        # Only runs when property contact option is selected and the input exists
         updateSelectizeInput(
           session,
-          inputId = "property_contact_id",
-          choices = property_contact_ids(),
-          selected = character(0),
+          inputId = "contact",
+          choices = setNames(
+            contacts()$id,
+            contacts()$display_label
+          ),
+          selected = isolate(input$contact),
           server = TRUE
         )
       } else {
-        # Only runs when outreach option is selected and the input exists
         updateSelectizeInput(
           session,
-          inputId = "pid_input",
-          choices = pid_choices(),
-          selected = character(0),
+          inputId = "pid",
+          choices = setNames(
+            pid_list()$id,
+            pid_list()$pid
+          ),
+          selected = isolate(input$pid),
           server = TRUE
         )
       }
     })
 
-    # Initialize the select inputs with data from the DB
-    observe({
-      # Update the purpose and method inputs
-      updateSelectizeInput(
-        session,
-        "communication_purpose_id",
-        choices = purpose_choices(),
-        server = TRUE,
-        selected = character(0)
-      )
+    ## Update Lookup Inputs ----
+    updateSelectizeInput(
+      session,
+      "communication_purpose_id",
+      choices = setNames(
+        purpose$id,
+        purpose$purpose_value
+      ),
+      server = TRUE,
+      selected = character(0)
+    )
 
-      updateSelectizeInput(
-        session,
-        "communication_method_id",
-        choices = method_choices(),
-        server = TRUE,
-        selected = character(0)
-      )
-    })
+    updateSelectizeInput(
+      session,
+      "communication_method_id",
+      choices = setNames(
+        method$id,
+        method$method_value
+      ),
+      server = TRUE,
+      selected = character(0)
+    )
 
     ## Event :: Submit communication ----
-
-    # Update database when submit button is clicked
     observeEvent(input$submit_communication, {
-      req(input$communication_method_id)
-      req(input$communication_purpose_id)
-      req(input$date_contacted)
-      req(input$communication_description)
       req(iv$is_valid())
 
       if (input$communication_type == "Property Contact Communication") {
-        req(input$property_contact_id)
-
+        req(input$contact, iv_contact$is_valid())
         # Create the new communication record
         new_communication <- tibble(
-          property_contact_id = input$property_contact_id,
+          property_contact_id = input$contact,
           communication_purpose_id = input$communication_purpose_id,
           communication_method_id = input$communication_method_id,
           date_contacted = input$date_contacted,
@@ -254,7 +243,6 @@ module_property_contact_communication_server <- function(
           }
         )
 
-        print(glimpse(new_communication))
         append_db_data(
           "property_contact_communication",
           new_communication,
@@ -262,21 +250,10 @@ module_property_contact_communication_server <- function(
           silent = FALSE
         )
       } else if (input$communication_type == "Outreach") {
-        req(input$pid_input)
-
-        parcel_id <- dbGetQuery(
-          db_con,
-          glue_sql(
-            "SELECT id AS parcel_id FROM parcels
-                   WHERE pid IN ({input$pid_input*});",
-            .con = db_con
-          )
-        ) |>
-          pull(parcel_id)
-
+        req(input$pid, iv_pid$is_valid())
         # Create the new outreach record(s)
         new_outreach <- tibble(
-          parcel_id = parcel_id,
+          parcel_id = input$pid,
           dnc = FALSE,
           communication_purpose_id = input$communication_purpose_id,
           communication_method_id = input$communication_method_id,
@@ -288,8 +265,6 @@ module_property_contact_communication_server <- function(
             as.Date(NA)
           }
         )
-
-        print(glimpse(new_outreach))
         append_db_data("outreach", new_outreach, db_con, silent = FALSE)
       }
 
@@ -301,25 +276,33 @@ module_property_contact_communication_server <- function(
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
-      updateSelectInput(session, "communication_type", selected = "")
+      updateSelectInput(session, "communication_type", selected = character(0))
 
       updateSelectizeInput(
         session,
         "communication_purpose_id",
-        choices = purpose_choices(),
-        server = TRUE,
+        choices = setNames(
+          purpose$id,
+          purpose$purpose_value
+        ),
         selected = character(0)
       )
       updateSelectizeInput(
         session,
         "communication_method_id",
-        choices = method_choices(),
-        server = TRUE,
+        choices = setNames(
+          method$id,
+          method$method_value
+        ),
         selected = character(0)
       )
       updateDateInput(session, "date_contacted", value = Sys.Date())
       updateDateInput(session, "date_follow_up", value = as.Date(NA))
-      updateTextAreaInput(session, "communication_description", value = "")
+      updateTextAreaInput(
+        session,
+        "communication_description",
+        value = character(0)
+      )
     })
   })
 }
