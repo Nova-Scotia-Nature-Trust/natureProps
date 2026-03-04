@@ -4,7 +4,7 @@ module_property_details_ui <- function(id) {
 
   layout_columns(
     col_widths = c(8, 4),
-    # Existing card: Add New Property ----
+    ## Card :: Add New Property ----
     card(
       full_screen = TRUE,
       height = "100%",
@@ -72,7 +72,7 @@ module_property_details_ui <- function(id) {
           layout_columns(
             col_widths = c(6, 6),
             selectizeInput(
-              inputId = ns("phase_id"),
+              inputId = ns("phase"),
               label = "Phase",
               choices = NULL
             ),
@@ -96,7 +96,7 @@ module_property_details_ui <- function(id) {
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
                 includeMarkdown("popups/prop_opp_overview.md"),
-                title = "Property Description Help",
+                title = "Property Description Info",
                 placement = "top"
               )
             ),
@@ -122,7 +122,7 @@ module_property_details_ui <- function(id) {
                   style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
                 ),
                 includeMarkdown("popups/stewardship_concerns.md"),
-                title = "Stewardship Concerns Help",
+                title = "Stewardship Concerns Info",
                 placement = "top"
               )
             ),
@@ -130,7 +130,6 @@ module_property_details_ui <- function(id) {
               ns("stewardship_concerns"),
               label = NULL,
               value = "",
-              # placeholder = "Enter any information around potential stewardship issues",
               height = "100px",
               width = "100%"
             )
@@ -152,7 +151,7 @@ module_property_details_ui <- function(id) {
         )
       )
     ),
-    # New card: Update Property ----
+    # Card :: Update Property ----
     card(
       full_screen = TRUE,
       height = "100%",
@@ -219,21 +218,20 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     valid_pids <- dbGetQuery(prd_con, "SELECT DISTINCT(pid) FROM parcels;") |>
       pull(pid)
 
-    # Validation for new property form
+    ### New Property Form ----
     iv <- InputValidator$new()
     iv$add_rule("date_added", sv_required())
     iv$add_rule("property_name", sv_required())
-    iv$add_rule("phase_id", sv_required())
+    iv$add_rule("phase", sv_required())
     iv$add_rule("source", sv_required())
     iv$add_rule("team_lead", sv_required())
-    # iv$add_rule("focus_area_internal", sv_required())
     iv$add_rule(
       "pid",
       ~ validate_pid_input(., valid_pids, enable_check = TRUE)
     )
     iv$enable()
 
-    # Validation for update property form
+    ### Update Property Form ----
     iv_update <- InputValidator$new()
     iv_update$add_rule("update_date_added", sv_required())
     iv_update$add_rule("update_property", sv_required())
@@ -243,148 +241,142 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     )
     iv_update$enable()
 
-    ## Populate UI inputs ----
-    phase_choices <- reactive({
-      dbReadTable(db_con, "phase") |>
-        select(phase_value, id) |>
-        deframe()
-    })
+    ## Database Lookup Values ----
+    phase <- dbReadTable(db_con, "phase")
+    acquisition <- dbReadTable(db_con, "acquisition_type")
+    focus_area <- dbGetQuery(
+      db_con,
+      "SELECT * FROM focus_area_internal ORDER BY internal_value"
+    )
+    theme <- dbGetQuery(
+      db_con,
+      "SELECT * FROM project_theme ORDER BY theme_value"
+    )
+    region <- dbGetQuery(
+      db_con,
+      "SELECT * FROM project_region ORDER BY region_value"
+    )
+    source <- dbGetQuery(db_con, "SELECT * FROM source ORDER BY source_value")
+    team_lead <- dbGetQuery(
+      db_con,
+      "SELECT * FROM team_lead ORDER BY team_value"
+    )
 
-    acquisition_choices <- reactive({
-      dbReadTable(db_con, "acquisition_type") |>
-        select(acquisition_value, id) |>
-        deframe()
-    })
-
-    focus_area_choices <- reactive({
-      dbReadTable(db_con, "focus_area_internal") |>
-        arrange(internal_value) |>
-        select(internal_value, id) |>
-        deframe()
-    })
-
-    theme_choices <- reactive({
-      dbReadTable(db_con, "project_theme") |>
-        arrange(theme_value) |>
-        select(theme_value, id) |>
-        deframe()
-    })
-
-    region_choices <- reactive({
-      dbReadTable(db_con, "project_region") |>
-        arrange(region_value) |>
-        select(region_value, id) |>
-        deframe()
-    })
-
-    source_choices <- reactive({
-      dbReadTable(db_con, "source") |>
-        arrange(source_value) |>
-        select(source_value, id) |>
-        deframe()
-    })
-
-    team_choices <- reactive({
-      dbReadTable(db_con, "team_lead") |>
-        arrange(team_value) |>
-        select(team_value, id) |>
-        deframe()
-    })
-
-    get_property_choices <- function(db_con) {
+    ## Reactive :: Property Lists ----
+    property_list <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
-        "SELECT property_name, id FROM properties ORDER BY property_name"
-      ) |>
-        deframe()
-    }
-
-    property_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-      get_property_choices(db_con)
+        "SELECT DISTINCT id, property_name FROM properties 
+         ORDER BY property_name;"
+      )
     })
 
-    ## Populate UI inputs ----
     observe({
-      # New property form
-      updateSelectizeInput(
-        session,
-        "focus_area_internal",
-        choices = focus_area_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "phase_id",
-        choices = phase_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "acquisition_type",
-        choices = acquisition_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "theme",
-        choices = theme_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "region",
-        choices = region_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "source",
-        choices = source_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "team_lead",
-        choices = team_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-
-      # Update property form
       updateSelectizeInput(
         session,
         "update_property",
-        choices = property_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "update_acquisition_type",
-        choices = acquisition_choices(),
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
         selected = character(0),
         server = TRUE
       )
     })
+
+    ## Populate UI Select Inputs ----
+    updateSelectizeInput(
+      session,
+      "acquisition_type",
+      choices = setNames(
+        acquisition$id,
+        acquisition$acquisition_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "focus_area_internal",
+      choices = setNames(
+        focus_area$id,
+        focus_area$internal_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "phase",
+      choices = setNames(
+        phase$id,
+        phase$phase_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "region",
+      choices = setNames(
+        region$id,
+        region$region_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "source",
+      choices = setNames(
+        source$id,
+        source$source_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "team_lead",
+      choices = setNames(
+        team_lead$id,
+        team_lead$team_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "theme",
+      choices = setNames(
+        theme$id,
+        theme$theme_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "update_acquisition_type",
+      choices = setNames(
+        acquisition$id,
+        acquisition$acquisition_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
 
     ## Event :: Submit property ----
     observeEvent(input$submit_property, {
       req(input$pid)
-      req(input$date_added)
-      # req(input$focus_area_internal)
-      req(input$property_name)
-      req(input$phase_id)
-      req(input$source)
-      req(input$team_lead)
       req(iv$is_valid())
 
       # Check if any PIDs already exist in the database
@@ -406,7 +398,6 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       }
 
       ### Focus area (internal) ----
-
       if (isTruthy(input$focus_area_internal)) {
         focus_area_check <- dbReadTable(db_con, "focus_area_internal") |>
           filter(id == input$focus_area_internal) |>
@@ -441,7 +432,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         message("FOCUS AREA NOT ASSIGNED")
       }
 
-      ## Property name & ID -----
+      ### Property name & ID -----
       property_check <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name) |>
         pull(property_name)
@@ -460,7 +451,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
             as.character(input$stewardship_concerns),
             NA_character_
           ),
-          phase_id = input$phase_id,
+          phase_id = input$phase,
           source_id = input$source,
           team_lead_id = input$team_lead,
           project_region_id = if_else(
@@ -494,12 +485,12 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         return()
       }
 
-      ## Write new parcel(s) ----
+      ### Write new parcel(s) ----
       property_id <- dbReadTable(db_con, "properties") |>
         filter(property_name == input$property_name) |>
         pull(id)
 
-      ## Write property themes ----
+      ### Write property themes ----
       if (isTruthy(input$theme)) {
         new_property_themes <- tibble(
           property_id = property_id,
@@ -546,13 +537,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     ## Event :: Submit update (add PID to existing property) ----
     observeEvent(input$submit_update, {
       req(input$update_pid)
-      req(input$update_date_added)
-      req(input$update_property)
-
-      # Check validation before proceeding
-      if (!iv_update$is_valid()) {
-        return()
-      }
+      iv_update$is_valid()
 
       # Check if any PIDs already exist in the database
       existing_pids <- dbReadTable(db_con, "parcels") |>
@@ -604,74 +589,115 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       message("PID(S) ADDED TO EXISTING PROPERTY")
     })
 
-    ## Event :: Clear inputs ----
+    ## Event :: Clear New Property Inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
         session,
-        "pid",
+        inputId = "acquisition_type",
+        choices = setNames(
+          acquisition$id,
+          acquisition$acquisition_value
+        ),
+        selected = character(0)
+      )
+
+      updateDateInput(
+        session,
+        inputId = "date_added",
+        value = Sys.Date()
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "focus_area_internal",
+        choices = setNames(
+          focus_area$id,
+          focus_area$internal_value
+        ),
+        selected = character(0)
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "phase",
+        choices = setNames(
+          phase$id,
+          phase$phase_value
+        ),
+        selected = character(0)
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "pid",
         label = "Enter PID(s)",
         choices = NULL,
         options = list(
           create = TRUE,
           placeholder = "Type PID and press Enter"
+        )
+      )
+
+      updateTextInput(
+        session,
+        inputId = "property_description",
+        value = ""
+      )
+
+      updateTextInput(
+        session,
+        inputId = "property_name",
+        value = ""
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "region",
+        choices = setNames(
+          region$id,
+          region$region_value
         ),
-        server = TRUE
+        selected = character(0)
       )
-      updateDateInput(session, "date_added", value = Sys.Date())
-      updateTextInput(session, "property_name", value = "")
+
       updateSelectizeInput(
         session,
-        "source",
-        choices = source_choices(),
-        selected = character(0),
-        server = TRUE
+        inputId = "source",
+        choices = setNames(
+          source$id,
+          source$source_value
+        ),
+        selected = character(0)
       )
+
+      updateTextInput(
+        session,
+        inputId = "stewardship_concerns",
+        value = ""
+      )
+
       updateSelectizeInput(
         session,
-        "theme",
-        choices = theme_choices(),
-        selected = character(0),
-        server = TRUE
+        inputId = "team_lead",
+        choices = setNames(
+          team_lead$id,
+          team_lead$team_value
+        ),
+        selected = character(0)
       )
+
       updateSelectizeInput(
         session,
-        "region",
-        choices = region_choices(),
-        selected = character(0),
-        server = TRUE
+        inputId = "theme",
+        choices = setNames(
+          theme$id,
+          theme$theme_value
+        ),
+        selected = character(0)
       )
-      updateSelectizeInput(
-        session,
-        "team_lead",
-        choices = team_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "phase_id",
-        choices = phase_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "focus_area_internal",
-        choices = focus_area_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "acquisition_type",
-        choices = acquisition_choices(),
-        selected = character(0),
-        server = TRUE
-      )
-      updateTextInput(session, "property_description", value = "")
     })
 
-    ## Event :: Clear update inputs ----
+    ## Event :: Clear Update Property Inputs ----
     observeEvent(input$clear_update_inputs, {
       updateSelectizeInput(
         session,
@@ -685,19 +711,25 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         server = TRUE
       )
       updateDateInput(session, "update_date_added", value = Sys.Date())
+
       updateSelectizeInput(
         session,
         "update_property",
-        choices = property_choices(),
-        selected = character(0),
-        server = TRUE
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = character(0)
       )
+
       updateSelectizeInput(
         session,
         "update_acquisition_type",
-        choices = acquisition_choices(),
-        selected = character(0),
-        server = TRUE
+        choices = setNames(
+          acquisition$id,
+          acquisition$acquisition_value
+        ),
+        selected = character(0)
       )
     })
   })
