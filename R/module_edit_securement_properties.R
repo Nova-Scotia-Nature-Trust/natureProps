@@ -72,6 +72,7 @@ module_edit_securement_properties_server <- function(
     # Reactive choices for dropdowns
     # -----------------------------
     property_choices <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, property_name FROM properties ORDER BY property_name;"

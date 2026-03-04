@@ -83,6 +83,7 @@ module_edit_securement_parcels_server <- function(
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
         "SELECT property_name FROM properties ORDER BY property_name;"
@@ -93,6 +94,7 @@ module_edit_securement_parcels_server <- function(
 
     ## Reactive :: PIDs for selected property ----
     pids_reactive <- reactive({
+      db_updated()
       req(input$property_name)
 
       query <- glue_sql(
