@@ -9,7 +9,9 @@ SELECT
    at.acquisition_value AS "Acquistition Type",
    pr.date_closed AS "Date Closed",
    SUM( COALESCE(pa.size_confirmed_ha, ROUND(info.area_ha, 2)) ) AS "Size (ha)",
-   SUM( COALESCE( pa.size_confirmed_acres, ROUND(info.area_ha * 2.47105, 2) ) ) AS "Size (acres)" 
+   SUM( COALESCE( pa.size_confirmed_acres, ROUND(info.area_ha * 2.47105, 2) ) ) AS "Size (acres)",
+   pr.structure AS "Structure",
+   pr.structure_details AS "Structure Notes"
 FROM
    properties pr 
    LEFT JOIN
