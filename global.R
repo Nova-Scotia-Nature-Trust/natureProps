@@ -40,17 +40,17 @@ onStop(function() {
   poolClose(prd_con)
 })
 
-USE_AUTH <- FALSE
+USE_AUTH <- TRUE
 
 if (USE_AUTH) {
   shinymanager::set_labels(
     language = "en",
-    "Please authenticate" = "Nature Trust Property Manager",
+    "Please authenticate" = "Property Manager",
     "Login" = "Sign in"
   )
 }
 
-VERSION <- "2.4.5"
+VERSION <- "2.4.6"
 
 thematic_shiny(font = "auto")
 
