@@ -1,5 +1,6 @@
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
+  bg = "#31688E",
   useShinyjs(),
   # Add the CSS here for all modules
   tags$head(
@@ -20,7 +21,11 @@ ui <- page_navbar(
   id = "main_navbar",
   selected = "Home",
   collapsible = TRUE,
-  theme = bs_theme(bootswatch = "united"),
+  # theme = bs_theme(bootswatch = "darkly"), # Alternatives: Sandstone, Yeti.
+  theme = bs_theme(
+    bootswatch = "sandstone",
+    success = "#5c8a1c"
+  ),
   fillable = TRUE,
   sidebar = sidebar(
     id = "main_sidebar",
@@ -195,6 +200,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Appraisals",
         module_edit_appraisals_ui("edit_appraisals")
+      ),
+      nav_panel(
+        title = "LLT",
+        module_edit_llt_projects_ui("edit_llt_projects")
       )
     )
   ),
@@ -238,7 +247,16 @@ ui <- page_navbar(
 )
 
 if (USE_AUTH) {
-  ui <- secure_app(ui)
+  ui <- secure_app(
+    ui,
+    tags_top = tags$div(
+      tags$img(
+        src = "nsnt_logo_horizontal.jpg",
+        alt = "Nature Trust Logo",
+        style = "width: 200px; margin-bottom: 15px;"
+      )
+    )
+  )
 } else {
   ui <- ui
 }
