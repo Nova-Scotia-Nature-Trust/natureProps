@@ -13,7 +13,7 @@ module_edit_closing_details_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("property_name"),
-            label = "Property Name",
+            label = "Select Property",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -22,16 +22,11 @@ module_edit_closing_details_ui <- function(id) {
               placeholder = "Search or select property"
             )
           ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Property",
-            class = "btn-success"
-          ),
           hr(),
           actionButton(
             inputId = ns("submit_edit"),
             label = "Submit Changes",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_edit"),
@@ -67,6 +62,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
     ns <- session$ns
 
     iv <- InputValidator$new()
+
     iv$add_rule("edit_date_closed_fiscal", function(value) {
       if (is.null(value) || value == "") {
         return() # Allow empty values
@@ -89,11 +85,55 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
 
     iv$enable()
 
+    ## Event :: Warn on duplicate internal_record_id ----
+    observeEvent(
+      input$edit_internal_record_id,
+      {
+        value <- input$edit_internal_record_id
+        if (!isTruthy(value)) {
+          return()
+        }
+
+        current_id <- selected_record()$id
+        req(!is.na(current_id))
+
+        matches <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "SELECT id, property_name FROM properties
+            WHERE internal_record_id = {value}
+            AND id != {current_id}",
+            .con = db_con
+          )
+        )
+
+        if (nrow(matches) > 0) {
+          property_names <- paste(matches$property_name, collapse = ", ")
+
+          shinyalert(
+            title = "Caution",
+            text = str_glue(
+              "This internal record ID already exists for {property_names}"
+            ),
+            type = "warning",
+            closeOnEsc = TRUE,
+            closeOnClickOutside = TRUE
+          )
+        }
+      },
+      ignoreInit = TRUE
+    )
+
     ## Reactive :: Property choices ----
     property_choices <- reactive({
       dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties ORDER BY property_name;"
+        "SELECT pr.id, 
+                pr.property_name 
+        FROM properties pr 
+        JOIN phase ph ON pr.phase_id = ph.id
+        WHERE phase_value = 'Secured' 
+        ORDER BY property_name;"
       ) |>
         select(property_name, id) |>
         deframe()
@@ -134,6 +174,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
     selected_record <- reactiveVal(tibble(
       id = NA_integer_,
       property_name = NA_character_,
+      internal_record_id = NA_character_,
       acquisition_securement_type_id = NA_integer_,
       ownership_id = NA_integer_,
       owner_name = NA_character_,
@@ -146,15 +187,15 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
     ))
 
     ## Event :: Load record ----
-    observeEvent(input$load_record, {
+    observeEvent(input$property_name, {
       req(input$property_name)
-
       property_id <- input$property_name
 
       query <- glue_sql(
         "SELECT 
           id,
           property_name,
+          internal_record_id,
           acquisition_securement_type_id,
           ownership_id,
           owner_name,
@@ -195,6 +236,15 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
           property_name_text
         ),
         hr(),
+        textInput(
+          inputId = ns("edit_internal_record_id"),
+          label = "Internal Record ID",
+          value = if (!is.na(record$internal_record_id)) {
+            record$internal_record_id
+          } else {
+            ""
+          }
+        ),
         layout_columns(
           col_widths = c(6, 6),
           selectizeInput(
@@ -312,6 +362,11 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
       # Build update tibble
       update_tibble <- tibble(
         id = db_id,
+        internal_record_id = if (isTruthy(input$edit_internal_record_id)) {
+          input$edit_internal_record_id
+        } else {
+          NA_character_
+        },
         acquisition_securement_type_id = if (
           isTruthy(input$edit_acquisition_securement_type_id)
         ) {
@@ -365,6 +420,8 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
         where_cols = "id"
       )
 
+      update_property_timestamp(con = db_con, property_id = db_id)
+
       # Signal update
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
@@ -388,6 +445,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
       selected_record(tibble(
         id = NA_integer_,
         property_name = NA_character_,
+        internal_record_id = NA_character_,
         acquisition_securement_type_id = NA_integer_,
         ownership_id = NA_integer_,
         owner_name = NA_character_,

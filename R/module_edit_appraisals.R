@@ -1,4 +1,5 @@
 # UI ----
+# NAV PANEL :: APPRAISALS
 module_edit_appraisals_ui <- function(id) {
   ns <- NS(id)
   div(
@@ -45,16 +46,11 @@ module_edit_appraisals_ui <- function(id) {
                 choices = NULL,
                 selected = NULL
               ),
-              actionButton(
-                inputId = ns("load_record"),
-                label = "Load Appraisal",
-                class = "btn-success"
-              ),
               hr(),
               actionButton(
                 inputId = ns("submit_edit"),
                 label = "Submit Edits",
-                class = "btn-primary"
+                class = "btn-success"
               )
             )
           ),
@@ -169,6 +165,51 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
     ## Reactive Value :: Property Appraisal ----
     property_appraisal <- reactiveVal(NULL)
 
+    ## Observe :: Clear edit fields when switching to Add New ----
+    observeEvent(
+      input$property_new,
+      {
+        property_appraisal(NULL)
+
+        updateSelectizeInput(
+          session,
+          inputId = "property_exists",
+          choices = setNames(
+            property_list_exists()$id,
+            property_list_exists()$property_name
+          ),
+          selected = character(0),
+          server = TRUE
+        )
+
+        updateSelectizeInput(
+          session,
+          inputId = "appraisal",
+          choices = character(0),
+          selected = character(0)
+        )
+      },
+      ignoreInit = TRUE
+    )
+
+    ## Observe :: Clear new selection when switching to Edit Existing ----
+    observeEvent(
+      input$property_exists,
+      {
+        updateSelectizeInput(
+          session,
+          inputId = "property_new",
+          choices = setNames(
+            property_list_new()$id,
+            property_list_new()$property_name
+          ),
+          selected = character(0),
+          server = TRUE
+        )
+      },
+      ignoreInit = TRUE
+    )
+
     ## Reactive :: Exisiting Appraisal ----
     appraisal_list <- reactive({
       db_updated()
@@ -219,7 +260,7 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
     )
 
     ## Event :: Load appraisals for property ----
-    observeEvent(input$load_record, {
+    observeEvent(input$appraisal, {
       req(input$property_exists)
       req(input$appraisal)
 
