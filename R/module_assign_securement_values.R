@@ -1,4 +1,5 @@
 # UI ----
+# NAV PANEL :: ASSIGN SECUREMENT VALUES
 module_assign_securement_values_ui <- function(id) {
   ns <- NS(id)
 
@@ -31,7 +32,7 @@ module_assign_securement_values_ui <- function(id) {
               actionButton(
                 inputId = ns("load_record"),
                 label = "Load Record",
-                class = "btn-success",
+                class = "btn-primary",
                 width = "100%"
               ),
               br(),
@@ -425,6 +426,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
 
     ## Reactive Value :: Selected Record ----
     selected_record <- reactiveVal(NULL)
+    original_securement_notes <- reactiveVal(NULL)
 
     ## Event :: Load Property Record  ----
     observeEvent(input$load_record, {
@@ -434,6 +436,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
 
       if (nrow(record) >= 1) {
         selected_record(record)
+        original_securement_notes(unique(record$securement_action_description))
 
         updateSelectizeInput(
           session,
@@ -546,7 +549,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     observeEvent(input$submit_edit_properties, {
       req(input$property, input$securement_prob)
       req(iv$is_valid())
-
+      db_id <- as.integer(input$property_name)
       #' This function checks if an input is truthy and
       #' returns the correct type of missing value for
       #' the corresponding database field.
@@ -581,6 +584,26 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         records = df,
         where_cols = "id"
       )
+
+      # Update date_securement_description if notes changed
+      new_notes <- valid_or_na(input$securement_notes, NA_character_)
+      if (
+        !identical(
+          as.character(original_securement_notes()),
+          as.character(new_notes)
+        )
+      ) {
+        dbExecute(
+          db_con,
+          glue_sql(
+            "UPDATE properties SET date_securement_description = {Sys.Date()} WHERE id = {input$property}",
+            .con = db_con
+          )
+        )
+        original_securement_notes(new_notes)
+      }
+
+      update_property_timestamp(con = db_con, property_id = db_id)
 
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
@@ -672,6 +695,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       selected_record(NULL)
+      original_securement_notes(NULL)
 
       updateSelectizeInput(
         session,
