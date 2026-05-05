@@ -1,5 +1,5 @@
 # UI ----
-# UI ----
+# NAV PANEL :: INTERNAL COMMUNICATIONS
 module_internal_communications_UI <- function(id) {
   ns <- NS(id)
 
@@ -179,9 +179,6 @@ module_internal_communications_server <- function(
     })
 
     team_lead_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
       get_team_lead_choices(db_con)
     })
 
@@ -221,7 +218,18 @@ module_internal_communications_server <- function(
 
     ## Event :: Log internal communication ----
     observeEvent(input$log_internal, {
-      req(input$property, input$comm_date, input$communication_description)
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before logging a communication.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(input$comm_date, input$communication_description)
 
       property_id <- get_property_id(db_con, input$property)
 
@@ -257,7 +265,18 @@ module_internal_communications_server <- function(
 
     ## Event :: Log action item ----
     observeEvent(input$log_action, {
-      req(input$property, input$team_lead, input$action_item_description)
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before logging an action item.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(input$team_lead, input$action_item_description)
 
       property_id <- get_property_id(db_con, input$property)
 
