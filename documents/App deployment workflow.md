@@ -302,3 +302,54 @@ Then start the service with `docker compose -f docker-compose-np.yml up -d`.
 ## Code development
 
 The preferred approach would be to create a branch from main (i.e. `dev`). Then add code to dev and create a pull request. Review and merge the PR. Then at that point create a new tag and release. This is the stage at which the GitHub Action will run.
+
+## pg_tileserv
+
+The pg_tileserv service can be setup with a Docker compose file to make sure it restarts if for whatever reason it goes down.
+
+First, create the `docker-compose.yml` file.
+
+``` yml
+services:
+  pg_tileserv:
+    container_name: nsnt-gis-tileserv
+    image: pramsey/pg_tileserv
+    ports:
+      - "7800:7800"
+    environment:
+      DATABASE_URL: postgres://user:password@192.168.1.51:5432/nsnt_gis
+    restart: unless-stopped
+```
+To transfer the docker compose file to the server follow these steps:
+
+1.  `sudo mkdir -p /srv/shinyapps/pg_tileserv`. This creates an empty folder for the docker compose setup.
+2.  `sudo chown -R nsnt_admin:nsnt_admin /srv/shinyapps/pg_tileserv`. This changes ownership so that nsnt_admin (non-root) can edit files.
+3.  `cd /srv/shinyapps/pg_tileserv`. Check folder exists.
+4.  `scp docker-compose.yml nsnt_admin@SERVER_ADDRESS:/srv/shinyapps/pg_tileserv/`. Copy the `docker-compose.yml` file from local machine to server folder.
+
+The following commands can be used to control the nsnt-gis-tileserv service. First need to navigate to the folder in which the compose file is stored.
+
+
+``` bash
+# Navigate to the folder with the compose file
+`cd /srv/shinyapps/pg_tileserv`  
+
+# Check folder contents
+`ls`
+
+# Pull the latest version of the image specified in the compose file
+docker compose pull
+
+# Start the pg_tileserv service
+docker compose up -d 
+
+# View logs for pg_tileserv (container must be running)
+docker compose logs
+
+# Stop pg_tileserv
+docker compose stop 
+
+# Restart natureprops-app
+docker compose restart
+```
+
