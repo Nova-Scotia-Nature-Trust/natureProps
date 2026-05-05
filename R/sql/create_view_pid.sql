@@ -4,8 +4,8 @@ CREATE VIEW view_pid AS
 SELECT
    pa.pid AS "PID",
    pr.property_name AS "Property Name",
-   pa.date_added AS "Date Added",
-   pa.date_updated AS "Date Updated",   
+   pr.date_added AS "Date Added",
+   pr.date_updated AS "Date Updated",   
    info.area_ha AS "Size (ha)",
    ROUND(info.area_ha * 2.47105, 2) AS "Size (acres)",
    ac.acquisition_value AS "Acquisition Type",

@@ -5,6 +5,8 @@ SELECT
    pr.property_name_public AS "Public Property Name",
    pr.property_name AS "Property Name",
    STRING_AGG(pa.pid::text, ', ') AS "PIDs",
+   pr.internal_record_id AS "Landscape ID",
+   pr.landscape_url,
    SUM(COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471))::numeric(10, 2) AS "Size (Acres)",
    SUM(COALESCE(pa.size_confirmed_ha, pi.area_ha))::numeric(10, 2) AS "Size (Hectares)",
    at.acquisition_value AS "Acquisition Type",

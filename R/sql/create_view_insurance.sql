@@ -3,6 +3,7 @@ DROP VIEW IF EXISTS view_insurance;
 CREATE VIEW view_insurance AS 
 SELECT
    pr.property_name_public AS "Property Name",
+   pr.internal_record_id AS "Internal Record ID",
    INITCAP( TRIM( REGEXP_REPLACE( MIN(pp.padd_county), '\s*county\s*', '', 'i' ) ) ) AS "County",
    o.ownership_value AS "Ownership",
    pr.owner_name AS "Owner",
