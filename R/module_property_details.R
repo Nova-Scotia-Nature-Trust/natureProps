@@ -159,22 +159,14 @@ module_property_details_ui <- function(id) {
       card_body(
         div(
           style = "display: flex; flex-direction: column; gap: 15px;",
-          layout_columns(
-            col_widths = c(7, 5),
-            selectizeInput(
-              inputId = ns("update_pid"),
-              label = "Enter PID(s)",
-              choices = NULL,
-              multiple = TRUE,
-              options = list(
-                create = TRUE,
-                placeholder = "Type PID and press Enter"
-              )
-            ),
-            dateInput(
-              inputId = ns("update_date_added"),
-              label = "Date Added",
-              value = today()
+          selectizeInput(
+            inputId = ns("update_pid"),
+            label = "Enter PID(s)",
+            choices = NULL,
+            multiple = TRUE,
+            options = list(
+              create = TRUE,
+              placeholder = "Type PID and press Enter"
             )
           ),
           selectizeInput(
@@ -233,7 +225,6 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
 
     ### Update Property Form ----
     iv_update <- InputValidator$new()
-    iv_update$add_rule("update_date_added", sv_required())
     iv_update$add_rule("update_property", sv_required())
     iv_update$add_rule(
       "update_pid",
@@ -440,6 +431,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       if (length(property_check) == 0) {
         new_property <- tibble(
           property_name = input$property_name,
+          date_added = input$date_added,
           focus_area_internal_id,
           property_description = if_else(
             isTruthy(input$property_description),
@@ -508,7 +500,6 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
 
       new_parcel <- tibble(
         pid = input$pid,
-        date_added = input$date_added,
         property_id,
         acquisition_type_id = if_else(
           isTruthy(input$acquisition_type),
@@ -560,7 +551,6 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       ## Write new parcel(s) to existing property ----
       new_parcel <- tibble(
         pid = input$update_pid,
-        date_added = input$update_date_added,
         property_id = as.integer(input$update_property),
         acquisition_type_id = if_else(
           isTruthy(input$update_acquisition_type),
@@ -710,7 +700,6 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         ),
         server = TRUE
       )
-      updateDateInput(session, "update_date_added", value = Sys.Date())
 
       updateSelectizeInput(
         session,

@@ -80,7 +80,6 @@ module_property_mapbox_ui <- function(id) {
     ),
     card(
       full_screen = TRUE,
-      card_header("Property Map (Mapbox GL)"),
       card_body(
         withSpinner(
           mapboxglOutput(ns("map"), height = "600px"),

@@ -161,11 +161,7 @@ module_securement_queries_server <- function(
     })
 
     securement_probability_reactive <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
       # Query database for Securement Probability values
-
       dbGetQuery(
         conn = db_con,
         statement = "SELECT DISTINCT probability_value 

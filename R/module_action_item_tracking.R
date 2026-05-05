@@ -142,7 +142,6 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Action Item Types ----
     action_item_type <- reactive({
-      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, type_value FROM action_item_type ORDER BY id;"
@@ -164,7 +163,6 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Action Item Status ----
     action_item_status <- reactive({
-      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, status_value FROM action_item_status ORDER BY status_value;"
@@ -186,7 +184,6 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Team Lead ----
     team_lead <- reactive({
-      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, team_value FROM team_lead ORDER BY team_value;"
