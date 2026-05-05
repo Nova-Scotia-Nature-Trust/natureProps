@@ -1,5 +1,6 @@
 ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
+  bg = "#31688E",
   useShinyjs(),
   # Add the CSS here for all modules
   tags$head(
@@ -20,7 +21,11 @@ ui <- page_navbar(
   id = "main_navbar",
   selected = "Home",
   collapsible = TRUE,
-  theme = bs_theme(bootswatch = "united"),
+  # theme = bs_theme(bootswatch = "darkly"), # Alternatives: Sandstone, Yeti.
+  theme = bs_theme(
+    bootswatch = "sandstone",
+    success = "#5c8a1c"
+  ),
   fillable = TRUE,
   sidebar = sidebar(
     id = "main_sidebar",
@@ -90,7 +95,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Data Viewer",
-        module_data_viewer_ui("records_view", panel_id = "panel_01")
+        module_data_viewer_ui("records_view", panel_id = "outreach_panel")
       ),
       nav_panel(
         title = "Queries",
@@ -104,14 +109,14 @@ ui <- page_navbar(
     navset_card_tab(
       height = "100%",
       nav_panel(
-        title = "Action Items",
+        title = "Securement Action Items",
         module_action_item_tracking_ui("action_items")
       ),
       nav_panel(
         title = "Data Viewer",
         module_data_viewer_ui(
           "securement_records_view",
-          panel_id = "panel_02"
+          panel_id = "securement_panel"
         )
       ),
       nav_panel(
@@ -135,7 +140,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Assign Securement Values",
-        module_assign_priorities_ui("assign_priorities")
+        module_assign_securement_values_ui("assign_priorities")
       ),
       nav_panel(
         title = "Internal Communications",
@@ -195,6 +200,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Appraisals",
         module_edit_appraisals_ui("edit_appraisals")
+      ),
+      nav_panel(
+        title = "LLT",
+        module_edit_llt_projects_ui("edit_llt_projects")
       )
     )
   ),
@@ -208,7 +217,7 @@ ui <- page_navbar(
       #   module_property_map_ui("property_map")
       # ),
       nav_panel(
-        title = "MAPBOX WOAH HOT DAYYMMMN!",
+        title = "Property Map",
         module_property_mapbox_ui("property_mapbox")
       ),
       nav_panel(
@@ -238,7 +247,16 @@ ui <- page_navbar(
 )
 
 if (USE_AUTH) {
-  ui <- secure_app(ui)
+  ui <- secure_app(
+    ui,
+    tags_top = tags$div(
+      tags$img(
+        src = "nsnt_logo_horizontal.jpg",
+        alt = "Nature Trust Logo",
+        style = "width: 200px; margin-bottom: 15px;"
+      )
+    )
+  )
 } else {
   ui <- ui
 }

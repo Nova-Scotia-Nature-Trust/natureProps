@@ -124,8 +124,10 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
 
       valboxes$prop_2025 <- dbGetQuery(
         db_con,
-        "SELECT COUNT(*) FROM parcels
-                WHERE date_added > '2024-12-31';"
+        "SELECT COUNT(*) 
+         FROM parcels pa
+         JOIN properties pr ON pr.id = pa.property_id
+          WHERE pr.date_added > '2024-12-31';"
       ) |>
         pull(count)
 

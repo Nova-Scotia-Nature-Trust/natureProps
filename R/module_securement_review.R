@@ -1,4 +1,5 @@
 # UI ----
+# NAV PANEL :: ACTIVE PROJECTS REVIEW
 module_securement_review_ui <- function(id) {
   ns <- NS(id)
 
@@ -37,7 +38,7 @@ module_securement_review_ui <- function(id) {
             ),
             accordion_panel(
               title = "Dates & Securement Probability",
-              value = "edit_panel_01",
+              value = "edit_outreach_panel",
               selectizeInput(
                 ns("closing_year"),
                 "Closing Year",
@@ -128,7 +129,6 @@ module_securement_review_ui <- function(id) {
 module_securement_review_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
-    ## Input validation ----
     iv <- InputValidator$new()
     iv$add_rule("selected_properties", sv_required())
     # iv$add_rule("closing_year", sv_required())
@@ -163,9 +163,11 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
       dbGetQuery(
         db_con,
         "SELECT DISTINCT sai.property_id AS id, 
-                pr.property_name 
+                         pr.property_name 
         FROM securement_action_items AS sai
-        JOIN properties AS pr ON sai.property_id = pr.id
+        JOIN properties pr ON sai.property_id = pr.id
+        JOIN phase ph ON pr.phase_id = ph.id 
+        WHERE ph.phase_value != 'Secured'
         ORDER BY pr.property_name;"
       )
     })
@@ -209,10 +211,6 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
 
     ## Securement probability reactive ----
     securement_probability_reactive <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-
       dbGetQuery(
         conn = db_con,
         statement = "SELECT id, probability_value 
@@ -236,7 +234,6 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
 
     ## Action item types ----
     action_item_types <- reactive({
-      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, type_value FROM action_item_type ORDER BY id;"

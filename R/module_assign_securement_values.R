@@ -1,7 +1,6 @@
 # UI ----
-
-## CHANGE THIS NAME TO "SECUREMENT STATUS"
-module_assign_priorities_ui <- function(id) {
+# NAV PANEL :: ASSIGN SECUREMENT VALUES
+module_assign_securement_values_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -10,7 +9,7 @@ module_assign_priorities_ui <- function(id) {
       full_screen = TRUE,
       height = "100%",
       layout_sidebar(
-        ## Sidebar inputs ----
+        # Sidebar ----
         sidebar = sidebar(
           "",
           open = TRUE,
@@ -18,13 +17,14 @@ module_assign_priorities_ui <- function(id) {
             id = ns("sidebar_accordion"),
             open = "assign_values",
             multiple = FALSE,
+            # Accordion Panel 01 ----
             accordion_panel(
-              title = "Assign Values",
+              title = "Assign Securement Values",
               value = "assign_values",
               icon = bs_icon("pencil-square"),
               selectizeInput(
                 ns("property"),
-                "Select property",
+                "Select Property",
                 choices = NULL,
                 multiple = FALSE,
                 width = "100%"
@@ -32,9 +32,10 @@ module_assign_priorities_ui <- function(id) {
               actionButton(
                 inputId = ns("load_record"),
                 label = "Load Record",
-                class = "btn-success",
+                class = "btn-primary",
                 width = "100%"
               ),
+              br(),
               actionButton(
                 inputId = ns("clear_inputs"),
                 label = "Clear Inputs",
@@ -42,13 +43,14 @@ module_assign_priorities_ui <- function(id) {
                 width = "100%"
               )
             ),
+            # Accordion Panel 02 ----
             accordion_panel(
               title = "Initiate Action Tracking",
               value = "tracking",
               icon = bs_icon("clipboard-check"),
               selectizeInput(
-                ns("property_setup"),
-                "Select property",
+                ns("property_iat"),
+                "Select Property",
                 choices = NULL,
                 multiple = FALSE,
                 width = "100%"
@@ -141,9 +143,6 @@ module_assign_priorities_ui <- function(id) {
                     label = "Submit Changes",
                     class = "btn-primary"
                   ),
-                  layout_columns(),
-                  div(),
-                  div(),
                   div(style = "flex-grow: 1;")
                 )
               )
@@ -196,7 +195,6 @@ module_assign_priorities_ui <- function(id) {
                     label = "Submit Changes",
                     class = "btn-primary"
                   ),
-                  div(),
                   div(style = "flex-grow: 1;")
                 )
               )
@@ -209,123 +207,141 @@ module_assign_priorities_ui <- function(id) {
 }
 
 # Server ----
-module_assign_priorities_server <- function(id, db_con, db_updated) {
+module_assign_securement_values_server <- function(id, db_con, db_updated) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     ## Input validation ----
     iv <- InputValidator$new()
+
     iv$add_rule("closing_year", function(value) {
-      if (is.null(value) || value == "") {
-        return() # Allow empty values
+      sec_prob <- input$securement_prob
+
+      potential_id <- dbGetQuery(
+        db_con,
+        "SELECT id FROM securement_probability WHERE probability_value = 'Potential'"
+      )$id
+
+      # If probability is set to Potential
+      if (!is.null(sec_prob) && sec_prob == potential_id) {
+        # Allow NULL value
+        if (is.null(value) || value == "") {
+          return(NULL) # Stop validation
+        }
+      } else {
+        # If Expected/Confirmed, then closing_year is required
+        if (is.null(value) || value == "") {
+          return(
+            "Valid year is required when securement probability is Confirmed or Expected"
+          )
+        }
       }
 
-      # Check format: YYYY/YY
+      # If a value is input, check format YYYY/YY format
       if (!str_detect(value, "^[0-9]{4}/[0-9]{2}$")) {
         return("Must be in format YYYY/YY (e.g., 2025/26)")
       }
 
-      # Extract year components
       start_year <- as.integer(str_sub(value, 1, 4))
       end_year <- as.integer(str_sub(value, 6, 7))
 
-      # Check if end year is consecutive (start_year + 1) % 100
       if ((start_year + 1) %% 100 != end_year) {
         return("Years must be consecutive (e.g., 2025/26, not 2025/27)")
       }
-    })
-    iv$add_rule("securement_prob", sv_required())
-    iv$add_rule("closing_year", sv_required())
 
+      return(NULL)
+    })
+
+    iv$add_rule("securement_prob", sv_required())
     iv$enable()
 
-    ## Helper functions ----
-    # get_property_choices <- function(db_con) {
-    #   dbGetQuery(
-    #     db_con,
-    #     "SELECT DISTINCT
-    #     pr.id,
-    #     pr.property_name
-    #   FROM
-    #     securement_action_items sai
-    #     LEFT JOIN properties pr ON pr.id = sai.property_id
-    #   ORDER BY
-    #     property_name;"
-    #   ) |>
-    #     pull("property_name")
-    # }
-
-    get_property_choices <- function(db_con) {
+    ## Reactive :: Property List ----
+    property_list <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT
-        id,
-        property_name
-      FROM
-       properties 
-      ORDER BY
-        property_name;"
-      ) |>
-        pull("property_name")
-    }
-
-    get_securement_prob_choices <- function(db_con) {
-      dbGetQuery(db_con, "SELECT * FROM securement_probability") |>
-        select(probability_value, id) |>
-        deframe()
-    }
-
-    get_ranking_choices <- function(db_con) {
-      dbGetQuery(db_con, "SELECT * FROM ranking") |>
-        select(ranking_value, id) |>
-        deframe()
-    }
-
-    load_property_record <- function(db_con, prop_name) {
-      query <- glue_sql(
-        "SELECT 
-          p.id, 
-          pa.pid,
-          p.property_name, 
-          p.securement_probability_id,
-          p.anticipated_closing_year,
-          p.anticipated_closing_date,
-          p.aps_conditions_date,
-          p.securement_action_description,
-          pa.priority_ecological_ranking_id,
-          pa.priority_securement_ranking_id
-        FROM properties p
-        LEFT JOIN parcels pa ON p.id = pa.property_id
-        WHERE p.property_name = {prop_name}",
-        .con = db_con
+        "SELECT DISTINCT id, property_name FROM properties 
+         ORDER BY property_name;"
       )
-      dbGetQuery(db_con, query)
-    }
-
-    ## Reactives :: Input choices ----
-    property_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-      get_property_choices(db_con)
     })
 
-    securement_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-      get_securement_prob_choices(db_con)
+    observe({
+      updateSelectizeInput(
+        session,
+        "property",
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = isolate(input$property),
+        server = TRUE
+      )
     })
 
-    ranking_choices <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-      get_ranking_choices(db_con)
+    property_name <- reactiveVal(NULL)
+
+    observe({
+      req(input$property)
+      name <- property_list() |>
+        filter(id == input$property) |>
+        pull(property_name)
+      property_name(name)
     })
 
-    ## Property list for setup (without securement data) ----
-    props_setup_reactive <- reactive({
+    ## Reactive :: Securement Probability ----
+    securement_probability <- reactive({
+      dbGetQuery(
+        db_con,
+        "SELECT id, probability_value FROM securement_probability"
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "securement_prob",
+        choices = setNames(
+          securement_probability()$id,
+          securement_probability()$probability_value
+        ),
+        selected = isolate(input$securement_prob),
+        server = TRUE
+      )
+    })
+
+    ## Reactive :: Ranking ----
+    ranking <- reactive({
+      dbGetQuery(db_con, "SELECT id, ranking_value FROM ranking")
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "ecological_priority",
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = isolate(input$ecological_priority),
+        server = TRUE
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "securement_priority",
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = isolate(input$securement_priority),
+        server = TRUE
+      )
+    })
+
+    ## Reactive :: IAT Property List ----
+    property_list_iat <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
@@ -349,94 +365,70 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     observe({
       updateSelectizeInput(
         session,
-        "property_setup",
+        "property_iat",
         choices = setNames(
-          props_setup_reactive()$id,
-          props_setup_reactive()$property_name
+          property_list_iat()$id,
+          property_list_iat()$property_name
         ),
-        selected = isolate(input$property_setup),
+        selected = isolate(input$property_iat),
         server = TRUE
       )
     })
 
-    ## Observer :: Update inputs ----
+    ## Function :: Load Property Record ----
+    load_property_record <- function(db_con, selected_property) {
+      query <- glue_sql(
+        "SELECT 
+          p.id, 
+          pa.pid,
+          p.property_name, 
+          p.securement_probability_id,
+          p.anticipated_closing_year,
+          p.anticipated_closing_date,
+          p.aps_conditions_date,
+          p.securement_action_description,
+          pa.priority_ecological_ranking_id,
+          pa.priority_securement_ranking_id
+        FROM properties p
+        LEFT JOIN parcels pa ON p.id = pa.property_id
+        WHERE p.id = {selected_property}",
+        .con = db_con
+      )
+      dbGetQuery(db_con, query)
+    }
+
+    ## Observer :: Update non-lookup value inputs ----
     observe({
-      # Only update when db_updated changes
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-
-      # Preserve current selections
-      current_selections <- list(
-        property = isolate(input$property),
-        securement_prob = isolate(input$securement_prob),
-        closing_year = isolate(input$closing_year),
-        closing_date = isolate(input$closing_date),
-        conditions_date = isolate(input$conditions_date),
-        securement_notes = isolate(input$securement_notes),
-        ecological_priority = isolate(input$ecological_priority),
-        securement_priority = isolate(input$securement_priority)
-      )
-
-      # Update inputs
-      updateSelectizeInput(
-        session,
-        "property",
-        choices = c("", property_choices()),
-        selected = current_selections$property,
-        server = TRUE
-      )
-
-      updateSelectizeInput(
-        session,
-        "securement_prob",
-        choices = c("", securement_choices()),
-        selected = current_selections$securement_prob
-      )
-
       updateTextInput(
         session,
         "closing_year",
-        value = current_selections$closing_year
+        value = isolate(input$closing_year)
       )
 
       updateDateInput(
         session,
         "closing_date",
-        value = current_selections$closing_date
+        value = isolate(input$closing_date)
       )
 
       updateDateInput(
         session,
         "conditions_date",
-        value = current_selections$conditions_date
+        value = isolate(input$conditions_date)
       )
 
       updateTextInput(
         session,
         "securement_notes",
-        value = current_selections$securement_notes
-      )
-
-      updateSelectizeInput(
-        session,
-        "ecological_priority",
-        choices = c("", ranking_choices()),
-        selected = current_selections$ecological_priority
-      )
-
-      updateSelectizeInput(
-        session,
-        "securement_priority",
-        choices = c("", ranking_choices()),
-        selected = current_selections$securement_priority
+        value = isolate(input$securement_notes)
       )
     })
 
-    ## Reactive value :: Selected record ----
+    ## Reactive Value :: Selected Record ----
     selected_record <- reactiveVal(NULL)
+    original_securement_notes <- reactiveVal(NULL)
 
-    ## Event:: Load Record  ----
+    ## Event :: Load Property Record  ----
     observeEvent(input$load_record, {
       req(input$property)
       record <- load_property_record(db_con, input$property) |>
@@ -444,6 +436,7 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
 
       if (nrow(record) >= 1) {
         selected_record(record)
+        original_securement_notes(unique(record$securement_action_description))
 
         updateSelectizeInput(
           session,
@@ -484,14 +477,9 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       } else {
         selected_record(NULL)
       }
-
-      print(record)
-      print(paste("Selected value:", record$securement_probability_id))
-      print("Available choices:")
-      print(securement_choices())
     })
 
-    ## Event:: PID selected ----
+    ## Event :: PID selected ----
     observeEvent(input$pid, {
       req(input$pid, selected_record())
 
@@ -523,10 +511,10 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         }
         req(selected_record())
 
-        # Convert ranking_choices() to a tibble for joining
+        # Convert ranking() to a tibble for joining
         ranking_lookup <- tibble(
-          id = as.integer(ranking_choices()),
-          ranking_label = names(ranking_choices())
+          id = ranking()$id,
+          ranking_label = ranking()$ranking_value
         )
 
         selected_record() |>
@@ -561,58 +549,62 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
     observeEvent(input$submit_edit_properties, {
       req(input$property, input$securement_prob)
       req(iv$is_valid())
-
-      or_na <- function(x, na) {
+      db_id <- as.integer(input$property_name)
+      #' This function checks if an input is truthy and
+      #' returns the correct type of missing value for
+      #' the corresponding database field.
+      valid_or_na <- function(x, na) {
         if (isTruthy(x)) x else na
       }
 
       df <- tibble(
-        property_name = input$property,
+        id = input$property,
         securement_probability_id = input$securement_prob,
-        anticipated_closing_year = or_na(input$closing_year, NA_character_),
-        anticipated_closing_date = or_na(input$closing_date, as.Date(NA)),
-        aps_conditions_date = or_na(input$conditions_date, as.Date(NA)),
-        securement_action_description = or_na(
+        anticipated_closing_year = valid_or_na(
+          input$closing_year,
+          NA_character_
+        ),
+        anticipated_closing_date = valid_or_na(
+          input$closing_date,
+          as.Date(NA)
+        ),
+        aps_conditions_date = valid_or_na(
+          input$conditions_date,
+          as.Date(NA)
+        ),
+        securement_action_description = valid_or_na(
           input$securement_notes,
           NA_character_
         )
       )
 
-      # df <- tibble(
-      #   property_name = input$property,
-      #   securement_probability_id = input$securement_prob,
-      #   anticipated_closing_year = if_else(
-      #     !isTruthy(input$closing_year),
-      #     NA_character_,
-      #     input$closing_year
-      #   ),
-      #   anticipated_closing_date = if_else(
-      #     !isTruthy(input$closing_date),
-      #     as.Date(NA),
-      #     input$closing_date
-      #   ),
-      #   aps_conditions_date = if_else(
-      #     !isTruthy(input$conditions_date),
-      #     as.Date(NA),
-      #     input$conditions_date
-      #   ),
-      #   securement_action_description = if_else(
-      #     !isTruthy(input$securement_notes),
-      #     NA_character_,
-      #     input$securement_notes
-      #   )
-      # )
-
-      print(df)
-
       dbx::dbxUpdate(
         db_con,
         table = "properties",
         records = df,
-        where_cols = "property_name"
+        where_cols = "id"
       )
 
-      # Signal update
+      # Update date_securement_description if notes changed
+      new_notes <- valid_or_na(input$securement_notes, NA_character_)
+      if (
+        !identical(
+          as.character(original_securement_notes()),
+          as.character(new_notes)
+        )
+      ) {
+        dbExecute(
+          db_con,
+          glue_sql(
+            "UPDATE properties SET date_securement_description = {Sys.Date()} WHERE id = {input$property}",
+            .con = db_con
+          )
+        )
+        original_securement_notes(new_notes)
+      }
+
+      update_property_timestamp(con = db_con, property_id = db_id)
+
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
       }
@@ -624,7 +616,7 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       shinyalert(
         title = "Success",
         text = str_glue(
-          "Table record {input$property} has been successfully updated in Properties table"
+          "The record for {property_name()} has been successfully updated in Properties table"
         ),
         type = "success",
         closeOnEsc = TRUE,
@@ -632,6 +624,7 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         timer = 10000
       )
     })
+
     ## Event :: Write changes (parcels) ----
     observeEvent(input$submit_edit_parcels, {
       req(input$pid, input$ecological_priority)
@@ -642,8 +635,6 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         priority_securement_ranking_id = input$securement_priority,
       )
 
-      print(df)
-
       dbx::dbxUpdate(
         db_con,
         table = "parcels",
@@ -651,7 +642,6 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
         where_cols = "pid"
       )
 
-      # Signal update
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
       }
@@ -663,10 +653,9 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       shinyalert(
         title = "Success",
         text = str_glue(
-          "Table record {input$pid} has been successfully updated in Parcels table"
+          "The record for PID {input$pid} has been successfully updated in Parcels table"
         ),
         type = "success",
-        closeOnEsc = TRUE,
         closeOnClickOutside = TRUE,
         timer = 10000
       )
@@ -674,13 +663,13 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
 
     ## Event :: Setup template action ----
     observeEvent(input$setup_template, {
-      req(input$property_setup)
+      req(input$property_iat)
 
       action_type_ids <- dbGetQuery(db_con, "SELECT id FROM action_item_type")
 
       action_structure <- expand.grid(
         action_item_type_id = action_type_ids$id,
-        property_id = input$property_setup
+        property_id = input$property_iat
       )
 
       append_db_data(
@@ -695,29 +684,37 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       shinyalert(
         title = "Success",
         text = glue::glue(
-          "Template created with {nrow(action_structure)} action items"
+          "Template for {property_name()} has been created with {nrow(action_structure)} action items"
         ),
         type = "success",
-        timer = 5000
+        closeOnClickOutside = TRUE,
+        timer = 10000
       )
     })
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
+      selected_record(NULL)
+      original_securement_notes(NULL)
+
       updateSelectizeInput(
         session,
         inputId = "property",
-        choices = property_choices(),
-        selected = character(0),
-        server = TRUE
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = character(0)
       )
 
       updateSelectizeInput(
         session,
         inputId = "securement_prob",
-        choices = c("", securement_choices()),
-        selected = character(0),
-        server = TRUE
+        choices = setNames(
+          securement_probability()$id,
+          securement_probability()$probability_value
+        ),
+        selected = character(0)
       )
 
       updateTextInput(
@@ -730,13 +727,13 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       updateDateInput(
         session,
         inputId = "closing_date",
-        value = NA
+        value = as.Date(NA)
       )
 
       updateDateInput(
         session,
         inputId = "conditions_date",
-        value = NA
+        value = as.Date(NA)
       )
 
       updateTextAreaInput(
@@ -748,31 +745,29 @@ module_assign_priorities_server <- function(id, db_con, db_updated) {
       updateSelectizeInput(
         session,
         inputId = "ecological_priority",
-        choices = c("", ranking_choices()),
-        selected = character(0),
-        server = TRUE
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = character(0)
       )
 
       updateSelectizeInput(
         session,
         inputId = "securement_priority",
-        choices = c("", ranking_choices()),
-        selected = character(0),
-        server = TRUE
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = character(0)
       )
 
       updateSelectizeInput(
         session,
         inputId = "pid",
         choices = "",
-        selected = character(0),
-        server = TRUE
+        selected = character(0)
       )
-    })
-
-    ## Clear selected record and input UI elements when table changes
-    observeEvent(input$clear_inputs, {
-      selected_record(NULL)
     })
   })
 }

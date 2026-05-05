@@ -68,7 +68,7 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_assign_priorities_server(
+  module_assign_securement_values_server(
     "assign_priorities",
     db_con,
     db_updated
@@ -86,14 +86,14 @@ server <- function(input, output, session) {
     db_updated,
     prop_filter = NULL,
     focal_pid_rv,
-    panel_id = "panel_01"
+    panel_id = "outreach_panel"
   )
   module_action_item_tracking_server("action_items", db_con, db_updated)
   module_data_viewer_server(
     "securement_records_view",
     db_con,
     db_updated,
-    panel_id = "panel_03"
+    panel_id = "action_item_panel"
   )
   module_property_contact_communication_server(
     "property_contact_communication",
@@ -113,14 +113,6 @@ server <- function(input, output, session) {
     focal_pid_rv
   )
   module_review_projects_server("project_review", db_con, db_updated)
-
-  # module_property_map_server(
-  #   "property_map",
-  #   db_con = db_con,
-  #   gis_con = gis_con,
-  #   db_updated,
-  #   prop_spp_rv
-  # )
 
   module_property_mapbox_server(
     "property_mapbox",
@@ -173,4 +165,9 @@ server <- function(input, output, session) {
   )
 
   module_securement_review_server("securement_review", db_con, db_updated)
+  module_edit_llt_projects_server(
+    "edit_llt_projects",
+    db_con = db_con,
+    db_updated = db_updated
+  )
 }

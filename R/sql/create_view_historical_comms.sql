@@ -4,6 +4,7 @@ CREATE VIEW view_historical_communications AS
 SELECT
    pa.pid AS "PID",
    pr.property_name AS "Property Name",
+   pa.historical_securement_action AS "Securement Action History",
    pa.historical_landowner_notes AS "Landowner History",
    pa.historical_securement_notes AS "Securement History" 
 FROM

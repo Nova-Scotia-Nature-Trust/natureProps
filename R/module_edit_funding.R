@@ -13,7 +13,7 @@ module_edit_funding_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("property_name"),
-            label = "Property Name",
+            label = "Select Property",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -22,16 +22,11 @@ module_edit_funding_ui <- function(id) {
               placeholder = "Search or select property"
             )
           ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Property",
-            class = "btn-success"
-          ),
           hr(),
           actionButton(
             inputId = ns("submit_edit"),
             label = "Submit Changes",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_edit"),
@@ -117,10 +112,13 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
     ))
 
     ## Event :: Load record ----
-    observeEvent(input$load_record, {
-      req(input$property_name)
-
+    observeEvent(input$property_name, {
       property_id <- input$property_name
+
+      if (!isTruthy(property_id)) {
+        selected_record(NULL)
+        return()
+      }
 
       # Get property details
       property_query <- glue_sql(
@@ -155,6 +153,11 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
     ## Create UI for database fields ----
     output$edit_fields_ui <- renderUI({
       record <- selected_record()
+
+      # Return empty if no record selected
+      if (is.null(record) || is.na(record$id)) {
+        return(NULL)
+      }
 
       property_name_text <- if (isTruthy(record$property_name)) {
         paste0("Editing: ", record$property_name)
@@ -265,6 +268,8 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
           )
         )
       }
+
+      update_property_timestamp(con = db_con, property_id = property_id)
 
       # Signal update
       if (!is.null(db_updated)) {

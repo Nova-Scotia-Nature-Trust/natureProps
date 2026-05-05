@@ -1,4 +1,5 @@
 # UI ----
+# NAV PANEL :: PROJECT OVERVIEW
 module_review_projects_ui <- function(id) {
   ns <- NS(id)
   div(
@@ -11,9 +12,20 @@ module_review_projects_ui <- function(id) {
         sidebar = sidebar(
           "",
           open = TRUE,
+          radioButtons(
+            ns("date_filter"),
+            "Properties added in:",
+            choices = c(
+              "Last week" = "7",
+              "Last 2 weeks" = "14",
+              "Last month" = "30",
+              "All" = "all"
+            ),
+            selected = "all"
+          ),
           selectizeInput(
             ns("property"),
-            "Select property",
+            "Select Property",
             choices = NULL,
             multiple = FALSE,
             width = "80%"
@@ -75,14 +87,24 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Record ID choices ----
     property_choices <- reactive({
-      #' This if statement triggers a refresh of this reactive if db_updated()
-      #' is incremented somewhere else (for example when a new property is
-      #' added to the database)
       if (!is.null(db_updated)) {
         db_updated()
       }
 
-      dbGetQuery(db_con, glue("SELECT property_name FROM properties;")) |>
+      all_properties <- dbGetQuery(
+        db_con,
+        "SELECT property_name, date_added FROM properties;"
+      )
+
+      date_filter <- input$date_filter
+
+      if (!is.null(date_filter) && date_filter != "all") {
+        cutoff <- Sys.Date() - as.integer(date_filter)
+        all_properties <- all_properties |>
+          filter(date_added >= cutoff)
+      }
+
+      all_properties |>
         pull(property_name) |>
         sort()
     })
@@ -111,6 +133,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         SELECT p.property_description, 
                p.phase_id_description, 
                p.securement_action_description,
+               p.date_securement_description,
+               p.date_added,
                tl.team_value as team_lead, 
                ph.phase_value as phase, 
                p.stewardship_concerns
@@ -128,6 +152,20 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         record_01 <- record_01 |>
           add_row()
       }
+
+      # Add date to securement action description if available
+      record_01 <- record_01 |>
+        mutate(
+          securement_action_description = case_when(
+            !is.na(date_securement_description) ~
+              paste0(
+                format(as.Date(date_securement_description), "%B %d, %Y"),
+                " - ",
+                securement_action_description
+              ),
+            TRUE ~ securement_action_description
+          )
+        )
 
       query_02 <- glue_sql(
         "   
@@ -230,7 +268,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       tagList(
         # First row: 3 columns for first 3 fields
         layout_columns(
-          col_widths = c(3, 3, 3, 3),
+          col_widths = c(3, 2, 2, 2, 3),
           div(
             strong("Project Name:"),
             br(),
@@ -250,6 +288,11 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             strong("Team Lead:"),
             br(),
             df$team_lead
+          ),
+          div(
+            strong("Date Added:"),
+            br(),
+            format(as.Date(df$date_added), "%B %d, %Y")
           )
         ),
 
@@ -372,6 +415,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
     ## Clear selected record and input UI elements when table changes
     observeEvent(input$clear_inputs, {
+      selected_record(NULL)
+    })
+
+    ## Clear property selection when date filter changes ----
+    observeEvent(input$date_filter, {
+      updateSelectizeInput(
+        session,
+        "property",
+        choices = c("", property_choices()),
+        selected = character(0),
+        server = TRUE
+      )
       selected_record(NULL)
     })
   })

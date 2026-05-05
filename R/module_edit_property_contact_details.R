@@ -13,7 +13,7 @@ module_edit_property_contacts_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("contact_id"),
-            label = "Contact Name",
+            label = "Select Contact Name",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -22,16 +22,11 @@ module_edit_property_contacts_ui <- function(id) {
               placeholder = "Search or select contact"
             )
           ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Contact",
-            class = "btn-success"
-          ),
           hr(),
           actionButton(
             inputId = ns("submit_edit"),
             label = "Submit Changes",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_edit"),
@@ -72,6 +67,7 @@ module_edit_property_contacts_server <- function(
 
     ## Reactive :: Contact choices ----
     contact_choices <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, name_first, name_last 
@@ -106,10 +102,13 @@ module_edit_property_contacts_server <- function(
     selected_record <- reactiveVal(NULL)
 
     ## Event :: Load record ----
-    observeEvent(input$load_record, {
-      req(input$contact_id)
-
+    observeEvent(input$contact_id, {
       contact_id <- input$contact_id
+
+      if (!isTruthy(contact_id)) {
+        selected_record(NULL)
+        return()
+      }
 
       query <- glue_sql(
         "SELECT 

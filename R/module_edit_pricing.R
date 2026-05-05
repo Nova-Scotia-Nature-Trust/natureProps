@@ -13,7 +13,7 @@ module_edit_pricing_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("property_name"),
-            label = "Property Name",
+            label = "Select Property",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -22,16 +22,11 @@ module_edit_pricing_ui <- function(id) {
               placeholder = "Search or select property"
             )
           ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Property",
-            class = "btn-success"
-          ),
           hr(),
           actionButton(
             inputId = ns("submit_edit"),
             label = "Submit Changes",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_edit"),
@@ -68,6 +63,7 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
         "SELECT id, property_name FROM properties ORDER BY property_name;"
@@ -91,10 +87,13 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
     selected_record <- reactiveVal(NULL)
 
     ## Event :: Load record ----
-    observeEvent(input$load_record, {
-      req(input$property_name)
-
+    observeEvent(input$property_name, {
       property_id <- input$property_name
+
+      if (!isTruthy(property_id)) {
+        selected_record(NULL)
+        return()
+      }
 
       query <- glue_sql(
         "SELECT 
@@ -255,6 +254,8 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         records = update_tibble,
         where_cols = "id"
       )
+
+      update_property_timestamp(con = db_con, property_id = db_id)
 
       # Signal update
       if (!is.null(db_updated)) {

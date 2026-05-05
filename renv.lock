@@ -1785,9 +1785,14 @@
     },
     "shinycssloaders": {
       "Package": "shinycssloaders",
-      "Version": "1.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
+      "Version": "1.1.0.9006",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "daattali",
+      "RemoteRepo": "shinycssloaders",
+      "RemoteRef": "master",
+      "RemoteSha": "d5f79afb1a2ea9fe6d16239a80de15a3b454d154",
       "Requirements": [
         "R",
         "digest",
@@ -1796,7 +1801,7 @@
         "htmltools",
         "shiny"
       ],
-      "Hash": "2b45a467a30d6a88a1892a738c0900cf"
+      "Hash": "2c36582e1bb949e93af649c102d7732c"
     },
     "shinyjs": {
       "Package": "shinyjs",

@@ -13,7 +13,7 @@ module_edit_securement_parcels_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("property_name"),
-            label = "Property Name",
+            label = "Select Property",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -24,7 +24,7 @@ module_edit_securement_parcels_ui <- function(id) {
           ),
           selectizeInput(
             inputId = ns("pid"),
-            label = "PID",
+            label = "Select PID",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -33,16 +33,11 @@ module_edit_securement_parcels_ui <- function(id) {
               placeholder = "First select a property"
             )
           ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Parcel",
-            class = "btn-success"
-          ),
           hr(),
           actionButton(
             inputId = ns("submit_edit"),
             label = "Submit Changes",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_edit"),
@@ -83,6 +78,7 @@ module_edit_securement_parcels_server <- function(
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
+      db_updated()
       dbGetQuery(
         db_con,
         "SELECT property_name FROM properties ORDER BY property_name;"
@@ -93,6 +89,7 @@ module_edit_securement_parcels_server <- function(
 
     ## Reactive :: PIDs for selected property ----
     pids_reactive <- reactive({
+      db_updated()
       req(input$property_name)
 
       query <- glue_sql(
@@ -184,18 +181,19 @@ module_edit_securement_parcels_server <- function(
     selected_record <- reactiveVal(NULL)
 
     ## Event :: Load record ----
-    observeEvent(input$load_record, {
-      req(input$pid)
-
+    observeEvent(input$pid, {
       pid <- input$pid
+
+      if (!isTruthy(pid)) {
+        selected_record(NULL)
+        return()
+      }
 
       query <- glue_sql(
         "SELECT 
           pid,
           property_id,
           acquisition_type_id,
-          date_added,
-          date_updated,
           priority_securement_ranking_id,
           priority_ecological_ranking_id,
           size_confirmed_ha,
@@ -342,27 +340,6 @@ module_edit_securement_parcels_server <- function(
             rows = 3,
             placeholder = "Enter notes about size confirmation"
           )
-        ),
-        layout_columns(
-          col_widths = c(6, 6),
-          dateInput(
-            inputId = ns("edit_date_added"),
-            label = "Date Added",
-            value = if (!is.null(record) && !is.na(record$date_added)) {
-              record$date_added
-            } else {
-              as.Date(NA)
-            }
-          ),
-          dateInput(
-            inputId = ns("edit_date_updated"),
-            label = "Date Updated",
-            value = if (!is.null(record) && !is.na(record$date_updated)) {
-              record$date_updated
-            } else {
-              as.Date(NA)
-            }
-          )
         )
       )
     })
@@ -396,16 +373,6 @@ module_edit_securement_parcels_server <- function(
           as.integer(input$edit_acquisition_type_id)
         } else {
           NA_integer_
-        },
-        date_added = if (isTruthy(input$edit_date_added)) {
-          as.character(input$edit_date_added)
-        } else {
-          NA_character_
-        },
-        date_updated = if (isTruthy(input$edit_date_updated)) {
-          as.character(input$edit_date_updated)
-        } else {
-          NA_character_
         },
         priority_securement_ranking_id = if (
           isTruthy(input$edit_priority_securement_ranking_id)

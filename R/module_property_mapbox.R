@@ -17,7 +17,7 @@ module_property_mapbox_ui <- function(id) {
             label = "Property",
             choices = NULL,
             multiple = FALSE,
-            options = list(placeholder = "Select property")
+            options = list(placeholder = "Select Property")
           ),
           actionButton(
             ns("load_property"),
@@ -80,12 +80,12 @@ module_property_mapbox_ui <- function(id) {
     ),
     card(
       full_screen = TRUE,
-      card_header("Property Map (Mapbox GL)"),
       card_body(
         withSpinner(
           mapboxglOutput(ns("map"), height = "600px"),
           type = 4,
-          color = "#0d51c5ff"
+          color = "#0d51c5ff",
+          fill = TRUE
         )
       )
     )
@@ -257,7 +257,14 @@ module_property_mapbox_server <- function(
 
     # ---- Render Map with All Layers ----
     output$map <- renderMapboxgl({
-      priority_pal <- RColorBrewer::brewer.pal(5, "RdYlBu")
+      # pal_priority <- RColorBrewer::brewer.pal(5, "RdYlBu")
+      pal_priority <- c("#D7191C", "#FDAE61", "#FFFF8A", "#9D8BD0", "#674AB5")
+      pal_nsnt <- "#3d9c68"
+      pal_crown <- "#FFA500"
+      pal_papa_pending <- "#D3D3D3"
+      pal_papa <- "#1f4e1c"
+      pal_hover <- "#043E8E"
+      pal_missing_priority <- "#6d6969"
 
       mapboxgl(
         mapbox_style("satellite-streets"),
@@ -288,7 +295,7 @@ module_property_mapbox_server <- function(
           id = "crown_land_layer",
           source = "crown_land",
           source_layer = "public.crown_land",
-          fill_color = "orange",
+          fill_color = pal_crown,
           fill_opacity = 0.5,
           visibility = "none"
         ) |>
@@ -301,8 +308,8 @@ module_property_mapbox_server <- function(
           id = "papa_pending_layer",
           source = "papa_pending",
           source_layer = "public.papa_pending",
-          fill_color = "lightgrey",
-          fill_opacity = 0.8,
+          fill_color = pal_papa_pending,
+          fill_opacity = 1,
           tooltip = "int_name"
         ) |>
         # Protected Areas
@@ -314,11 +321,10 @@ module_property_mapbox_server <- function(
           id = "papa_layer",
           source = "papa",
           source_layer = "public.papa",
-          fill_color = "#048e0f",
-          fill_opacity = 0.9,
+          fill_color = pal_papa,
+          fill_opacity = 1,
           tooltip = "prot_name"
         ) |>
-
         # Ecological Priority
         add_fill_layer(
           id = "ecological_priority",
@@ -326,13 +332,13 @@ module_property_mapbox_server <- function(
           fill_color = match_expr(
             column = "ecological_priority",
             values = c("Very High", "High", "Medium", "Low", "Very Low"),
-            stops = priority_pal,
-            default = "white"
+            stops = pal_priority,
+            default = pal_missing_priority
           ),
           fill_opacity = 0.85,
           popup = "parcel_popup",
           tooltip = "parcel_tooltip",
-          hover_options = list(fill_color = "#b15ef0", fill_opacity = 0.75)
+          hover_options = list(fill_color = pal_hover, fill_opacity = 0.75)
         ) |>
         # Securement Priority
         add_line_layer(
@@ -341,9 +347,10 @@ module_property_mapbox_server <- function(
           line_color = match_expr(
             column = "securement_priority",
             values = c("Very High", "High", "Medium", "Low", "Very Low"),
-            stops = priority_pal,
-            default = "white"
+            stops = pal_priority,
+            default = pal_missing_priority
           ),
+          visibility = "none",
           line_width = 3
         ) |>
         # NSNT Conservation Lands
@@ -355,8 +362,8 @@ module_property_mapbox_server <- function(
           id = "nsnt_conservation_lands_layer",
           source = "nsnt_conservation_lands",
           source_layer = "public.nsnt_conservation_lands",
-          fill_color = "blue",
-          fill_opacity = 0.9,
+          fill_color = pal_nsnt,
+          fill_opacity = 1,
           tooltip = "property_name_public"
         ) |>
         # Layers control
@@ -373,12 +380,14 @@ module_property_mapbox_server <- function(
           position = "top-right",
           collapsible = TRUE
         ) |>
-        add_navigation_control(position = "bottom-right") |>
+        # add_navigation_control(position = "bottom-right") |>
         add_reset_control(position = "top-left", animate = TRUE) |>
         add_categorical_legend(
+          unique_id = "pri_legend",
+          # draggable = TRUE, # Available in dev package
           legend_title = "Ecological Priority",
           values = c("Very High", "High", "Medium", "Low", "Very Low"),
-          colors = priority_pal,
+          colors = pal_priority,
           patch_shape = "square",
           position = "bottom-left",
           width = "170px",
@@ -393,17 +402,48 @@ module_property_mapbox_server <- function(
             element_border_width = 1
           )
         ) |>
+        add_categorical_legend(
+          unique_id = "gen_legend",
+          add = TRUE,
+          # margin_bottom = "1px",
+          # draggable = TRUE, # Available in dev package
+          legend_title = NULL,
+          values = c(
+            "Crown Land",
+            "NT Conservation Lands",
+            "Protected Areas",
+            "Pending Protected Areas"
+          ),
+          colors = c(
+            pal_crown,
+            pal_nsnt,
+            pal_papa,
+            pal_papa_pending
+          ),
+          patch_shape = "square",
+          position = "bottom-right",
+          width = "210px",
+          interactive = FALSE,
+          style = list(
+            background_opacity = 0.95,
+            border_width = 1,
+            border_color = "gray",
+            title_color = "black",
+            element_border_color = "black",
+            element_border_width = 1
+          )
+        ) |>
         add_screenshot_control(
           position = "top-left",
-          filename = "map-screenshot",
+          filename = "nsnt-map-screenshot",
           include_legend = TRUE,
           hide_controls = TRUE,
           include_scale_bar = TRUE,
-          image_scale = 1,
-          button_title = "Capture screenshot"
+          image_scale = 3,
+          button_title = "Capture Screenshot"
         ) |>
         add_scale_control(
-          position = "bottom-right",
+          position = "top-left",
           unit = "metric",
           max_width = 250
         )

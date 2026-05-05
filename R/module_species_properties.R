@@ -16,10 +16,7 @@ module_species_properties_ui <- function(id) {
             "Select species",
             choices = NULL,
             multiple = FALSE,
-            width = "100%",
-            options = list(
-              placeholder = "Choose a species"
-            )
+            width = "100%"
           ),
           actionButton(
             inputId = ns("load_species_data"),

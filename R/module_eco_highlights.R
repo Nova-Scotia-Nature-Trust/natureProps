@@ -2,8 +2,8 @@
 module_eco_highlights_ui <- function(id) {
   ns <- NS(id)
 
+  ## Custom CSS for value boxes ----
   tagList(
-    # Attach custom styles
     tags$style(
       HTML(
         "
@@ -82,7 +82,7 @@ module_eco_highlights_ui <- function(id) {
       "
       )
     ),
-
+    ## Sidebar layout ----
     div(
       style = "height: 100%; display: flex; flex-direction: column;",
       card(
@@ -93,14 +93,11 @@ module_eco_highlights_ui <- function(id) {
             open = TRUE,
             width = 300,
             selectizeInput(
-              ns("property_choice"),
-              "Select property",
+              ns("property"),
+              "Select Property",
               choices = NULL,
               multiple = FALSE,
-              width = "100%",
-              options = list(
-                placeholder = "Choose a property"
-              )
+              width = "100%"
             ),
             actionButton(
               inputId = ns("load_highlights"),
@@ -114,6 +111,7 @@ module_eco_highlights_ui <- function(id) {
               width = "100%"
             )
           ),
+          ## Card :: Eco Highlights ----
           card(
             height = "100%",
             card_header(
@@ -138,62 +136,36 @@ module_eco_highlights_server <- function(
   db_updated = NULL
 ) {
   moduleServer(id, function(input, output, session) {
+    ## Reactive Values :: Eco Data & Prop Name ----
     eco_data <- reactiveVal(NULL)
     property_name <- reactiveVal(NULL)
 
-    ## Load property options ----
-    property_choices_reactive <- reactive({
-      if (!is.null(db_updated)) {
-        db_updated()
-      }
-
+    ## Reactive :: Property List ----
+    property_list <- reactive({
+      db_updated()
       dbGetQuery(
-        conn = db_con,
-        statement = "SELECT id, property_name 
-                     FROM properties 
-                     ORDER BY property_name;"
-      ) |>
-        select(property_name, id) |>
-        deframe()
+        db_con,
+        "SELECT DISTINCT id, property_name FROM properties 
+         ORDER BY property_name;"
+      )
     })
 
     observe({
       updateSelectizeInput(
         session,
-        "property_choice",
-        choices = property_choices_reactive(),
+        "property",
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
         selected = character(0),
         server = TRUE
       )
     })
 
-    ## Load highlights ----
-    observeEvent(input$load_highlights, {
-      req(input$property_choice)
-
-      prop_name <- names(property_choices_reactive())[
-        property_choices_reactive() == input$property_choice
-      ]
-      property_name(prop_name)
-
-      query <- glue_sql(
-        "SELECT 
-        SUM(coastline_length) AS total_coastline_length,
-        SUM(shoreline_length) AS total_shoreline_length,
-        SUM(karst_forest_area) AS total_karst_forest_area,
-        SUM(old_growth_forest_area) AS total_old_growth_area,
-        COUNT(DISTINCT waterbird_colony_id) AS waterbird_colony_count
-      FROM parcels
-      WHERE property_id = {input$property_choice};",
-        .con = db_con
-      )
-
-      eco_data(as_tibble(dbGetQuery(db_con, query)))
-    })
-
-    ## SAR data reactive ----
-    sar_data <- reactive({
-      req(input$property_choice)
+    ## Reactive :: SCC Point Data ----
+    scc_data <- reactive({
+      req(input$property)
 
       query <- glue_sql(
         'SELECT DISTINCT 
@@ -203,7 +175,7 @@ module_eco_highlights_server <- function(
         FROM parcel_sar ps
         JOIN parcels p ON ps.parcel_id = p.id
         JOIN sar s ON ps.species_id = s.id
-        WHERE p.property_id = {input$property_choice}
+        WHERE p.property_id = {input$property}
         ORDER BY s.s_rank;',
         .con = db_con
       )
@@ -211,12 +183,12 @@ module_eco_highlights_server <- function(
       dbGetQuery(db_con, query)
     })
 
-    ## SAR table ----
+    ## Output :: SCC Table ----
     output$sar_table <- DT::renderDataTable({
-      req(sar_data())
+      req(scc_data())
 
       DT::datatable(
-        sar_data(),
+        scc_data(),
         options = list(
           pageLength = -1, # Show all rows
           dom = 't', # Only show table (remove pagination)
@@ -231,14 +203,32 @@ module_eco_highlights_server <- function(
       )
     })
 
-    ## Clear selection ----
-    observeEvent(input$clear_selection, {
-      updateSelectizeInput(session, "property_choice", selected = "")
-      eco_data(NULL)
-      property_name(NULL)
+    ## Event :: Load Highlights ----
+    observeEvent(input$load_highlights, {
+      req(input$property)
+
+      name <- property_list() |>
+        filter(id == input$property) |>
+        pull(property_name)
+
+      property_name(name)
+
+      query <- glue_sql(
+        "SELECT 
+          SUM(coastline_length) AS total_coastline_length,
+          SUM(shoreline_length) AS total_shoreline_length,
+          SUM(karst_forest_area) AS total_karst_forest_area,
+          SUM(old_growth_forest_area) AS total_old_growth_area,
+          COUNT(DISTINCT waterbird_colony_id) AS waterbird_colony_count
+        FROM parcels
+        WHERE property_id = {input$property};",
+        .con = db_con
+      )
+
+      eco_data(as_tibble(dbGetQuery(db_con, query)))
     })
 
-    ## Page title ----
+    ## Output :: Card Title ----
     output$property_title <- renderText({
       if (is.null(property_name())) {
         "Ecological Highlights"
@@ -247,7 +237,7 @@ module_eco_highlights_server <- function(
       }
     })
 
-    # Feature card function ----
+    ## Ecological Feature Cards Function ----
     feature_card <- function(
       title,
       value,
@@ -280,7 +270,7 @@ module_eco_highlights_server <- function(
       )
     }
 
-    ## Feature cards + SAR table ----
+    ## Output :: Feature Cards & SCC Table ----
     output$eco_highlights_content <- renderUI({
       data <- eco_data()
 
@@ -340,7 +330,7 @@ module_eco_highlights_server <- function(
           )
         ),
 
-        # Right column: SAR species table
+        # Right column: SCC species table
         card(
           height = "100%",
           card_header("Species of Conservation Concern"),
@@ -354,6 +344,13 @@ module_eco_highlights_server <- function(
           )
         )
       )
+    })
+
+    ## Event :: Clear Selection ----
+    observeEvent(input$clear_selection, {
+      updateSelectizeInput(session, "property", selected = character(0))
+      eco_data(NULL)
+      property_name(NULL)
     })
   })
 }

@@ -13,7 +13,7 @@ module_edit_team_actions_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             inputId = ns("team_lead_filter"),
-            label = "Team Lead",
+            label = "Select Team Lead",
             choices = NULL,
             selected = NULL,
             options = list(
@@ -23,7 +23,7 @@ module_edit_team_actions_ui <- function(id) {
           ),
           selectizeInput(
             inputId = ns("record_id"),
-            label = "Action Item",
+            label = "Select Action Item",
             choices = NULL,
             selected = NULL,
             multiple = FALSE,
@@ -32,16 +32,11 @@ module_edit_team_actions_ui <- function(id) {
               placeholder = "Search or select action"
             )
           ),
-          actionButton(
-            inputId = ns("load_record"),
-            label = "Load Action",
-            class = "btn-success"
-          ),
           hr(),
           actionButton(
             inputId = ns("submit_edit"),
             label = "Submit Changes",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_edit"),
@@ -156,11 +151,13 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
     })
 
     ## Event :: Load record ----
-    observeEvent(input$load_record, {
-      req(input$team_lead_filter)
-      req(input$record_id)
-
+    observeEvent(input$record_id, {
       action_id <- input$record_id
+
+      if (!isTruthy(action_id)) {
+        selected_record(NULL)
+        return()
+      }
 
       query <- glue_sql(
         "SELECT 

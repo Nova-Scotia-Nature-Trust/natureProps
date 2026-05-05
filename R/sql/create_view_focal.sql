@@ -1,23 +1,24 @@
-DROP VIEW IF EXISTS view_pid;
+DROP VIEW IF EXISTS view_focal_area_query;
 
-CREATE VIEW view_pid AS 
+CREATE VIEW view_focal_area_query AS 
 SELECT
+   fo.internal_value AS "Focus Area (Internal)",
    pa.pid AS "PID",
    pr.property_name AS "Property Name",
-   pr.date_added AS "Date Added",
-   pr.date_updated AS "Date Updated",   
-   info.area_ha AS "Size (ha)",
-   ROUND(info.area_ha * 2.47105, 2) AS "Size (acres)",
    ac.acquisition_value AS "Acquisition Type",
    ph.phase_value AS "Phase",
    rk_sec.ranking_value AS "Securement Priority",
-   rk_eco.ranking_value AS "Ecological Priority",
-   rk_own.ranking_value AS "Landowner Interest"
+   rk_eco.ranking_value AS "Ecological Priority" 
 FROM
-     properties pr 
+   focus_area_internal fo 
+   INNER JOIN
+      properties pr 
+      ON pr.focus_area_internal_id = fo.id 
    INNER JOIN
       parcels pa 
       ON pa.property_id = pr.id 
+      AND pa.priority_securement_ranking_id <= 3 
+      AND pa.priority_ecological_ranking_id <= 3 
    LEFT JOIN
       ranking rk_sec 
       ON pa.priority_securement_ranking_id = rk_sec.id 
@@ -25,16 +26,12 @@ FROM
       ranking rk_eco 
       ON pa.priority_ecological_ranking_id = rk_eco.id 
    LEFT JOIN
-      ranking rk_own 
-      ON pa.landowner_interest_ranking_id = rk_own.id
-   LEFT JOIN
       phase ph 
       ON pr.phase_id = ph.id 
    LEFT JOIN
       acquisition_type ac 
       ON pa.acquisition_type_id = ac.id 
-   LEFT JOIN parcel_info info 
-      ON pa.id = info.parcel_id
 ORDER BY
+   fo.internal_value,
    pr.property_name,
    pa.pid;

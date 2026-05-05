@@ -1,28 +1,27 @@
 DROP VIEW IF EXISTS view_communication_history;
-
-CREATE VIEW view_communication_history AS 
-WITH property_info AS 
+CREATE VIEW view_communication_history AS WITH property_info AS 
 (
    SELECT
-      pa.property_contact_id,
+      ppc.property_contact_id,
       STRING_AGG(pa.pid::text, ', ' 
    ORDER BY
       pa.pid) AS pids,
-      STRING_AGG(DISTINCT pr.property_name, ', ' 
+      STRING_AGG( DISTINCT prop.property_name, ', ' 
    ORDER BY
-      pr.property_name) AS property_names 
+      prop.property_name ) AS property_names 
    FROM
-      parcels pa 
+      parcel_property_contact ppc 
+      JOIN
+         parcels pa 
+         ON ppc.parcel_id = pa.id 
       LEFT JOIN
-         properties pr 
-         ON pa.property_id = pr.id 
-   WHERE
-      pa.property_contact_id IS NOT NULL 
+         properties prop 
+         ON pa.property_id = prop.id 
    GROUP BY
-      pa.property_contact_id 
+      ppc.property_contact_id 
 )
 SELECT
-   com.property_contact_id AS "Property Conact ID",
+   com.property_contact_id AS "Property Contact ID",
    property_info.property_names AS "Property Name(s)",
    con.name_first AS "First Name",
    con.name_last AS "Last Name",
