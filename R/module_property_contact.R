@@ -195,6 +195,14 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     iv_create$add_rule("name_first", sv_required())
     iv_create$add_rule("name_last", sv_required())
     iv_create$add_rule("pid", sv_required())
+    iv_create$add_rule(
+      "phone_home",
+      ~ if (isTruthy(.)) validate_phone_number(.)
+    )
+    iv_create$add_rule(
+      "phone_cell",
+      ~ if (isTruthy(.)) validate_phone_number(.)
+    )
     iv_create$enable()
 
     ## Input Validation :: Update Existing Contact ----
