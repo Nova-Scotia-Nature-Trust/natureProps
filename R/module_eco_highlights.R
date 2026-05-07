@@ -100,12 +100,6 @@ module_eco_highlights_ui <- function(id) {
               width = "100%"
             ),
             actionButton(
-              inputId = ns("load_highlights"),
-              label = "Load Ecological Highlights",
-              width = "100%",
-              class = "btn-primary"
-            ),
-            actionButton(
               inputId = ns("clear_selection"),
               label = "Clear Selection",
               width = "100%"
@@ -203,8 +197,8 @@ module_eco_highlights_server <- function(
       )
     })
 
-    ## Event :: Load Highlights ----
-    observeEvent(input$load_highlights, {
+    ## Event :: Load Highlights on Property Selection ----
+    observe({
       req(input$property)
 
       name <- property_list() |>
@@ -279,7 +273,7 @@ module_eco_highlights_server <- function(
           div(
             style = "display:flex;height:100%;align-items:center;justify-content:center;",
             p(
-              "Select a property and click 'Load Ecological Highlights' to view features.",
+              "Select a property to view ecological highlights.",
               style = "color:#6c757d;font-size:1.1em;"
             )
           )
