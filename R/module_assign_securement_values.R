@@ -168,6 +168,7 @@ module_assign_securement_values_ui <- function(id) {
                     choices = NULL,
                     multiple = FALSE
                   ),
+                  tableOutput(ns("parcels_table")),
                   layout_columns(
                     col_widths = c(6, 6),
                     selectizeInput(
@@ -183,7 +184,23 @@ module_assign_securement_values_ui <- function(id) {
                       multiple = FALSE
                     )
                   ),
-                  tableOutput(ns("parcels_table")),
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    textAreaInput(
+                      ns("ecological_reason"),
+                      label = "Ecological Ranking Reasoning",
+                      "",
+                      height = "150px",
+                      width = "100%"
+                    ),
+                    textAreaInput(
+                      ns("securement_reason"),
+                      label = "Securement Ranking Reasoning",
+                      "",
+                      height = "150px",
+                      width = "100%"
+                    )
+                  ),
                   actionButton(
                     inputId = ns("submit_edit_parcels"),
                     label = "Submit Changes",
@@ -382,7 +399,9 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
           p.aps_conditions_date,
           p.securement_action_description,
           pa.priority_ecological_ranking_id,
-          pa.priority_securement_ranking_id
+          pa.priority_securement_ranking_id,
+          pa.priority_securement_ranking_reason,
+          pa.priority_ecological_ranking_reason
         FROM properties p
         LEFT JOIN parcels pa ON p.id = pa.property_id
         WHERE p.id = {selected_property}",
@@ -493,6 +512,18 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
           session,
           inputId = "securement_priority",
           selected = selected_parcel$priority_securement_ranking_id
+        )
+
+        updateTextInput(
+          session,
+          inputId = "ecological_reason",
+          value = selected_parcel$priority_ecological_ranking_reason
+        )
+
+        updateTextInput(
+          session,
+          inputId = "securement_reason",
+          value = selected_parcel$priority_securement_ranking_reason
         )
       }
     })
@@ -627,6 +658,8 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         pid = input$pid,
         priority_ecological_ranking_id = input$ecological_priority,
         priority_securement_ranking_id = input$securement_priority,
+        priority_securement_ranking_reason = input$securement_reason,
+        priority_ecological_ranking_reason = input$ecological_reason
       )
 
       dbx::dbxUpdate(
@@ -772,6 +805,18 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         inputId = "pid",
         choices = "",
         selected = character(0)
+      )
+
+      updateTextAreaInput(
+        session,
+        inputId = "ecological_reason",
+        value = ""
+      )
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_reason",
+        value = ""
       )
     })
   })
