@@ -8,3 +8,6 @@
 - Use double quotes where necessary for variable names and strings
 - Use bslib functions and UI elements when developing Shiny modules and code
 - Code indentations should be 2 spaces
+- Provide terse, concise and clear explanations when asked to explain code
+- Do not over-engineer solutions; keep them simple and efficient
+- Do not suggest additional steps unless asked to do so
