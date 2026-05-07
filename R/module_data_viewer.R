@@ -23,7 +23,8 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Appraisals" = "appraisals",
       "Property Sizes" = "property_sizes",
       "Insurance View" = "insurance",
-      "LLT Projects" = "llt_projects"
+      "LLT Projects" = "llt_projects",
+      "Securement Communication" = "securement_communication"
     )
   } else if (panel_id == "action_item_panel") {
     list(
@@ -250,6 +251,13 @@ module_data_viewer_server <- function(
         data <- dbGetQuery(db_con, "SELECT * FROM view_llt_projects;")
         attr(data, "order_column") <- 3
         attr(data, "order_direction") <- "asc"
+      } else if (selected_view == "securement_communication") {
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_securement_communication_history;"
+        )
+        attr(data, "order_column") <- 5
+        attr(data, "order_direction") <- "desc"
       }
       return(data)
     })

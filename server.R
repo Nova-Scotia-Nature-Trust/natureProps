@@ -165,9 +165,16 @@ server <- function(input, output, session) {
   )
 
   module_securement_review_server("securement_review", db_con, db_updated)
+
   module_edit_llt_projects_server(
     "edit_llt_projects",
-    db_con = db_con,
-    db_updated = db_updated
+    db_con,
+    db_updated
+  )
+
+  module_property_contact_securement_communication_server(
+    "securement_comms",
+    db_con,
+    db_updated
   )
 }

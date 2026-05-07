@@ -30,10 +30,6 @@ db_con <- create_db_pool("nsnt-properties")
 prd_con <- create_db_pool("nsprd")
 gis_con <- create_db_pool("nsnt_gis")
 
-# Old
-# db_con <- create_db_pool("dummydb-dev")
-# gis_con <- create_db_pool("gis")
-
 # Register cleanup when app stops
 onStop(function() {
   poolClose(db_con)

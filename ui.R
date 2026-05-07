@@ -122,6 +122,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Queries",
         module_securement_queries_ui("securement_query")
+      ),
+      nav_panel(
+        title = "Add Securement Communication",
+        module_property_contact_securement_communication_ui("securement_comms")
       )
     )
   ),
