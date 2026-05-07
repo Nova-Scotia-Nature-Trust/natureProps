@@ -24,7 +24,8 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Property Sizes" = "property_sizes",
       "Insurance View" = "insurance",
       "LLT Projects" = "llt_projects",
-      "Securement Communication" = "securement_communication"
+      "Securement Communication" = "securement_communication",
+      "Property Contact Details" = "property_contact_details_view"
     )
   } else if (panel_id == "action_item_panel") {
     list(
@@ -118,16 +119,19 @@ module_data_viewer_server <- function(
         attr(data, "order_column") <- 2
         attr(data, "order_direction") <- "asc"
 
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(str_detect(
-              `Property Contact PIDs`,
-              str_c(focal_pid_rv(), collapse = "|")
-            ))
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
+        if (panel_id == "outreach_panel") {
+          if (apply_filter && !is.null(focal_pid_rv())) {
+            data <- data |>
+              filter(str_detect(
+                `Property Contact PIDs`,
+                str_c(focal_pid_rv(), collapse = "|")
+              ))
+          } else if (apply_filter) {
+            data <- data |>
+              filter(FALSE)
+          }
         }
+
         ## Communication Data ----
       } else if (selected_view == "communication_data_view") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
