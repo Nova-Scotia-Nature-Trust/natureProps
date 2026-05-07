@@ -147,6 +147,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           "
         SELECT p.property_description, 
                p.phase_id_description, 
+               p.phase_id_followup,
                p.securement_action_description,
                p.date_securement_description,
                p.date_added,
@@ -285,16 +286,11 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       tagList(
         # First row: 3 columns for first 3 fields
         layout_columns(
-          col_widths = c(3, 2, 2, 2, 3),
+          col_widths = c(2, 2, 2, 2, 2, 2),
           div(
             strong("Project Name:"),
             br(),
             input$property
-          ),
-          div(
-            strong("Project Phase:"),
-            br(),
-            df$phase
           ),
           div(
             strong("PIDs:"),
@@ -302,14 +298,24 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             df$pids
           ),
           div(
+            strong("Date Added:"),
+            br(),
+            format(as.Date(df$date_added), "%B %d, %Y")
+          ),
+          div(
             strong("Team Lead:"),
             br(),
             df$team_lead
           ),
           div(
-            strong("Date Added:"),
+            strong("Project Phase:"),
             br(),
-            format(as.Date(df$date_added), "%B %d, %Y")
+            df$phase
+          ),
+          div(
+            strong("Phase Followup:"),
+            br(),
+            format(as.Date(df$phase_id_followup), "%B %d, %Y")
           )
         ),
 
