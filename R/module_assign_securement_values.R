@@ -29,12 +29,6 @@ module_assign_securement_values_ui <- function(id) {
                 multiple = FALSE,
                 width = "100%"
               ),
-              actionButton(
-                inputId = ns("load_record"),
-                label = "Load Record",
-                class = "btn-primary",
-                width = "100%"
-              ),
               br(),
               actionButton(
                 inputId = ns("clear_inputs"),
@@ -141,7 +135,7 @@ module_assign_securement_values_ui <- function(id) {
                   actionButton(
                     inputId = ns("submit_edit_properties"),
                     label = "Submit Changes",
-                    class = "btn-primary"
+                    class = "btn-success"
                   ),
                   div(style = "flex-grow: 1;")
                 )
@@ -193,7 +187,7 @@ module_assign_securement_values_ui <- function(id) {
                   actionButton(
                     inputId = ns("submit_edit_parcels"),
                     label = "Submit Changes",
-                    class = "btn-primary"
+                    class = "btn-success"
                   ),
                   div(style = "flex-grow: 1;")
                 )
@@ -429,7 +423,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     original_securement_notes <- reactiveVal(NULL)
 
     ## Event :: Load Property Record  ----
-    observeEvent(input$load_record, {
+    observeEvent(input$property, {
       req(input$property)
       record <- load_property_record(db_con, input$property) |>
         arrange(pid)
@@ -661,6 +655,17 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       )
     })
 
+    ## Reactive Value :: IAT Property Name ----
+    property_name_iat <- reactiveVal(NULL)
+
+    observe({
+      req(input$property_iat)
+      name <- property_list_iat() |>
+        filter(id == input$property_iat) |>
+        pull(property_name)
+      property_name_iat(name)
+    })
+
     ## Event :: Setup template action ----
     observeEvent(input$setup_template, {
       req(input$property_iat)
@@ -684,7 +689,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       shinyalert(
         title = "Success",
         text = glue::glue(
-          "Template for {property_name()} has been created with {nrow(action_structure)} action items"
+          "Template for {property_name_iat()} has been created with {nrow(action_structure)} action items"
         ),
         type = "success",
         closeOnClickOutside = TRUE,

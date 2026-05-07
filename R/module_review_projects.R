@@ -31,15 +31,16 @@ module_review_projects_ui <- function(id) {
             width = "80%"
           ),
           actionButton(
-            inputId = ns("load_record"),
-            label = "Load Record",
-            class = "btn-primary"
-          ),
-          actionButton(
             inputId = ns("clear_inputs"),
             label = "Clear Inputs",
             class = "btn-secondary"
           ),
+          actionButton(
+            inputId = ns("refresh_data"),
+            label = "Refresh Data",
+            icon = icon("arrows-rotate"),
+            class = "btn-primary"
+          )
         ),
         div(
           style = "height: 100%; display: flex; flex-direction: column;",
@@ -120,16 +121,30 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Event :: Manual refresh ----
+    observeEvent(input$refresh_data, {
+      db_updated(db_updated() + 1L)
+    })
+
     ## Reactive value :: Selected record ----
     selected_record <- reactiveVal(NULL)
 
-    ## Event :: Load record ----
-    observeEvent(input$load_record, {
-      req(input$property)
-      prop_name <- input$property
+    ## Event :: Load record on property selection ----
+    observeEvent(
+      input$property,
+      {
+        # If property is empty or NULL, clear the record and bail
+        if (is.null(input$property) || input$property == "") {
+          selected_record(NULL)
+          return()
+        }
 
-      query_01 <- glue_sql(
-        "
+        db_updated()
+
+        prop_name <- input$property
+
+        query_01 <- glue_sql(
+          "
         SELECT p.property_description, 
                p.phase_id_description, 
                p.securement_action_description,
@@ -143,32 +158,32 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         LEFT JOIN phase ph ON p.phase_id = ph.id
         WHERE p.property_name = {prop_name};
         ",
-        .con = db_con
-      )
-      record_01 <- dbGetQuery(db_con, query_01)
-
-      # Check if record_01 is empty and fill with NAs if needed
-      if (nrow(record_01) == 0) {
-        record_01 <- record_01 |>
-          add_row()
-      }
-
-      # Add date to securement action description if available
-      record_01 <- record_01 |>
-        mutate(
-          securement_action_description = case_when(
-            !is.na(date_securement_description) ~
-              paste0(
-                format(as.Date(date_securement_description), "%B %d, %Y"),
-                " - ",
-                securement_action_description
-              ),
-            TRUE ~ securement_action_description
-          )
+          .con = db_con
         )
+        record_01 <- dbGetQuery(db_con, query_01)
 
-      query_02 <- glue_sql(
-        "   
+        # Check if record_01 is empty and fill with NAs if needed
+        if (nrow(record_01) == 0) {
+          record_01 <- record_01 |>
+            add_row()
+        }
+
+        # Add date to securement action description if available
+        record_01 <- record_01 |>
+          mutate(
+            securement_action_description = case_when(
+              !is.na(date_securement_description) ~
+                paste0(
+                  format(as.Date(date_securement_description), "%B %d, %Y"),
+                  " - ",
+                  securement_action_description
+                ),
+              TRUE ~ securement_action_description
+            )
+          )
+
+        query_02 <- glue_sql(
+          "   
         SELECT pa.pid,                
                con.property_contact_description, 
                con.name_last, 
@@ -179,50 +194,50 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         LEFT JOIN property_contact_details con ON ppc.property_contact_id = con.id  
         WHERE pr.property_name = {prop_name};
         ",
-        .con = db_con
-      )
-
-      record_02 <- dbGetQuery(db_con, query_02) |>
-        mutate(
-          contact_desc = if_else(
-            !is.na(property_contact_description),
-            str_glue(" - {property_contact_description}"),
-            ""
-          ),
-          contact_pair = str_glue("{name_first} {name_last}{contact_desc}")
-        ) |>
-        summarise(
-          pids = paste(unique(pid), collapse = ", "),
-          property_contacts = paste(unique(contact_pair), collapse = "<br>")
-        ) |>
-        mutate(
-          across(
-            everything(),
-            ~ str_remove_all(.x, "^NA(?:\\s+NA)?") |> str_squish()
-          )
+          .con = db_con
         )
 
-      query_03 <- glue_sql(
-        "   
+        record_02 <- dbGetQuery(db_con, query_02) |>
+          mutate(
+            contact_desc = if_else(
+              !is.na(property_contact_description),
+              str_glue(" - {property_contact_description}"),
+              ""
+            ),
+            contact_pair = str_glue("{name_first} {name_last}{contact_desc}")
+          ) |>
+          summarise(
+            pids = paste(unique(pid), collapse = ", "),
+            property_contacts = paste(unique(contact_pair), collapse = "<br>")
+          ) |>
+          mutate(
+            across(
+              everything(),
+              ~ str_remove_all(.x, "^NA(?:\\s+NA)?") |> str_squish()
+            )
+          )
+
+        query_03 <- glue_sql(
+          "   
         SELECT ic.date, ic.communication_description
         FROM internal_communications ic
         LEFT JOIN properties prop ON ic.property_id = prop.id
         WHERE prop.property_name = {prop_name}
         ORDER BY ic.date DESC;
         ",
-        .con = db_con
-      )
-
-      record_03 <- dbGetQuery(db_con, query_03) |>
-        mutate(
-          formatted_comm = str_glue("{date}: {communication_description}")
-        ) |>
-        summarise(
-          internal_communications = paste(formatted_comm, collapse = "<br>")
+          .con = db_con
         )
 
-      query_04 <- glue_sql(
-        "   
+        record_03 <- dbGetQuery(db_con, query_03) |>
+          mutate(
+            formatted_comm = str_glue("{date}: {communication_description}")
+          ) |>
+          summarise(
+            internal_communications = paste(formatted_comm, collapse = "<br>")
+          )
+
+        query_04 <- glue_sql(
+          "   
        SELECT
           tl.team_value,
           tla.action_item_description,
@@ -237,27 +252,29 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         ORDER BY
           tla.due_date;
         ",
-        .con = db_con
-      )
-
-      record_04 <- dbGetQuery(db_con, query_04) |>
-        mutate(
-          formatted_comm = str_glue(
-            "{team_value} - {due_date}: {action_item_description} Complete: {action_complete}"
-          )
-        ) |>
-        summarise(
-          action_items = paste(formatted_comm, collapse = "<br>")
+          .con = db_con
         )
 
-      record <- bind_cols(record_01, record_02, record_03, record_04)
+        record_04 <- dbGetQuery(db_con, query_04) |>
+          mutate(
+            formatted_comm = str_glue(
+              "{team_value} - {due_date}: {action_item_description} Complete: {action_complete}"
+            )
+          ) |>
+          summarise(
+            action_items = paste(formatted_comm, collapse = "<br>")
+          )
 
-      if (nrow(record) == 1) {
-        selected_record(record)
-      } else {
-        selected_record(NULL)
-      }
-    })
+        record <- bind_cols(record_01, record_02, record_03, record_04)
+
+        if (nrow(record) == 1) {
+          selected_record(record)
+        } else {
+          selected_record(NULL)
+        }
+      },
+      ignoreNULL = FALSE
+    )
 
     ## Create UI for database fields ----
     output$project_summary_ui <- renderUI({

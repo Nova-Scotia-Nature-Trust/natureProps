@@ -40,12 +40,12 @@ onStop(function() {
   poolClose(prd_con)
 })
 
-USE_AUTH <- TRUE
+USE_AUTH <- FALSE
 
 if (USE_AUTH) {
   shinymanager::set_labels(
     language = "en",
-    "Please authenticate" = "Property Manager",
+    "Please authenticate" = "Property Database Manager",
     "Login" = "Sign in"
   )
 }

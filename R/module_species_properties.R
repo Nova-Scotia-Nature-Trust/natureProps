@@ -225,7 +225,8 @@ module_species_properties_server <- function(
           "Observations" = n_obs,
           "Latest Year" = year_latest,
           "Precision" = prec_highest
-        )
+        ) |>
+        arrange(`Property Name`)
 
       prop_spp_rv(unique(data$`Property Name`))
       species_data(data)
