@@ -32,6 +32,11 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Action Items (long)" = "action_items_view",
       "Action Items (wide)" = "action_items_view_wide"
     )
+  } else if (panel_id == "cons_lands_panel") {
+    list(
+      "Conservation Lands" = "cons_lands_view_grouped",
+      "Conservation Lands (PIDs)" = "cons_lands_view"
+    )
   }
   ## Card :: Data viewer ----
   nav_panel(
@@ -262,6 +267,20 @@ module_data_viewer_server <- function(
         )
         attr(data, "order_column") <- 5
         attr(data, "order_direction") <- "desc"
+      } else if (selected_view == "cons_lands_view_grouped") {
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_conservation_lands_grouped;"
+        )
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
+      } else if (selected_view == "cons_lands_view") {
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_conservation_lands;"
+        )
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
       }
       return(data)
     })
