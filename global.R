@@ -26,9 +26,9 @@ conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
 # Create database connection
-db_con <- create_db_pool("nsnt-properties")
-prd_con <- create_db_pool("nsprd")
-gis_con <- create_db_pool("nsnt_gis")
+db_con <- create_db_pool("nsnt-properties", port = 5432)
+prd_con <- create_db_pool("nsprd", port = 5432)
+gis_con <- create_db_pool("nsnt_gis", port = 5432)
 
 # Register cleanup when app stops
 onStop(function() {

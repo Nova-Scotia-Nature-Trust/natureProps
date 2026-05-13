@@ -95,6 +95,13 @@ server <- function(input, output, session) {
     db_updated,
     panel_id = "action_item_panel"
   )
+
+  module_data_viewer_server(
+    "cons_lands_view",
+    db_con,
+    db_updated
+  )
+
   module_property_contact_communication_server(
     "property_contact_communication",
     db_con,

@@ -157,14 +157,6 @@ ui <- page_navbar(
       nav_panel(
         title = "Queries",
         module_review_queries_ui("review_queries")
-      ),
-      nav_panel(
-        title = "Ecological Features",
-        module_eco_highlights_ui("ecological_highlights")
-      ),
-      nav_panel(
-        title = "Species Property Lookup",
-        module_species_properties_ui("species_properties")
       )
     )
   ),
@@ -216,10 +208,6 @@ ui <- page_navbar(
     icon = bs_icon("map"),
     navset_card_tab(
       height = "100%",
-      # nav_panel(
-      #   title = "Priority Map",
-      #   module_property_map_ui("property_map")
-      # ),
       nav_panel(
         title = "Property Map",
         module_property_mapbox_ui("property_mapbox")
@@ -235,6 +223,28 @@ ui <- page_navbar(
             )
           )
         )
+      )
+    )
+  ),
+  nav_panel(
+    title = "Conservation Lands",
+    icon = bs_icon("tree"),
+    navset_card_tab(
+      height = "100%",
+      nav_panel(
+        title = "Conservation Lands Details",
+        module_data_viewer_ui(
+          "cons_lands_view",
+          panel_id = "cons_lands_panel"
+        )
+      ),
+      nav_panel(
+        title = "Ecological Features",
+        module_eco_highlights_ui("ecological_highlights")
+      ),
+      nav_panel(
+        title = "Species Property Lookup",
+        module_species_properties_ui("species_properties")
       )
     )
   ),
