@@ -15,13 +15,13 @@
 #' }
 #' @importFrom RPostgres Postgres
 #' @export
-create_db_pool <- function(database) {
+create_db_pool <- function(database, port) {
   db_con <- pool::dbPool(
     RPostgres::Postgres(),
     dbname = database,
     host = Sys.getenv("POSTGRES_HOST"),
     # host = "localhost",
-    port = 5432,
+    port = port,
     user = Sys.getenv("POSTGRES_USER"),
     password = Sys.getenv("POSTGRES_PASSWORD")
   )
