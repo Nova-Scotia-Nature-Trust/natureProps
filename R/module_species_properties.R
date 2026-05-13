@@ -11,18 +11,22 @@ module_species_properties_ui <- function(id) {
         sidebar = sidebar(
           open = TRUE,
           width = 300,
+          radioButtons(
+            ns("prop_filter"),
+            "Property Filter",
+            choices = c(
+              "Nature Trust Lands" = "nt_lands",
+              "All Properties" = "all"
+            ),
+            selected = "nt_lands",
+            inline = FALSE
+          ),
           selectizeInput(
             ns("species_choice"),
-            "Select species",
+            "Select Species",
             choices = NULL,
             multiple = FALSE,
             width = "100%"
-          ),
-          actionButton(
-            inputId = ns("load_species_data"),
-            label = "Load Species Locations",
-            width = "100%",
-            class = "btn-primary"
           ),
           actionButton(
             inputId = ns("clear_selection"),
@@ -56,7 +60,8 @@ module_species_properties_server <- function(
     species_data <- reactiveVal(NULL)
     species_name <- reactiveVal(NULL)
 
-    species_list <- c(
+    ## Focal species list ----
+    scientific_names <- c(
       "Antrostomus vociferus",
       "Riparia riparia",
       "Catharus bicknelli",
@@ -86,8 +91,8 @@ module_species_properties_server <- function(
       "Lophiola aurea"
     )
 
-    ## Load species options ----
-    species_choices_reactive <- reactive({
+    ## Reactive :: Species List ----
+    species_list <- reactive({
       if (!is.null(db_updated)) {
         db_updated()
       }
@@ -95,50 +100,37 @@ module_species_properties_server <- function(
       dbGetQuery(
         db_con,
         glue_sql(
-          "SELECT common_name, scientific_name FROM sar WHERE scientific_name IN ({species_list*});",
+          "SELECT common_name, scientific_name
+           FROM sar WHERE scientific_name IN ({scientific_names*})
+           ORDER BY common_name;",
           .con = db_con
         )
-      ) |>
-        arrange(common_name) |>
-        deframe()
+      )
     })
 
     observe({
-      choices <- species_choices_reactive()
-
       updateSelectizeInput(
         session,
         "species_choice",
-        choices = choices,
+        choices = setNames(
+          species_list()$scientific_name,
+          species_list()$common_name
+        ),
         selected = character(0),
         server = TRUE
       )
     })
 
-    ## Load species location data ----
-    observeEvent(input$load_species_data, {
-      req(input$species_choice)
-
-      # Get the common name from the choices
-      choices <- species_choices_reactive()
-      spp_common <- names(choices)[match(input$species_choice, choices)]
-
-      # Handle case where species not found
-      if (is.na(spp_common)) {
-        showNotification("Species not found", type = "error")
-        return()
+    ## Reactive :: Species Intersect Data ----
+    all_species_data <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
       }
 
-      species_name(spp_common)
-
-      # Get PIDs from database
       db_pids <- dbGetQuery(db_con, "SELECT pid FROM parcels;") |>
         pull()
 
-      # Store the scientific name to use in the query
-      sci_name <- input$species_choice
-
-      # Query GIS database for species observations
+      # Intersect for all focal species
       spp_query <- glue_sql(
         "
         WITH
@@ -154,10 +146,10 @@ module_species_properties_server <- function(
             FROM
               sar_rare
             WHERE
-              sciname = {sci_name}
+              sciname IN ({scientific_names*})
           )
         SELECT DISTINCT
-          par.pid,
+          pa.pid,
           spp.comname,
           spp.sciname,
           spp.obdate,
@@ -165,11 +157,11 @@ module_species_properties_server <- function(
           spp.locuncm,
           spp.idnum
         FROM
-          parcels AS par
-          JOIN selected_spp AS spp ON ST_Intersects(par.geom, spp.geom)
-          WHERE par.pid IN ({db_pids*})
+          parcels AS pa
+          JOIN selected_spp AS spp ON ST_Intersects(pa.geom, spp.geom)
+          WHERE pa.pid IN ({db_pids*})
         ORDER BY
-          par.pid;
+          pa.pid;
         ",
         .con = gis_con
       )
@@ -183,9 +175,9 @@ module_species_properties_server <- function(
           )
         )
 
-      # Summarise by PID
+      # Summarise by PID and species
       spp_summary <- result |>
-        group_by(pid) |>
+        group_by(pid, sciname) |>
         summarise(
           n_obs = length(comname),
           year_latest = max(obyear, na.rm = TRUE),
@@ -195,17 +187,19 @@ module_species_properties_server <- function(
 
       spp_pids <- unique(spp_summary$pid)
 
-      # Get property information
+      # Get property information for all matched PIDs
       prop_query <- glue_sql(
-        "   
+        "
         SELECT DISTINCT
-          par.pid,
-          pro.property_name, 
-          fo.internal_value AS focus_area
-        FROM parcels AS par
-        LEFT JOIN properties AS pro ON par.property_id = pro.id
-        LEFT JOIN focus_area_internal AS fo ON fo.id = pro.focus_area_internal_id
-        WHERE par.pid IN ({spp_pids*});
+          pa.pid,
+          pr.property_name,
+          pr.property_name_public,
+          pr.internal_record_id,
+          fa.internal_value AS focus_area
+        FROM parcels AS pa
+        LEFT JOIN properties AS pr ON pa.property_id = pr.id
+        LEFT JOIN focus_area_internal AS fa ON fa.id = pr.focus_area_internal_id
+        WHERE pa.pid IN ({spp_pids*});
         ",
         .con = db_con
       )
@@ -214,10 +208,39 @@ module_species_properties_server <- function(
         as_tibble() |>
         arrange(focus_area, property_name)
 
-      # Join and prepare final table
-      data <- props |>
+      # Join property info with species summary
+      props |>
         left_join(spp_summary, join_by(pid)) |>
-        relocate(property_name) |>
+        relocate(property_name)
+    })
+
+    ## Observe :: Filter by selected species ----
+    observe({
+      req(input$species_choice)
+      prop_type <- input$prop_filter
+
+      spp_common <- species_list() |>
+        filter(scientific_name == input$species_choice) |>
+        pull(common_name)
+
+      species_name(spp_common)
+
+      data <- all_species_data() |>
+        filter(sciname == input$species_choice)
+
+      # Filter to Nature Trust lands (internal_record_id starts with "NT")
+      if (identical(prop_type, "nt_lands")) {
+        data <- data |>
+          filter(str_detect(internal_record_id, "^NT")) |>
+          select(-sciname, -internal_record_id, -property_name) |>
+          rename(property_name = property_name_public) |>
+          relocate(property_name)
+      } else {
+        data <- data |>
+          select(-sciname, -internal_record_id, -property_name_public)
+      }
+
+      data <- data |>
         rename(
           "Property Name" = property_name,
           PID = pid,
@@ -232,7 +255,7 @@ module_species_properties_server <- function(
       species_data(data)
     })
 
-    ## Species data table ----
+    ## Output :: Species data table ----
     output$species_table <- DT::renderDataTable({
       req(species_data())
 
