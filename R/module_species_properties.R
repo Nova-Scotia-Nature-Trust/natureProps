@@ -98,12 +98,12 @@ module_species_properties_server <- function(
       }
 
       dbGetQuery(
-        db_con,
+        gis_con,
         glue_sql(
-          "SELECT common_name, scientific_name
-           FROM sar WHERE scientific_name IN ({scientific_names*})
-           ORDER BY common_name;",
-          .con = db_con
+          "SELECT DISTINCT comname AS common_name, sciname AS scientific_name
+           FROM sar_rare WHERE sciname IN ({scientific_names*})
+           ORDER BY comname;",
+          .con = gis_con
         )
       )
     })
