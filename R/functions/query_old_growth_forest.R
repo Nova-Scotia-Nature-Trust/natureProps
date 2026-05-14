@@ -32,14 +32,12 @@ query_old_growth_forest <- function(x, gis_con) {
   ) |>
     as_tibble()
 
-  total_old_growth <- tibble(pid = x) |>
+  old_growth_table <- tibble(pid = x) |>
     left_join(
       old_growth,
       join_by(pid)
     ) |>
-    replace_na(list(old_growth_forest_area = 0)) |>
-    pull(old_growth_forest_area) |>
-    sum()
+    replace_na(list(old_growth_forest_area = 0))
 
-  return(total_old_growth)
+  return(old_growth_table)
 }

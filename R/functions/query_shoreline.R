@@ -37,16 +37,14 @@ query_shoreline <- function(x, gis_con) {
     )
   ) |>
     group_by(pid) |>
-    summarise(shoreline_length_m = sum(shoreline_length_m))
+    summarise(shoreline_length = sum(shoreline_length_m))
 
-  total_shoreline <- tibble(pid = x) |>
+  shoreline_table <- tibble(pid = x) |>
     left_join(
       shoreline,
       join_by(pid)
     ) |>
-    replace_na(list(shoreline_length_m = 0)) |>
-    pull(shoreline_length_m) |>
-    sum()
+    replace_na(list(shoreline_length_m = 0))
 
-  return(total_shoreline)
+  return(shoreline_table)
 }

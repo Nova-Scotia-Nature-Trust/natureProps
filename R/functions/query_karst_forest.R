@@ -32,14 +32,12 @@ query_karst_forest <- function(x, gis_con) {
   ) |>
     as_tibble()
 
-  total_karst <- tibble(pid = x) |>
+  karst_table <- tibble(pid = x) |>
     left_join(
       karst,
       join_by(pid)
     ) |>
-    replace_na(list(karst_forest_area = 0)) |>
-    pull(karst_forest_area) |>
-    sum()
+    replace_na(list(karst_forest_area = 0))
 
-  return(total_karst)
+  return(karst_table)
 }

@@ -257,13 +257,30 @@ module_eco_highlights_server <- function(
 
       property_name(name)
 
+      total_shoreline_length = query_shoreline(pid_list(), gis_con) |>
+        pull(shoreline_length) |>
+        sum()
+      total_coastline_length = query_coastline(pid_list(), gis_con) |>
+        pull(coastline_length) |>
+        sum()
+      total_old_growth_area <- query_old_growth_forest(pid_list(), gis_con) |>
+        pull(old_growth_forest_area) |>
+        sum()
+      total_karst_forest_area <- query_karst_forest(pid_list(), gis_con) |>
+        pull(karst_forest_area) |>
+        sum()
+      waterbird_colony_count = query_bird_colony(pid_list(), gis_con)
+      waterbird_colony_count <- length(unique(
+        waterbird_colony_count$waterbird_colony_id
+      ))
+
       # Run queries
       eco_data(tibble(
-        total_coastline_length = query_coastline(pid_list(), gis_con),
-        total_shoreline_length = query_shoreline(pid_list(), gis_con),
-        total_karst_forest_area = query_karst_forest(pid_list(), gis_con),
-        total_old_growth_area = query_old_growth_forest(pid_list(), gis_con),
-        waterbird_colony_count = query_bird_colony(pid_list(), gis_con)
+        total_coastline_length = total_coastline_length,
+        total_shoreline_length = total_shoreline_length,
+        total_karst_forest_area = total_karst_forest_area,
+        total_old_growth_area = total_old_growth_area,
+        waterbird_colony_count = waterbird_colony_count
       ))
     })
 

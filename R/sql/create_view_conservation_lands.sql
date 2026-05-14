@@ -20,15 +20,7 @@ SELECT
   pr.notes_sensitivity AS "Sensitivity Notes",
   pa.size_confirmed_ha AS "Size (Hectares)",
   pa.size_confirmed_acres AS "Size (Acres)",
-  pa.size_confirmed_notes AS "Size Confirmed Notes",
-  pa.coastal_island AS "Coastal Island",
-  pa.coastal_island_id AS "Coastal Island ID",
-  pa.coastline_length AS "Coastline Length",
-  pa.freshwater_island AS "Freshwater Island",
-  pa.shoreline_length AS "Shoreline Length",
-  pa.old_growth_forest_area AS "Old Growth Forest Area",
-  pa.karst_forest_area AS "Karst Forest Area",
-  pa.waterbird_colony_id AS "Waterbird Colony ID"
+  pa.size_confirmed_notes AS "Size Confirmed Notes"
 FROM properties pr
 LEFT JOIN ownership o 
   ON pr.ownership_id = o.id

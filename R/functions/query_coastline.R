@@ -40,7 +40,7 @@ query_coastline <- function(x, gis_con) {
               ST_Length(
                   ST_Transform(geom, 2961)
               )
-          ) AS coastline_length_m
+          ) AS coastline_length
       FROM coastline_clipped
       GROUP BY pid;
     ",
@@ -49,14 +49,12 @@ query_coastline <- function(x, gis_con) {
   ) |>
     as_tibble()
 
-  total_coastline <- tibble(pid = x) |>
+  coastline_table <- tibble(pid = x) |>
     left_join(
       coastline,
       join_by(pid)
     ) |>
-    replace_na(list(coastline_length_m = 0)) |>
-    pull(coastline_length_m) |>
-    sum()
+    replace_na(list(coastline_length = 0))
 
-  return(total_coastline)
+  return(coastline_table)
 }
