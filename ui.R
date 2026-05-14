@@ -49,9 +49,9 @@ ui <- page_navbar(
         )
       ),
       accordion_panel(
-        title = "App Info",
-        icon = bs_icon("info-circle"),
-        p(str_glue("Version: {VERSION}"))
+        title = "Admin",
+        icon = bs_icon("folder2"),
+        module_admin_ui("admin")
       )
     )
   ),

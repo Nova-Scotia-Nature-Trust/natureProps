@@ -22,8 +22,13 @@ library(sf)
 library(thematic)
 library(mapgl)
 library(shinycssloaders)
+library(future)
+library(promises)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
+
+# Start future and promises
+plan(multisession)
 
 # Create database connection
 db_con <- create_db_pool("nsnt-properties", port = 5432)
@@ -45,8 +50,6 @@ if (USE_AUTH) {
     "Login" = "Sign in"
   )
 }
-
-VERSION <- "2.4.6"
 
 thematic_shiny(font = "auto")
 

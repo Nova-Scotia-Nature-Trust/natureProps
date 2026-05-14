@@ -24,6 +24,40 @@ server <- function(input, output, session) {
     })
   }
 
+  # Setup Cons Lands processing ----
+  cons_lands_data_rv <- reactiveVal(NULL)
+
+  future_promise({
+    gis_con_future <- DBI::dbConnect(
+      RPostgres::Postgres(),
+      dbname = "nsnt_gis",
+      host = Sys.getenv("POSTGRES_HOST"),
+      port = 5432,
+      user = Sys.getenv("POSTGRES_USER"),
+      password = Sys.getenv("POSTGRES_PASSWORD")
+    )
+
+    db_con_future <- DBI::dbConnect(
+      RPostgres::Postgres(),
+      dbname = "nsnt-properties",
+      host = Sys.getenv("POSTGRES_HOST"),
+      port = 5432,
+      user = Sys.getenv("POSTGRES_USER"),
+      password = Sys.getenv("POSTGRES_PASSWORD")
+    )
+
+    on.exit({
+      DBI::dbDisconnect(gis_con_future)
+      DBI::dbDisconnect(db_con_future)
+    })
+
+    prep_cons_lands_data(
+      gis_con_future,
+      db_con_future
+    )
+  }) %...>%
+    cons_lands_data_rv()
+
   # Toggle sidebar when gear icon is clicked
   observeEvent(input$toggle_sidebar, {
     # Use toggle_sidebar with the correct sidebar ID
@@ -33,7 +67,7 @@ server <- function(input, output, session) {
   # observeEvent(input$dark_toggle, {
   #   toggle_dark_mode(if (input$dark_toggle) "dark" else "light")
   # })
-
+  # Dark mode ----
   observeEvent(input$dark_toggle, {
     mode <- if (input$dark_toggle) "dark" else "light"
     toggle_dark_mode(mode)
@@ -99,7 +133,9 @@ server <- function(input, output, session) {
   module_data_viewer_server(
     "cons_lands_view",
     db_con,
-    db_updated
+    db_updated,
+    panel_id = "cons_lands_panel",
+    cons_lands_data = cons_lands_data_rv,
   )
 
   module_property_contact_communication_server(
@@ -142,7 +178,12 @@ server <- function(input, output, session) {
 
   module_edit_team_actions_server("edit_team", db_con, db_updated)
   module_edit_pricing_server("edit_pricing", db_con, db_updated)
-  module_edit_closing_details_server("edit_closing", db_con, db_updated)
+  module_edit_closing_details_server(
+    "edit_closing",
+    db_con,
+    db_updated,
+    cons_lands_data = cons_lands_data_rv
+  )
   module_edit_funding_server("edit_funding", db_con, db_updated)
   module_edit_securement_properties_server(
     "edit_securement_properties",
@@ -183,5 +224,11 @@ server <- function(input, output, session) {
     "securement_comms",
     db_con,
     db_updated
+  )
+
+  module_admin_server(
+    "admin",
+    db_con,
+    cons_lands_data = cons_lands_data_rv
   )
 }
