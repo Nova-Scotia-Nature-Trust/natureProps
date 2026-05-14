@@ -92,6 +92,15 @@ module_eco_highlights_ui <- function(id) {
           sidebar = sidebar(
             open = TRUE,
             width = 300,
+            radioButtons(
+              ns("property_filter"),
+              "Property List",
+              choices = c(
+                "Nature Trust Lands" = "nt_lands",
+                "All" = "all"
+              ),
+              selected = "nt_lands"
+            ),
             selectizeInput(
               ns("property"),
               "Select Property",
@@ -122,7 +131,6 @@ module_eco_highlights_ui <- function(id) {
   )
 }
 
-
 # Server ----
 module_eco_highlights_server <- function(
   id,
@@ -137,11 +145,27 @@ module_eco_highlights_server <- function(
     ## Reactive :: Property List ----
     property_list <- reactive({
       db_updated()
-      dbGetQuery(
+      properties <- dbGetQuery(
         db_con,
-        "SELECT DISTINCT id, property_name FROM properties 
+        "SELECT DISTINCT id, internal_record_id, property_name, property_name_public FROM properties 
          ORDER BY property_name;"
       )
+
+      if (input$property_filter == "nt_lands") {
+        return(
+          properties |>
+            filter(str_detect(internal_record_id, "NT")) |>
+            select(-internal_record_id, -property_name) |>
+            rename(property_name = property_name_public) |>
+            arrange(property_name)
+        )
+      } else {
+        return(
+          properties |>
+            select(-internal_record_id, -property_name_public) |>
+            arrange(property_name)
+        )
+      }
     })
 
     observe({
@@ -157,24 +181,50 @@ module_eco_highlights_server <- function(
       )
     })
 
+    ## Event :: Clear on Filter Change ----
+    observeEvent(input$property_filter, {
+      updateSelectizeInput(session, "property", selected = character(0))
+      eco_data(NULL)
+      property_name(NULL)
+    })
+
+    ## Reactive :: PID List ----
+    pid_list <- reactive({
+      req(input$property)
+      dbGetQuery(
+        db_con,
+        query <- glue_sql(
+          "
+        SELECT pa.pid
+        FROM properties pr
+        JOIN parcels pa ON pr.id = pa.property_id
+        WHERE pr.id = {input$property};
+        ",
+          .con = db_con
+        )
+      ) |>
+        pull(pid)
+    })
     ## Reactive :: SCC Point Data ----
     scc_data <- reactive({
       req(input$property)
 
       query <- glue_sql(
-        'SELECT DISTINCT 
-          s.common_name AS "Common Name",
-          s.scientific_name AS "Scientific Name",
-          s.s_rank AS "S-Rank"
-        FROM parcel_sar ps
-        JOIN parcels p ON ps.parcel_id = p.id
-        JOIN sar s ON ps.species_id = s.id
-        WHERE p.property_id = {input$property}
-        ORDER BY s.s_rank;',
-        .con = db_con
+        'SELECT DISTINCT
+          s.comname AS "Common Name",
+          s.sciname AS "Scientific Name",
+          s.srank AS "S-Rank"
+        FROM
+          parcels AS pa
+          JOIN sar_rare AS s ON ST_Intersects (s.geom, pa.geom)
+        WHERE
+          pa.pid IN ({pid_list()*})
+        ORDER BY
+          s.comname;',
+        .con = gis_con
       )
 
-      dbGetQuery(db_con, query)
+      dbGetQuery(gis_con, query)
     })
 
     ## Output :: SCC Table ----
@@ -207,19 +257,31 @@ module_eco_highlights_server <- function(
 
       property_name(name)
 
-      query <- glue_sql(
-        "SELECT 
-          SUM(coastline_length) AS total_coastline_length,
-          SUM(shoreline_length) AS total_shoreline_length,
-          SUM(karst_forest_area) AS total_karst_forest_area,
-          SUM(old_growth_forest_area) AS total_old_growth_area,
-          COUNT(DISTINCT waterbird_colony_id) AS waterbird_colony_count
-        FROM parcels
-        WHERE property_id = {input$property};",
-        .con = db_con
-      )
+      total_shoreline_length = query_shoreline(pid_list(), gis_con) |>
+        pull(shoreline_length) |>
+        sum()
+      total_coastline_length = query_coastline(pid_list(), gis_con) |>
+        pull(coastline_length) |>
+        sum()
+      total_old_growth_area <- query_old_growth_forest(pid_list(), gis_con) |>
+        pull(old_growth_forest_area) |>
+        sum()
+      total_karst_forest_area <- query_karst_forest(pid_list(), gis_con) |>
+        pull(karst_forest_area) |>
+        sum()
+      waterbird_colony_count = query_bird_colony(pid_list(), gis_con)
+      waterbird_colony_count <- length(unique(
+        waterbird_colony_count$waterbird_colony_id
+      ))
 
-      eco_data(as_tibble(dbGetQuery(db_con, query)))
+      # Run queries
+      eco_data(tibble(
+        total_coastline_length = total_coastline_length,
+        total_shoreline_length = total_shoreline_length,
+        total_karst_forest_area = total_karst_forest_area,
+        total_old_growth_area = total_old_growth_area,
+        waterbird_colony_count = waterbird_colony_count
+      ))
     })
 
     ## Output :: Card Title ----
@@ -291,14 +353,14 @@ module_eco_highlights_server <- function(
           feature_card(
             "Coastline Length",
             data$total_coastline_length,
-            "water",
+            "tsunami",
             unit = "m"
           ),
 
           feature_card(
             "Shoreline Length",
             data$total_shoreline_length,
-            "tsunami",
+            "water",
             unit = "m"
           ),
 

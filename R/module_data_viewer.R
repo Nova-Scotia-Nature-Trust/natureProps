@@ -23,12 +23,20 @@ module_data_viewer_ui <- function(id, panel_id) {
       "Appraisals" = "appraisals",
       "Property Sizes" = "property_sizes",
       "Insurance View" = "insurance",
-      "LLT Projects" = "llt_projects"
+      "LLT Projects" = "llt_projects",
+      "Securement Communication" = "securement_communication",
+      "Property Contact Details" = "property_contact_details_view"
     )
   } else if (panel_id == "action_item_panel") {
     list(
       "Action Items (long)" = "action_items_view",
       "Action Items (wide)" = "action_items_view_wide"
+    )
+  } else if (panel_id == "cons_lands_panel") {
+    list(
+      # "Select a view from the list" = "",
+      "Conservation Lands" = "cons_lands_view_grouped",
+      "Conservation Lands (PIDs)" = "cons_lands_view"
     )
   }
   ## Card :: Data viewer ----
@@ -83,7 +91,8 @@ module_data_viewer_server <- function(
   db_updated = NULL,
   prop_filter = NULL,
   focal_pid_rv,
-  panel_id = NULL
+  panel_id = NULL,
+  cons_lands_data = NULL
 ) {
   moduleServer(id, function(input, output, session) {
     ## Reactive :: Data Views ----
@@ -117,16 +126,19 @@ module_data_viewer_server <- function(
         attr(data, "order_column") <- 2
         attr(data, "order_direction") <- "asc"
 
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(str_detect(
-              `Property Contact PIDs`,
-              str_c(focal_pid_rv(), collapse = "|")
-            ))
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
+        if (panel_id == "outreach_panel") {
+          if (apply_filter && !is.null(focal_pid_rv())) {
+            data <- data |>
+              filter(str_detect(
+                `Property Contact PIDs`,
+                str_c(focal_pid_rv(), collapse = "|")
+              ))
+          } else if (apply_filter) {
+            data <- data |>
+              filter(FALSE)
+          }
         }
+
         ## Communication Data ----
       } else if (selected_view == "communication_data_view") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
@@ -246,9 +258,30 @@ module_data_viewer_server <- function(
         data <- dbGetQuery(db_con, "SELECT * FROM view_insurance;")
         attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
+        ## LLT Projects ----
       } else if (selected_view == "llt_projects") {
         data <- dbGetQuery(db_con, "SELECT * FROM view_llt_projects;")
         attr(data, "order_column") <- 3
+        attr(data, "order_direction") <- "asc"
+        ## Securement Comms ----
+      } else if (selected_view == "securement_communication") {
+        data <- dbGetQuery(
+          db_con,
+          "SELECT * FROM view_securement_communication_history;"
+        )
+        attr(data, "order_column") <- 5
+        attr(data, "order_direction") <- "desc"
+        ## Conservation Lands (Grouped) ----
+      } else if (selected_view == "cons_lands_view_grouped") {
+        req(cons_lands_data())
+        data <- prep_view_cons_lands(cons_lands_data(), "grouped")
+        attr(data, "order_column") <- 0
+        attr(data, "order_direction") <- "asc"
+        ## Conservation Lands (Ungrouped) ----
+      } else if (selected_view == "cons_lands_view") {
+        req(cons_lands_data())
+        data <- prep_view_cons_lands(cons_lands_data(), "ungrouped")
+        attr(data, "order_column") <- 0
         attr(data, "order_direction") <- "asc"
       }
       return(data)
@@ -264,6 +297,25 @@ module_data_viewer_server <- function(
 
     ## Render datatable ----
     output$view_df <- renderDT({
+      if (
+        input$data_view %in%
+          c(
+            "cons_lands_view_grouped",
+            "cons_lands_view"
+          ) &&
+          is.null(cons_lands_data())
+      ) {
+        return(
+          datatable(
+            data.frame(
+              Status = "Loading conservation lands data..."
+            ),
+            options = list(dom = "t"),
+            rownames = FALSE
+          )
+        )
+      }
+
       if (is.null(output_view_data()) || nrow(output_view_data()) == 0) {
         return(datatable(data.frame()))
       }

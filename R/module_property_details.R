@@ -80,6 +80,12 @@ module_property_details_ui <- function(id) {
               inputId = ns("acquisition_type"),
               label = "Acquisition Type",
               choices = NULL
+            ),
+            numericInput(
+              inputId = ns("price_asking"),
+              label = "Property Asking Price",
+              value = NA,
+              step = 1000
             )
           ),
           div(
@@ -450,6 +456,11 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
             isTruthy(input$region),
             as.integer(input$region),
             NA_integer_
+          ),
+          price_asking = if_else(
+            isTruthy(input$price_asking) && input$price_asking > 0,
+            as.numeric(input$price_asking),
+            NA_real_
           )
         )
 

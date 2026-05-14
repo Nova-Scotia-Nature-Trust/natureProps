@@ -57,7 +57,12 @@ module_edit_closing_details_ui <- function(id) {
 }
 
 # Server ----
-module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
+module_edit_closing_details_server <- function(
+  id,
+  db_con,
+  db_updated = NULL,
+  cons_lands_data = NULL
+) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -175,6 +180,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
       id = NA_integer_,
       property_name = NA_character_,
       internal_record_id = NA_character_,
+      landscape_url = NA_character_,
       acquisition_securement_type_id = NA_integer_,
       ownership_id = NA_integer_,
       owner_name = NA_character_,
@@ -196,6 +202,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
           id,
           property_name,
           internal_record_id,
+          landscape_url,
           acquisition_securement_type_id,
           ownership_id,
           owner_name,
@@ -236,14 +243,26 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
           property_name_text
         ),
         hr(),
-        textInput(
-          inputId = ns("edit_internal_record_id"),
-          label = "Internal Record ID",
-          value = if (!is.na(record$internal_record_id)) {
-            record$internal_record_id
-          } else {
-            ""
-          }
+        layout_columns(
+          col_widths = c(3, 9),
+          textInput(
+            inputId = ns("edit_internal_record_id"),
+            label = "Internal Record ID",
+            value = if (!is.na(record$internal_record_id)) {
+              record$internal_record_id
+            } else {
+              ""
+            }
+          ),
+          textInput(
+            inputId = ns("edit_landscape_url"),
+            label = "Landscape URL",
+            value = if (!is.na(record$landscape_url)) {
+              record$landscape_url
+            } else {
+              ""
+            }
+          )
         ),
         layout_columns(
           col_widths = c(6, 6),
@@ -339,16 +358,19 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
             FALSE
           }
         ),
-        textAreaInput(
-          inputId = ns("edit_notes_sensitivity"),
-          label = "Notes (Sensitivity)",
-          value = if (!is.na(record$notes_sensitivity)) {
-            record$notes_sensitivity
-          } else {
-            ""
-          },
-          rows = 3,
-          resize = "vertical"
+        layout_columns(
+          col_widths = c(6, 6),
+          textAreaInput(
+            inputId = ns("edit_notes_sensitivity"),
+            label = "Notes (Sensitivity)",
+            value = if (!is.na(record$notes_sensitivity)) {
+              record$notes_sensitivity
+            } else {
+              ""
+            },
+            rows = 3,
+            resize = "vertical"
+          )
         )
       )
     })
@@ -364,6 +386,11 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
         id = db_id,
         internal_record_id = if (isTruthy(input$edit_internal_record_id)) {
           input$edit_internal_record_id
+        } else {
+          NA_character_
+        },
+        landscape_url = if (isTruthy(input$edit_landscape_url)) {
+          input$edit_landscape_url
         } else {
           NA_character_
         },
@@ -446,6 +473,7 @@ module_edit_closing_details_server <- function(id, db_con, db_updated = NULL) {
         id = NA_integer_,
         property_name = NA_character_,
         internal_record_id = NA_character_,
+        landscape_url = NA_character_,
         acquisition_securement_type_id = NA_integer_,
         ownership_id = NA_integer_,
         owner_name = NA_character_,

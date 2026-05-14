@@ -244,7 +244,7 @@ module_property_mapbox_server <- function(
       result
     })
 
-    ns_bounds <- c(-66.3, 43.4, -59.7, 47.0)
+    ns_bounds <- c(-66.4, 43.5, -59.8, 46.9)
     map_layer_ids <- c(
       "securement_priority",
       "ecological_priority",
@@ -267,9 +267,9 @@ module_property_mapbox_server <- function(
       pal_missing_priority <- "#6d6969"
 
       mapboxgl(
-        mapbox_style("satellite-streets"),
-        bounds = ns_bounds
+        mapbox_style("satellite-streets")
       ) |>
+        fit_bounds(ns_bounds, animate = FALSE) |>
         # NSPRD
         add_vector_source(
           id = "nsprd",

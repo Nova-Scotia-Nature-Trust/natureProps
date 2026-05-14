@@ -22,17 +22,18 @@ library(sf)
 library(thematic)
 library(mapgl)
 library(shinycssloaders)
+library(future)
+library(promises)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
-# Create database connection
-db_con <- create_db_pool("nsnt-properties")
-prd_con <- create_db_pool("nsprd")
-gis_con <- create_db_pool("nsnt_gis")
+# Start future and promises
+plan(multisession)
 
-# Old
-# db_con <- create_db_pool("dummydb-dev")
-# gis_con <- create_db_pool("gis")
+# Create database connection
+db_con <- create_db_pool("nsnt-properties", port = 5432)
+prd_con <- create_db_pool("nsprd", port = 5432)
+gis_con <- create_db_pool("nsnt_gis", port = 5432)
 
 # Register cleanup when app stops
 onStop(function() {
@@ -49,8 +50,6 @@ if (USE_AUTH) {
     "Login" = "Sign in"
   )
 }
-
-VERSION <- "2.4.6"
 
 thematic_shiny(font = "auto")
 
