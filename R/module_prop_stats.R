@@ -348,6 +348,11 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    prior_fiscal <- str_remove(
+      quarter(Sys.Date() - 365, type = "year_start/end", fiscal_start = 4),
+      " Q[0-9]"
+    )
+
     plot_data <- reactive({
       if (!is.null(db_updated)) {
         db_updated()
@@ -366,7 +371,8 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
         WHERE
           securement_probability_id IS NOT NULL;'
         ) |>
-          as_tibble()
+          as_tibble() |>
+          filter(anticipated_closing_year > prior_fiscal)
       }
     })
 

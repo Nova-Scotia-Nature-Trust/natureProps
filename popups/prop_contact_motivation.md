@@ -1,0 +1,3 @@
+Property contacts can refer to a wide range of individuals and include anyone with a connection to a particular property. They may include landowners, family members of landowners, realtors, or other representatives. Historically, we used the term *landowner contact*, but we now use *property contact* to better reflect the broader range of people who may be associated with a property. 
+
+Note that a single property contact may be associated with one or more properties and PIDs. Use the "Select PIDs" field to add any combination of PIDs related to the property contact. Once the contact has been created in the database, adding new PIDs to that contact can be done in the "Link Property Contact" card.

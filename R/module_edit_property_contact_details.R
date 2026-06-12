@@ -93,7 +93,7 @@ module_edit_property_contacts_server <- function(
         session,
         inputId = "contact_id",
         choices = c("", contact_choices()),
-        selected = "",
+        selected = isolate(input$contact_id),
         server = TRUE
       )
     })

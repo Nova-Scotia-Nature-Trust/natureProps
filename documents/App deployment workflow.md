@@ -352,4 +352,84 @@ docker compose stop
 # Restart natureprops-app
 docker compose restart
 ```
+## dbdocs
 
+Setup 
+
+``` bash
+# Create docs from database
+dbdocs db2dbml postgres 'postgresql://user:password@host:5432/nsnt-properties?schemas=public' -o database.dbml
+
+# Build docs and deploy
+dbdocs build database.dbml --project natureprops
+```
+
+Access docs here: https://dbdocs.io/dominic/natureprops/v/4
+
+## Setting up pg_cron
+
+### Server code
+``` bash
+# Install pg_cron
+sudo apt install postgresql-16-cron
+
+# Enable pg_cron in PostgreSQL config
+sudo nano /etc/postgresql/16/main/postgresql.conf
+
+# Add or update (CTRL + W to search and find setting)
+shared_preload_libraries = 'pg_cron'
+
+# Add database with which to run cron job (defaults to only run on 'postgres')
+cron.database_name = 'nsnt_gis'
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql@16-main
+
+# Check
+sudo systemctl status postgresql@16-main
+
+# Give pg_cron permissions to run
+sudo nano /etc/postgresql/16/main/pg_hba.conf
+
+# Add to config to allow pg_cron / local automation
+# Note that need to put this BEFORE anything else matching host all all:
+host    all     all     127.0.0.1/32    trust
+host    all     all     ::1/128         trust
+
+# Reload
+sudo systemctl reload postgresql@16-main
+
+```
+
+### PostgreSQL code
+``` sql
+-- Create extension (this must be created while in the "postgres" database)
+CREATE EXTENSION pg_cron;
+
+-- Check it works
+SELECT * FROM pg_extension WHERE extname = 'pg_cron';
+SELECT * FROM cron.job;
+
+-- Schedule nightly job (02H00)
+SELECT cron.schedule(
+    'refresh-conservation-land-metrics',
+    '0 2 * * *',
+    $$REFRESH MATERIALIZED VIEW CONCURRENTLY mv_conservation_land_metrics$$
+);
+
+-- Use  '*/10 * * * *' to run every 10 mins which is useful for testing
+
+-- Verify scheduled jobs
+SELECT jobid, jobname, schedule, command
+FROM cron.job;
+
+-- Check runs / debugging
+SELECT *
+FROM cron.job_run_details
+ORDER BY start_time DESC
+LIMIT 20;
+
+-- Stop cron job
+SELECT cron.unschedule('refresh-conservation-land-metrics');
+
+```

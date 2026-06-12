@@ -100,6 +100,7 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
     ## Reactive :: Action item choices ----
     action_choices <- reactive({
       req(input$team_lead_filter)
+      db_updated()
 
       query <- glue_sql(
         "SELECT 
@@ -137,7 +138,7 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "record_id",
         choices = c("", action_choices()),
-        selected = "",
+        selected = isolate(input$record_id),
         server = TRUE
       )
     })

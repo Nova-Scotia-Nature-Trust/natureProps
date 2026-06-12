@@ -131,17 +131,34 @@ module_edit_closing_details_server <- function(
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
-      dbGetQuery(
+      choices <- dbGetQuery(
         db_con,
         "SELECT pr.id, 
-                pr.property_name 
+              pr.property_name,
+              pr.property_name_public
         FROM properties pr 
-        JOIN phase ph ON pr.phase_id = ph.id
-        WHERE phase_value = 'Secured' 
-        ORDER BY property_name;"
-      ) |>
-        select(property_name, id) |>
+        JOIN ownership ow ON pr.ownership_id = ow.id
+        WHERE ownership_value IS NOT NULL
+        ORDER BY property_name_public;"
+      )
+
+      name_dupes <- choices |>
+        get_dupes(property_name_public) |>
+        distinct(property_name_public) |>
+        pull()
+
+      choices <- choices |>
+        mutate(
+          property_name_view = if_else(
+            property_name_public %in% name_dupes,
+            str_glue("{property_name_public} || {property_name}"),
+            property_name_public
+          )
+        ) |>
+        select(property_name_view, id) |>
         deframe()
+
+      return(choices)
     })
 
     ## Reactive :: Acquisition securement type choices ----
@@ -232,7 +249,7 @@ module_edit_closing_details_server <- function(
 
       # Extract values if record exists, otherwise NULL
       property_name_text <- if (isTruthy(record$property_name)) {
-        paste0("Editing: ", record$property_name)
+        paste0("Internal name: ", record$property_name)
       } else {
         "No property selected"
       }

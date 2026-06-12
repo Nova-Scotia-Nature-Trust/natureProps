@@ -13,12 +13,9 @@ module_property_contact_ui <- function(id) {
           style = "display: flex; align-items: center; gap: 8px;",
           h5("Property Contact Details"),
           popover(
-            div(
-              icon("question-circle"),
-              style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
-            ),
-            "Explain why we're calling this 'Primary Property Contact'. Enter contact information for property owners. Select associated PIDs from the dropdown to link this contact to specific parcels.",
-            title = "Property Contact Details Help",
+            icon("question-circle"),
+            includeMarkdown("popups/prop_contact_motivation.md"),
+            title = "Context",
             placement = "right"
           )
         )
@@ -84,15 +81,9 @@ module_property_contact_ui <- function(id) {
             style = "width: 100%;",
             div(
               style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-              tags$label(
-                "Property Contact Description",
-                `for` = ns("property_contact_description")
-              ),
+              "Property Contact Description",
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/prop_contact_desc.md"),
                 title = "Property Contact Help",
                 placement = "top"
@@ -132,12 +123,9 @@ module_property_contact_ui <- function(id) {
           style = "display: flex; align-items: center; gap: 8px;",
           h5("Link Property Contact"),
           popover(
-            div(
-              icon("question-circle"),
-              style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
-            ),
+            icon("question-circle"),
             "Assign additional PIDs to an existing property contact. Select the PIDs you want to add, then choose the contact to link them to.",
-            title = "Link Property Contact Help",
+            title = "Link Contacts",
             placement = "right"
           )
         )

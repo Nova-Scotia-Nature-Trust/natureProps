@@ -105,9 +105,15 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           filter(date_added >= cutoff)
       }
 
-      all_properties |>
+      choices <- all_properties |>
         pull(property_name) |>
         sort()
+
+      if (length(choices) == 0) {
+        "No properties"
+      } else {
+        choices
+      }
     })
 
     ## Update select input with record IDs based on table
@@ -134,7 +140,11 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       input$property,
       {
         # If property is empty or NULL, clear the record and bail
-        if (is.null(input$property) || input$property == "") {
+        if (
+          is.null(input$property) ||
+            input$property == "" ||
+            input$property == "No properties"
+        ) {
           selected_record(NULL)
           return()
         }
@@ -330,12 +340,9 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               style = "display: flex; align-items: center; gap: 8px;",
               strong("Property & Opportunity Overview:"),
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/prop_opp_overview.md"),
-                title = "Property Overview Help",
+                title = "Context",
                 placement = "top"
               )
             ),
@@ -347,12 +354,9 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               style = "display: flex; align-items: center; gap: 8px;",
               strong("Phase Description:"),
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/phase_desc.md"),
-                title = "Phase Description Help",
+                title = "Context",
                 placement = "top"
               )
             ),
@@ -368,12 +372,9 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               style = "display: flex; align-items: center; gap: 8px;",
               strong("Property Contact Description:"),
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/prop_contact_desc.md"),
-                title = "Property Contact Help",
+                title = "Context",
                 placement = "top"
               )
             ),
@@ -385,12 +386,9 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               style = "display: flex; align-items: center; gap: 8px;",
               strong("Securement Status:"),
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/securement_desc.md"),
-                title = "Securement Status Help",
+                title = "Context",
                 placement = "top"
               )
             ),

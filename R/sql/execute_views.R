@@ -63,3 +63,8 @@ DBI::dbExecute(
   readr::read_file("R/sql/create_view_appraisals.sql"),
   immediate = TRUE
 )
+DBI::dbExecute(
+  gis_con,
+  readr::read_file("R/sql/create_mv_cons_lands_metrics.sql"),
+  immediate = TRUE
+)

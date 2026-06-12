@@ -140,34 +140,21 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
     table_data <- reactiveVal(NULL)
 
     ## Properties reactive ----
-    # properties_reactive <- reactive({
-    #   if (!is.null(db_updated)) {
-    #     db_updated()
-    #   }
-
-    #   dbGetQuery(
-    #     conn = db_con,
-    #     statement = "
-    #       SELECT DISTINCT pr.id, pr.property_name
-    #       FROM properties pr
-    #       INNER JOIN view_securement_action_items vai
-    #         ON pr.property_name = vai.\"Property Name\"
-    #       ORDER BY pr.property_name;
-    #     "
-    #   )
-    # })
-
     properties_reactive <- reactive({
-      db_updated()
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
 
       dbGetQuery(
         db_con,
         "SELECT DISTINCT sai.property_id AS id, 
-                         pr.property_name 
+                         pr.property_name,
+                         pr.property_name_public,
+                         ph.phase_value 
         FROM securement_action_items AS sai
         JOIN properties pr ON sai.property_id = pr.id
         JOIN phase ph ON pr.phase_id = ph.id 
-        WHERE ph.phase_value != 'Secured'
+        WHERE ph.phase_value = 'Active - Securement'
         ORDER BY pr.property_name;"
       )
     })
@@ -178,7 +165,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         inputId = "selected_properties",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name
+          properties_reactive()$property_name_public
         ),
         selected = isolate(input$selected_properties),
         server = TRUE
@@ -300,6 +287,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         conn = db_con,
         statement = '
           SELECT pr.property_name AS "Property Name", 
+                 pr.property_name_public AS "Property Name Public",
                 pr.anticipated_closing_year AS "Closing Year",
                 pr.anticipated_closing_date AS "Closing Date",
                 pr.securement_action_description AS "Securement Status",
@@ -313,8 +301,9 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
 
       data <- data |>
         left_join(additional_data, join_by("Property Name")) |>
+        select(-"Property Name") |>
         relocate(
-          "Property Name",
+          "Property Name Public",
           "Closing Year",
           "Closing Date",
           "Securement Probability",
@@ -322,7 +311,8 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
           "Securement Status",
           "APS Date"
         ) |>
-        arrange(`Property Name`)
+        arrange(`Property Name Public`) |>
+        filter(Phase == "Active - Securement")
 
       table_data(data)
     })

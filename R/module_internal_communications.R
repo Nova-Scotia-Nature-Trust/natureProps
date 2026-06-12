@@ -39,12 +39,9 @@ module_internal_communications_UI <- function(id) {
                   style = "display: flex; align-items: center; gap: 8px;",
                   h5("Log Internal Communications"),
                   popover(
-                    div(
-                      icon("question-circle"),
-                      style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
-                    ),
-                    "Information to follow",
-                    title = "Help",
+                    icon("question-circle"),
+                    includeMarkdown("popups/internal_comms.md"),
+                    title = "Context",
                     placement = "right"
                   )
                 )
@@ -86,12 +83,9 @@ module_internal_communications_UI <- function(id) {
                   style = "display: flex; align-items: center; gap: 8px;",
                   h5("Log Action Item"),
                   popover(
-                    div(
-                      icon("question-circle"),
-                      style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
-                    ),
-                    "Information to follow",
-                    title = "Help",
+                    icon("question-circle"),
+                    includeMarkdown("popups/log_actions.md"),
+                    title = "Context",
                     placement = "right"
                   )
                 )

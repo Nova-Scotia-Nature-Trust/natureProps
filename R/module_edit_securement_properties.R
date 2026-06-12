@@ -138,7 +138,7 @@ module_edit_securement_properties_server <- function(
         session,
         inputId = "property_name",
         choices = c("", property_choices()),
-        selected = "",
+        selected = isolate(input$property_name),
         server = TRUE
       )
     })
@@ -204,7 +204,7 @@ module_edit_securement_properties_server <- function(
           property_description = NULL,
           phase_id = NULL,
           phase_id_description = NULL,
-          phase_id_change = NULL,
+          phase_id_change = as.Date(NA),
           phase_id_followup = as.Date(NA),
           team_lead_id = NULL,
           project_region_id = NULL,
@@ -218,8 +218,8 @@ module_edit_securement_properties_server <- function(
           db_con,
           glue_sql(
             "SELECT project_theme_id
-         FROM property_theme
-         WHERE property_id = {record$id}",
+             FROM property_theme
+             WHERE property_id = {record$id}",
             .con = db_con
           )
         )$project_theme_id
@@ -344,7 +344,7 @@ module_edit_securement_properties_server <- function(
       db_id <- as.integer(input$property_name)
       original <- selected_record()
 
-      # ---- Phase validation logic (same as your original) ----
+      # ---- Phase validation logic (same as the original) ----
       old_phase <- if (isTruthy(original$phase_id)) {
         as.integer(original$phase_id)
       } else {
@@ -382,7 +382,7 @@ module_edit_securement_properties_server <- function(
       date_changed <- !identical(old_change_dt, new_change_dt)
 
       if (phase_changed) {
-        if (!desc_changed || new_desc == "") {
+        if (!desc_changed || is.na(new_desc) || new_desc == "") {
           shinyalert(
             "Phase Description Required",
             "You changed the phase, but the Phase Description was not updated.",
