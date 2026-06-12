@@ -10,10 +10,51 @@ module_admin_ui <- function(id) {
     ),
     div(style = "margin-top: 8px;"),
 
+    hr(style = "margin: 20px 0;"),
+
     downloadButton(
       outputId = ns("download_cons_lands"),
       label = "Download Conservation Lands Shapefile",
       class = "btn-primary"
+    ),
+
+    hr(style = "margin: 20px 0;"),
+
+    div(
+      style = "
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+     ",
+
+      tags$h6("Landscape Shapefiles"),
+
+      selectizeInput(
+        ns("property"),
+        "Select Property",
+        choices = NULL,
+        multiple = FALSE
+      ),
+
+      selectizeInput(
+        ns("pid"),
+        "Select PID(s)",
+        choices = NULL,
+        multiple = TRUE
+      ),
+
+      downloadButton(
+        ns("download_landscape_pids"),
+        "Download Landscape Shapefiles",
+        class = "btn-primary"
+      ),
+
+      hr(style = "margin: 20px 0;"),
+      actionButton(
+        inputId = ns("refresh_mv"),
+        label = "Recreate Conservation Lands MV",
+        class = "btn-primary"
+      )
     )
   )
 }
@@ -146,5 +187,146 @@ module_admin_server <- function(
         )
       }
     )
+
+    ## Reactive :: Property choices ----
+    property_list <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      dbGetQuery(
+        db_con,
+        "SELECT property_name FROM properties ORDER BY property_name;"
+      ) |>
+        pull(property_name)
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "property",
+        choices = property_list(),
+        selected = isolate(input$property),
+        server = TRUE
+      )
+    })
+
+    ## Reactive :: PIDs for selected property ----
+    pids <- reactive({
+      req(input$property)
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT pa.pid 
+        FROM parcels pa
+        JOIN properties pr ON pa.property_id = pr.id
+        WHERE pr.property_name = {input$property}
+        ORDER BY pa.pid;",
+          .con = db_con
+        )
+      ) |>
+        pull(pid)
+    })
+
+    ## Update PID dropdown based on selected property ----
+    observe({
+      req(input$property)
+
+      updateSelectizeInput(
+        session,
+        inputId = "pid",
+        choices = c("", pids()),
+        selected = pids(),
+        server = TRUE
+      )
+    }) |>
+      bindEvent(input$property)
+
+    ## Download Landscape Shapefiles ----
+    output$download_landscape_pids <- downloadHandler(
+      filename = function() {
+        str_glue("{input$property} Landscape PIDs - {Sys.Date()}.zip")
+      },
+
+      content = function(fname) {
+        req(input$pid)
+
+        workdir <- tempfile()
+        dir.create(workdir)
+
+        pid_zips <- map_chr(
+          input$pid,
+          function(pid) {
+            shp_name <- str_glue("{input$property} PID{pid}")
+
+            # Directory for this PID's shapefile components
+            shp_dir <- file.path(workdir, shp_name)
+            dir.create(shp_dir)
+
+            st_read(
+              dsn = gis_con,
+              query = glue_sql(
+                "SELECT * FROM parcels WHERE pid = {pid}",
+                .con = db_con
+              ),
+              quiet = TRUE
+            ) |>
+              st_write(
+                file.path(shp_dir, str_glue("{shp_name}.shp")),
+                quiet = TRUE
+              )
+
+            # Zip this PID's shapefile set
+            pid_zip <- file.path(workdir, str_glue("{shp_name}.zip"))
+
+            zip::zipr(
+              zipfile = pid_zip,
+              files = list.files(
+                shp_dir,
+                full.names = TRUE
+              )
+            )
+
+            pid_zip
+          }
+        )
+
+        # Zip all PID zip files into final download
+        zip::zipr(
+          zipfile = fname,
+          files = pid_zips
+        )
+      }
+    )
+
+    # Event :: Refresh MV ----
+    observeEvent(input$refresh_mv, {
+      shinyalert(
+        title = "Refreshing",
+        text = "Refreshing materialized view. Please wait...",
+        type = "info",
+        showConfirmButton = FALSE,
+        closeOnEsc = FALSE,
+        closeOnClickOutside = FALSE
+      )
+
+      DBI::dbExecute(
+        gis_con,
+        "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_conservation_land_metrics;"
+      )
+
+      shinyalert::closeAlert()
+      shinyalert(
+        title = "Success",
+        text = "Materialized view refresh complete",
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 5000
+      )
+    })
   })
 }

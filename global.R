@@ -27,9 +27,6 @@ library(promises)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
-# Start future and promises
-plan(multisession)
-
 # Create database connection
 db_con <- create_db_pool("nsnt-properties", port = 5432)
 prd_con <- create_db_pool("nsprd", port = 5432)

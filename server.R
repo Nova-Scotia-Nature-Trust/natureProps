@@ -27,36 +27,12 @@ server <- function(input, output, session) {
   # Setup Cons Lands processing ----
   cons_lands_data_rv <- reactiveVal(NULL)
 
-  future_promise({
-    gis_con_future <- DBI::dbConnect(
-      RPostgres::Postgres(),
-      dbname = "nsnt_gis",
-      host = Sys.getenv("POSTGRES_HOST"),
-      port = 5432,
-      user = Sys.getenv("POSTGRES_USER"),
-      password = Sys.getenv("POSTGRES_PASSWORD")
-    )
-
-    db_con_future <- DBI::dbConnect(
-      RPostgres::Postgres(),
-      dbname = "nsnt-properties",
-      host = Sys.getenv("POSTGRES_HOST"),
-      port = 5432,
-      user = Sys.getenv("POSTGRES_USER"),
-      password = Sys.getenv("POSTGRES_PASSWORD")
-    )
-
-    on.exit({
-      DBI::dbDisconnect(gis_con_future)
-      DBI::dbDisconnect(db_con_future)
-    })
-
+  cons_lands_data_rv(
     prep_cons_lands_data(
-      gis_con_future,
-      db_con_future
+      gis_con,
+      db_con
     )
-  }) %...>%
-    cons_lands_data_rv()
+  )
 
   # Toggle sidebar when gear icon is clicked
   observeEvent(input$toggle_sidebar, {
@@ -85,6 +61,12 @@ server <- function(input, output, session) {
 
   module_prop_stats_server(
     "prop_stats",
+    db_con,
+    db_updated
+  )
+
+  module_securement_focus_areas_server(
+    "securement_focus_areas",
     db_con,
     db_updated
   )
@@ -127,7 +109,7 @@ server <- function(input, output, session) {
     "securement_records_view",
     db_con,
     db_updated,
-    panel_id = "action_item_panel"
+    panel_id = "securement_panel"
   )
 
   module_data_viewer_server(
