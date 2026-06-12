@@ -22,9 +22,12 @@ FROM
         ON sai.action_item_status_id = ais.id
     LEFT JOIN team_lead tl
         ON sai.team_lead_id = tl.id
+    LEFT JOIN phase ph
+        ON pr.phase_id = ph.id
 WHERE
     pr.securement_probability_id IS NOT NULL 
     AND pr.anticipated_closing_year IS NOT NULL
+    AND ph.phase_value IN ('Active - Securement', 'Secured')
 GROUP BY
     pr.property_name,
     ait.id,
