@@ -78,7 +78,7 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "property_name",
         choices = c("", property_choices()),
-        selected = "",
+        selected = isolate(input$property_name),
         server = TRUE
       )
     })
