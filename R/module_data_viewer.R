@@ -1,44 +1,59 @@
+# Shared choices lists (used by both UI and server for labels) ----
+choices_outreach <- list(
+  "Select a view from the list" = "",
+  "PIDs" = "pid_view",
+  "Property Contact Details" = "property_contact_details_view",
+  "Communication History" = "communication_data_view",
+  "Outreach" = "outreach_view",
+  "Land & Securement History" = "land_secure_comms",
+  "Property Descriptions" = "property_descriptions",
+  "Landowner & Address" = "landowner_address"
+)
+
+choices_securement <- list(
+  "Select a view from the list" = "",
+  "Secured Property Details" = "secured_props_view",
+  "Action Items (long)" = "action_items_view",
+  "Action Items (wide)" = "action_items_view_wide",
+  "Appraisals" = "appraisals",
+  "Property Sizes" = "property_sizes",
+  "Insurance View" = "insurance",
+  "LLT Projects" = "llt_projects",
+  "Securement Communication" = "securement_communication",
+  "Property Contact Details" = "property_contact_details_view"
+)
+
+choices_action_item <- list(
+  "Action Items (long)" = "action_items_view",
+  "Action Items (wide)" = "action_items_view_wide"
+)
+
+choices_cons_lands <- list(
+  "Conservation Lands" = "cons_lands_view_grouped",
+  "Conservation Lands (PIDs)" = "cons_lands_view"
+)
+
+# Build a flat key -> label lookup for download filenames
+all_choices <- c(
+  choices_outreach,
+  choices_securement,
+  choices_action_item,
+  choices_cons_lands
+)
+view_labels <- setNames(names(all_choices), unlist(all_choices))
+
 # UI ----
 module_data_viewer_ui <- function(id, panel_id) {
   ns <- NS(id)
 
-  ## Dropdown choices for each panel ----
-  choices_list <- if (panel_id == "outreach_panel") {
-    list(
-      "Select a view from the list" = "",
-      "PIDs" = "pid_view",
-      "Property Contact Details" = "property_contact_details_view",
-      "Communication History" = "communication_data_view",
-      "Outreach" = "outreach_view",
-      "Land & Securement History" = "land_secure_comms",
-      "Property Descriptions" = "property_descriptions",
-      "Landowner & Address" = "landowner_address"
-    )
-  } else if (panel_id == "securement_panel") {
-    list(
-      "Select a view from the list" = "",
-      "Secured Property Details" = "secured_props_view",
-      "Action Items (long)" = "action_items_view",
-      "Action Items (wide)" = "action_items_view_wide",
-      "Appraisals" = "appraisals",
-      "Property Sizes" = "property_sizes",
-      "Insurance View" = "insurance",
-      "LLT Projects" = "llt_projects",
-      "Securement Communication" = "securement_communication",
-      "Property Contact Details" = "property_contact_details_view"
-    )
-  } else if (panel_id == "action_item_panel") {
-    list(
-      "Action Items (long)" = "action_items_view",
-      "Action Items (wide)" = "action_items_view_wide"
-    )
-  } else if (panel_id == "cons_lands_panel") {
-    list(
-      # "Select a view from the list" = "",
-      "Conservation Lands" = "cons_lands_view_grouped",
-      "Conservation Lands (PIDs)" = "cons_lands_view"
-    )
-  }
+  choices_list <- switch(
+    panel_id,
+    "outreach_panel" = choices_outreach,
+    "securement_panel" = choices_securement,
+    "action_item_panel" = choices_action_item,
+    "cons_lands_panel" = choices_cons_lands
+  )
+
   ## Card :: Data viewer ----
   nav_panel(
     title = NULL,
@@ -90,238 +105,235 @@ module_data_viewer_server <- function(
   db_con,
   db_updated = NULL,
   prop_filter = NULL,
-  focal_pid_rv,
+  focal_pid_rv = NULL,
   panel_id = NULL,
   cons_lands_data = NULL
 ) {
   moduleServer(id, function(input, output, session) {
-    ## Reactive :: Data Views ----
-    output_view_data <- reactive({
+    ## View dispatch table ----
+    # Each entry: list(fetch = <fn(db_con)>, order_col = <int>, order_dir = <chr>)
+    view_config <- list(
+      pid_view = list(
+        fetch = function(db_con) dbGetQuery(db_con, "SELECT * FROM view_pid;"),
+        order_col = 1,
+        order_dir = "asc"
+      ),
+      property_contact_details_view = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_property_contacts;")
+        },
+        order_col = 2,
+        order_dir = "asc"
+      ),
+      communication_data_view = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
+        },
+        order_col = 1,
+        order_dir = "asc"
+      ),
+      outreach_view = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_outreach;")
+        },
+        order_col = 4,
+        order_dir = "desc"
+      ),
+      land_secure_comms = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_historical_communications;")
+        },
+        order_col = 1,
+        order_dir = "asc"
+      ),
+      property_descriptions = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_property_descriptions;")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      landowner_address = list(
+        fetch = function(db_con) prep_view_landowner_address(db_con),
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      action_items_view = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_securement_action_items;") |>
+            select(-"Property Name")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      action_items_view_wide = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_securement_action_items;") |>
+            select("Property Name Public", "Action Item", "Status") |>
+            pivot_wider(
+              id_cols = "Property Name Public",
+              names_from = "Action Item",
+              values_from = "Status"
+            )
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      secured_props_view = list(
+        fetch = function(db_con) prep_view_secured_properties(db_con, gis_con),
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      appraisals = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_appraisals;")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      property_sizes = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_property_sizes;")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      insurance = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_insurance;")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      llt_projects = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_llt_projects;")
+        },
+        order_col = 3,
+        order_dir = "asc"
+      ),
+      securement_communication = list(
+        fetch = function(db_con) {
+          dbGetQuery(
+            db_con,
+            "SELECT * FROM view_securement_communication_history;"
+          )
+        },
+        order_col = 5,
+        order_dir = "desc"
+      ),
+      cons_lands_view_grouped = list(
+        fetch = function(db_con) {
+          prep_view_cons_lands(cons_lands_data(), "grouped")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      cons_lands_view = list(
+        fetch = function(db_con) {
+          prep_view_cons_lands(cons_lands_data(), "ungrouped")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      )
+    )
+
+    ## Combined reactive: data + sort order ----
+    combined_rv <- reactive({
       if (!is.null(db_updated)) {
         db_updated()
       }
 
-      ## Access the selected view and filter toggle
       selected_view <- input$data_view
-      apply_filter <- input$filter_toggle
+      apply_filter <- isTRUE(input$filter_toggle)
 
       if (selected_view == "") {
-        data <- NULL
-        ## PID  ----
-      } else if (selected_view == "pid_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_pid;")
-        attr(data, "order_column") <- 1
-        attr(data, "order_direction") <- "asc"
+        return(list(data = NULL, order = list(list(0, "asc"))))
+      }
 
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(PID %in% focal_pid_rv())
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-        ## Property Contact Details ----
-      } else if (selected_view == "property_contact_details_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_property_contacts;")
-        attr(data, "order_column") <- 2
-        attr(data, "order_direction") <- "asc"
+      cfg <- view_config[[selected_view]]
 
-        if (panel_id == "outreach_panel") {
-          if (apply_filter && !is.null(focal_pid_rv())) {
-            data <- data |>
+      # Conservation lands views require data to be available
+      if (selected_view %in% c("cons_lands_view_grouped", "cons_lands_view")) {
+        req(cons_lands_data())
+      }
+
+      data <- cfg$fetch(db_con)
+      order <- list(list(cfg$order_col, cfg$order_dir))
+
+      # Apply property filter (securement / action items)
+      if (!is.null(prop_filter) && !is.null(prop_filter())) {
+        data <- data |> filter(`Property Name Public` == prop_filter())
+      }
+
+      # Apply PID filter (outreach views)
+      if (apply_filter) {
+        pid_vals <- if (!is.null(focal_pid_rv)) focal_pid_rv() else NULL
+
+        if (
+          selected_view %in%
+            c(
+              "pid_view",
+              "outreach_view",
+              "land_secure_comms",
+              "landowner_address"
+            )
+        ) {
+          data <- if (!is.null(pid_vals)) {
+            data |> filter(PID %in% pid_vals)
+          } else {
+            data |> filter(FALSE)
+          }
+        } else if (
+          selected_view %in%
+            c("communication_data_view", "property_descriptions")
+        ) {
+          data <- if (!is.null(pid_vals)) {
+            data |> filter(str_detect(PIDs, str_c(pid_vals, collapse = "|")))
+          } else {
+            data |> filter(FALSE)
+          }
+        } else if (
+          selected_view == "property_contact_details_view" &&
+            panel_id == "outreach_panel"
+        ) {
+          data <- if (!is.null(pid_vals)) {
+            data |>
               filter(str_detect(
                 `Property Contact PIDs`,
-                str_c(focal_pid_rv(), collapse = "|")
+                str_c(pid_vals, collapse = "|")
               ))
-          } else if (apply_filter) {
-            data <- data |>
-              filter(FALSE)
+          } else {
+            data |> filter(FALSE)
           }
         }
-
-        ## Communication Data ----
-      } else if (selected_view == "communication_data_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
-        attr(data, "order_column") <- 1
-        attr(data, "order_direction") <- "asc"
-
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(str_detect(PIDs, str_c(focal_pid_rv(), collapse = "|")))
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-        ## Outreach Data ----
-      } else if (selected_view == "outreach_view") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_outreach;")
-        attr(data, "order_column") <- 4
-        attr(data, "order_direction") <- "desc"
-
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(PID %in% focal_pid_rv())
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-        ## Historical Communications ----
-      } else if (selected_view == "land_secure_comms") {
-        data <- dbGetQuery(
-          db_con,
-          "SELECT * FROM view_historical_communications;"
-        )
-        attr(data, "order_column") <- 1
-        attr(data, "order_direction") <- "asc"
-
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(PID %in% focal_pid_rv())
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-        ## Property Descriptions ----
-      } else if (selected_view == "property_descriptions") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_property_descriptions;")
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(str_detect(PIDs, str_c(focal_pid_rv(), collapse = "|")))
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-        ## Landowner & Address Data ----
-      } else if (selected_view == "landowner_address") {
-        data <- prep_view_landowner_address(db_con)
-
-        if (apply_filter && !is.null(focal_pid_rv())) {
-          data <- data |>
-            filter(PID %in% focal_pid_rv())
-        } else if (apply_filter) {
-          data <- data |>
-            filter(FALSE)
-        }
-        ## Action Items Long ----
-      } else if (selected_view == "action_items_view") {
-        data <- dbGetQuery(
-          db_con,
-          "SELECT * FROM view_securement_action_items;"
-        )
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-
-        if (!is.null(prop_filter) && !is.null(prop_filter())) {
-          data <- data |>
-            filter(`Property Name` == prop_filter())
-        }
-        ## Action Items Wide ----
-      } else if (selected_view == "action_items_view_wide") {
-        data <- dbGetQuery(
-          db_con,
-          "SELECT * FROM view_securement_action_items;"
-        )
-
-        data <- data |>
-          select("Property Name", "Action Item", "Status") |>
-          pivot_wider(
-            id_cols = "Property Name",
-            names_from = "Action Item",
-            values_from = "Status"
-          )
-
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-
-        if (!is.null(prop_filter) && !is.null(prop_filter())) {
-          data <- data |>
-            filter(`Property Name` == prop_filter())
-        }
-        ## Secured Property Details ----
-      } else if (selected_view == "secured_props_view") {
-        data <- prep_view_secured_properties(db_con, gis_con)
-        ## Appraisals ----
-      } else if (selected_view == "appraisals") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_appraisals;")
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-        ## Property Sizes ----
-      } else if (selected_view == "property_sizes") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_property_sizes;")
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-        ## Insurance ----
-      } else if (selected_view == "insurance") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_insurance;")
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-        ## LLT Projects ----
-      } else if (selected_view == "llt_projects") {
-        data <- dbGetQuery(db_con, "SELECT * FROM view_llt_projects;")
-        attr(data, "order_column") <- 3
-        attr(data, "order_direction") <- "asc"
-        ## Securement Comms ----
-      } else if (selected_view == "securement_communication") {
-        data <- dbGetQuery(
-          db_con,
-          "SELECT * FROM view_securement_communication_history;"
-        )
-        attr(data, "order_column") <- 5
-        attr(data, "order_direction") <- "desc"
-        ## Conservation Lands (Grouped) ----
-      } else if (selected_view == "cons_lands_view_grouped") {
-        req(cons_lands_data())
-        data <- prep_view_cons_lands(cons_lands_data(), "grouped")
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
-        ## Conservation Lands (Ungrouped) ----
-      } else if (selected_view == "cons_lands_view") {
-        req(cons_lands_data())
-        data <- prep_view_cons_lands(cons_lands_data(), "ungrouped")
-        attr(data, "order_column") <- 0
-        attr(data, "order_direction") <- "asc"
       }
-      return(data)
-    })
 
-    ## Reactive :: Table Ordering ----
-    table_order <- reactive({
-      list(list(
-        attr(output_view_data(), "order_column"),
-        attr(output_view_data(), "order_direction")
-      ))
+      list(data = data, order = order)
     })
 
     ## Render datatable ----
     output$view_df <- renderDT({
+      rv <- combined_rv()
+
       if (
         input$data_view %in%
-          c(
-            "cons_lands_view_grouped",
-            "cons_lands_view"
-          ) &&
+          c("cons_lands_view_grouped", "cons_lands_view") &&
           is.null(cons_lands_data())
       ) {
-        return(
-          datatable(
-            data.frame(
-              Status = "Loading conservation lands data..."
-            ),
-            options = list(dom = "t"),
-            rownames = FALSE
-          )
-        )
+        return(datatable(
+          data.frame(Status = "Loading conservation lands data..."),
+          options = list(dom = "t"),
+          rownames = FALSE
+        ))
       }
 
-      if (is.null(output_view_data()) || nrow(output_view_data()) == 0) {
+      if (is.null(rv$data) || nrow(rv$data) == 0) {
         return(datatable(data.frame()))
       }
 
-      # Convert character columns to factors to get select inputs
-      data_for_display <- output_view_data() |>
+      # Convert character columns to factors to enable column filter dropdowns
+      data_for_display <- rv$data |>
         mutate(across(where(is.character), as.factor))
 
       datatable(
@@ -331,12 +343,12 @@ module_data_viewer_server <- function(
           pageLength = 50,
           lengthMenu = list(
             c(10, 25, 50, 100, -1),
-            c('10', '25', '50', '100', 'All')
+            c("10", "25", "50", "100", "All")
           ),
           scrollX = TRUE,
           scrollY = "400px",
           fixedHeader = TRUE,
-          order = table_order(),
+          order = rv$order,
           stateSave = FALSE
         ),
         filter = list(
@@ -353,14 +365,18 @@ module_data_viewer_server <- function(
     ## Download Data View ----
     output$download_data <- downloadHandler(
       filename = function() {
-        view_name <- input$data_view
-        if (view_name == "") {
-          view_name <- "data"
+        view_key <- input$data_view
+        label <- if (view_key != "" && view_key %in% names(view_labels)) {
+          view_labels[[view_key]]
+        } else {
+          "data"
         }
-        glue("{view_name}_{format(Sys.Date(), '%Y%m%d')}.csv")
+        # Replace spaces with underscores for safe filenames
+        label <- gsub(" ", "_", label)
+        glue("{label}_{format(Sys.Date(), '%Y%m%d')}.csv")
       },
       content = function(file) {
-        data_to_download <- output_view_data()
+        data_to_download <- combined_rv()$data
         req(data_to_download, nrow(data_to_download) > 0)
         write_csv(data_to_download, file)
       }
