@@ -112,10 +112,13 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       dbGetQuery(
         db_con,
         "SELECT DISTINCT sai.property_id AS id,
+                pr.property_name_public,
                 pr.property_name
         FROM securement_action_items AS sai
         LEFT JOIN properties AS pr ON sai.property_id = pr.id
-        ORDER BY pr.property_name;"
+        LEFT JOIN phase ph ON pr.phase_id = ph.id 
+        WHERE ph.phase_value IN ('Active - Securement', 'Secured')
+        ORDER BY pr.property_name_public;"
       )
     })
 
@@ -125,7 +128,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         "property",
         choices = setNames(
           property_list()$id,
-          property_list()$property_name
+          property_list()$property_name_public
         ),
         selected = isolate(input$property),
         server = TRUE
@@ -137,7 +140,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       req(input$property)
       property_list() |>
         filter(id == input$property) |>
-        pull(property_name)
+        pull(property_name_public)
     })
 
     ## Reactive :: Action Item Types ----

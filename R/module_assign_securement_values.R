@@ -49,6 +49,11 @@ module_assign_securement_values_ui <- function(id) {
                 multiple = FALSE,
                 width = "100%"
               ),
+              textInput(
+                inputId = ns("public_name"),
+                label = "Assign Public Property Name",
+                value = ""
+              ),
               actionButton(
                 inputId = ns("setup_template"),
                 label = "Setup Securement Action Template",
@@ -71,12 +76,9 @@ module_assign_securement_values_ui <- function(id) {
                   style = "display: flex; align-items: center; gap: 8px;",
                   h5("Property"),
                   popover(
-                    div(
-                      icon("question-circle"),
-                      style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
-                    ),
+                    icon("question-circle"),
                     includeMarkdown("popups/probability_securement_desc.md"),
-                    title = "Help",
+                    title = "Probability of Securement Categories",
                     placement = "right"
                   )
                 )
@@ -111,17 +113,11 @@ module_assign_securement_values_ui <- function(id) {
                   ),
                   div(
                     style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-                    tags$label(
-                      "Securement action notes",
-                      `for` = ns("securement_notes")
-                    ),
+                    "Securement action notes",
                     popover(
-                      div(
-                        icon("question-circle"),
-                        style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                      ),
+                      icon("question-circle"),
                       includeMarkdown("popups/securement_desc.md"),
-                      title = "Securement Notes Help",
+                      title = "Context",
                       placement = "top"
                     )
                   ),
@@ -148,15 +144,12 @@ module_assign_securement_values_ui <- function(id) {
                 div(
                   style = "display: flex; align-items: center; gap: 8px;",
                   h5("Parcels"),
-                  popover(
-                    div(
-                      icon("question-circle"),
-                      style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 16px;"
-                    ),
-                    "More information to come",
-                    title = "Help",
-                    placement = "right"
-                  )
+                  # popover(
+                  #   icon("question-circle"),
+                  #   "More information to come",
+                  #   title = "Context",
+                  #   placement = "right"
+                  # )
                 )
               ),
               card_body(
@@ -264,6 +257,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     })
 
     iv$add_rule("securement_prob", sv_required())
+    iv$add_rule("public_name", sv_required())
     iv$enable()
 
     ## Reactive :: Property List ----
@@ -702,6 +696,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     ## Event :: Setup template action ----
     observeEvent(input$setup_template, {
       req(input$property_iat)
+      req(input$public_name)
 
       action_type_ids <- dbGetQuery(db_con, "SELECT id FROM action_item_type")
 
@@ -717,7 +712,23 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         silent = TRUE
       )
 
+      dbx::dbxUpdate(
+        db_con,
+        table = "properties",
+        records = tibble(
+          id = input$property_iat,
+          property_name_public = input$public_name
+        ),
+        where_cols = "id"
+      )
+
       db_updated(db_updated() + 1)
+
+      updateTextInput(
+        session,
+        inputId = "public_name",
+        value = ""
+      )
 
       shinyalert(
         title = "Success",
