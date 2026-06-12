@@ -1,0 +1,1 @@
+Action items can be created for any team member and are distinct from the core set of securement action items that are used during active securement. Action items are tied to a specific property so be sure to create separate actions if the scope covers multiple properties.
