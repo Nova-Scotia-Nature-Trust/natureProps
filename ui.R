@@ -2,21 +2,9 @@ ui <- page_navbar(
   title = "Nature Trust Property Database Manager",
   bg = "#31688E",
   useShinyjs(),
-  # Add the CSS here for all modules
+  # Link to CSS stylesheet
   tags$head(
-    tags$style(HTML(
-      "
-      .popover {
-        max-width: 600px !important;
-        width: auto !important;
-      }
-      .popover-body {
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        line-height: 1.4;
-      }
-    "
-    ))
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   id = "main_navbar",
   selected = "Home",
@@ -67,10 +55,6 @@ ui <- page_navbar(
       nav_panel(
         title = "Team Lead",
         module_team_lead_info_UI("team_lead_info")
-      ),
-      nav_panel(
-        title = "Documentation",
-        includeMarkdown("popups/securement_processes.md")
       )
     )
   ),
@@ -245,9 +229,27 @@ ui <- page_navbar(
       nav_panel(
         title = "Species Property Lookup",
         module_species_properties_ui("species_properties")
+      ),
+      nav_panel(
+        title = "Securement in Focus Areas",
+        module_securement_focus_areas_ui("securement_focus_areas")
       )
     )
   ),
+  # nav_panel(
+  #   title = "Help",
+  #   icon = bs_icon("question-circle"),
+  #   card(
+  #     full_screen = TRUE,
+  #     card_body(
+  #       tags$iframe(
+  #         id = "help_iframe",
+  #         src = "user_guide_fresh.html",
+  #         style = "width: 100%; height: calc(100vh - 150px); border: none;"
+  #       )
+  #     )
+  #   )
+  # ),
   nav_spacer(),
   nav_item(
     actionBttn(
