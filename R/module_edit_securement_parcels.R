@@ -116,31 +116,11 @@ module_edit_securement_parcels_server <- function(
         deframe()
     })
 
-    ## Reactive :: Priority securement ranking choices ----
-    priority_securement_ranking_choices <- reactive({
+    ## Reactive :: Priority ranking choices ----
+    priority_ranking_choices <- reactive({
       dbGetQuery(
         db_con,
-        "SELECT id, ranking_value FROM ranking ORDER BY ranking_value;"
-      ) |>
-        select(ranking_value, id) |>
-        deframe()
-    })
-
-    ## Reactive :: Priority ecological ranking choices ----
-    priority_ecological_ranking_choices <- reactive({
-      dbGetQuery(
-        db_con,
-        "SELECT id, ranking_value FROM ranking ORDER BY ranking_value;"
-      ) |>
-        select(ranking_value, id) |>
-        deframe()
-    })
-
-    ## Reactive :: Landowner interest ranking choices ----
-    landowner_interest_ranking_choices <- reactive({
-      dbGetQuery(
-        db_con,
-        "SELECT id, ranking_value FROM ranking ORDER BY ranking_value;"
+        "SELECT id, ranking_value FROM ranking;"
       ) |>
         select(ranking_value, id) |>
         deframe()
@@ -152,7 +132,7 @@ module_edit_securement_parcels_server <- function(
         session,
         inputId = "property_name",
         choices = c("", property_choices()),
-        selected = "",
+        selected = isolate(input$property_name),
         server = TRUE
       )
     })
@@ -167,7 +147,7 @@ module_edit_securement_parcels_server <- function(
         session,
         inputId = "pid",
         choices = c("", pids),
-        selected = "",
+        selected = isolate(input$pid),
         options = list(
           create = FALSE,
           placeholder = "Search or select PID"
@@ -273,7 +253,7 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_landowner_interest_ranking_id"),
             label = "Landowner Interest Ranking",
-            choices = c("", landowner_interest_ranking_choices()),
+            choices = c("", priority_ranking_choices()),
             selected = if (
               !is.null(record) && !is.na(record$landowner_interest_ranking_id)
             ) {
@@ -293,7 +273,7 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_priority_securement_ranking_id"),
             label = "Priority Securement Ranking",
-            choices = c("", priority_securement_ranking_choices()),
+            choices = c("", priority_ranking_choices()),
             selected = if (
               !is.null(record) && !is.na(record$priority_securement_ranking_id)
             ) {
@@ -310,7 +290,7 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_priority_ecological_ranking_id"),
             label = "Priority Ecological Ranking",
-            choices = c("", priority_ecological_ranking_choices()),
+            choices = c("", priority_ranking_choices()),
             selected = if (
               !is.null(record) && !is.na(record$priority_ecological_ranking_id)
             ) {
