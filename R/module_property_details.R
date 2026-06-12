@@ -92,17 +92,11 @@ module_property_details_ui <- function(id) {
             style = "width: 100%;",
             div(
               style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-              tags$label(
-                "Property & Opportunity Description",
-                `for` = ns("property_description")
-              ),
+              "Property & Opportunity Description",
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/prop_opp_overview.md"),
-                title = "Property Description Info",
+                title = "Context",
                 placement = "top"
               )
             ),
@@ -118,17 +112,11 @@ module_property_details_ui <- function(id) {
             style = "margin-top: 20px;",
             div(
               style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-              tags$label(
-                "Stewardship Concerns",
-                `for` = ns("stewardship_concerns")
-              ),
+              "Stewardship Concerns",
               popover(
-                div(
-                  icon("question-circle"),
-                  style = "transform: translateY(-5px); color: #6c757d; cursor: pointer; font-size: 14px;"
-                ),
+                icon("question-circle"),
                 includeMarkdown("popups/stewardship_concerns.md"),
-                title = "Stewardship Concerns Info",
+                title = "Context",
                 placement = "top"
               )
             ),
