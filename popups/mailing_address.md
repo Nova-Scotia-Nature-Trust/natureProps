@@ -1,5 +1,3 @@
-## Mailing Address
-
 Enter the mailing address exactly as it should appear on an envelope.
 
 - **Address Line 1** contains the primary delivery address (street address, PO Box, RR, or General Delivery).
