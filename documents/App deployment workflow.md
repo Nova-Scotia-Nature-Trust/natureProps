@@ -433,3 +433,122 @@ LIMIT 20;
 SELECT cron.unschedule('refresh-conservation-land-metrics');
 
 ```
+
+## Databasus backups
+
+Create the docker-compose.yml. Note it is storing data in the `/mnt/data` directory which is an external partition.
+
+```yml
+services:
+  databasus:
+    container_name: databasus
+    image: databasus/databasus:latest
+    ports:
+      - "4005:4005"
+    volumes:
+      - /mnt/data/databasus-data:/databasus-data
+    restart: unless-stopped
+```
+
+Copy compose file to databasus directory
+`scp docker-compose.yml nsnt_admin@192.168.1.51:/home/nsnt_admin/databasus`
+
+Start compose
+`docker compose up -d`
+
+Follow the instructions below if Databasus was setup to store data in default partition:
+
+```bash 
+# Create new directory in the /mnt/data partition
+sudo mkdir -p /mnt/data/databasus-data
+sudo chown -R nsnt_admin:nsnt_admin /mnt/data/databasus-data
+
+# Copy over data
+sudo rsync -av /home/nsnt_admin/databasus/databasus-data/ /mnt/data/databasus-data/
+
+# Restart container
+docker compose down
+docker compose up -d
+
+# Check new location
+docker inspect databasus | grep -A 5 Mounts
+
+# Run a backup and check it's been written to new destination
+ls -lhtr /mnt/data/databasus-data
+find /mnt/data/databasus-data/backups -type f -printf "%TY-%Tm-%Td %TH:%TM %p\n" | sort | tail -20
+
+# Remove old data after confirming
+sudo rm -rf /home/nsnt_admin/databasus/databasus-data
+```
+
+## Moving PostgreSQL cluster to mounted drive
+
+Move PostgreSQL 18 cluster from /var/lib/postgresql/18/main to
+/mnt/data/postgresql/18/main safely.
+
+Check cluster status
+``` bash
+sudo pg_lsclusters
+```
+
+Stop PostgreSQL 18 only
+``` bash
+sudo systemctl stop postgresql@18-main
+sudo pg_lsclusters
+
+```
+Create new directory
+``` bash
+sudo mkdir -p /mnt/data/postgresql/18
+sudo chown -R postgres:postgres /mnt/data/postgresql
+sudo chmod 700 /mnt/data/postgresql/18
+```
+
+Copy data (do not move)
+``` bash
+sudo rsync -aHAX --progress /var/lib/postgresql/18/main/ /mnt/data/postgresql/18/main/
+```
+
+Verify copy (sizes should match)
+``` bash
+sudo du -sh /var/lib/postgresql/18/main
+sudo du -sh /mnt/data/postgresql/18/main
+```
+
+Update config
+
+Edit:
+``` bash
+sudo nano /etc/postgresql/18/main/postgresql.conf
+```
+
+Change: `data_directory = '/var/lib/postgresql/18/main'`  
+To: `data_directory = '/mnt/data/postgresql/18/main'`
+
+Fix permissions
+``` bash
+sudo chown -R postgres:postgres /mnt/data/postgresql/18/main
+sudo chmod 700 /mnt/data/postgresql/18/main
+```
+Start PostgreSQL 18
+``` bash
+sudo systemctl start postgresql@18-main
+```
+
+Verify
+``` bash
+sudo pg_lsclusters
+sudo -u postgres psql -p 5433 -c "SELECT version();"
+```
+
+Remove old data (only after success)
+``` bash
+sudo rm -rf /var/lib/postgresql/18/main
+```
+
+Rollback (if needed)
+``` bash
+sudo systemctl stop postgresql@18-main
+# Revert data_directory back to /var/lib/postgresql/18/main
+sudo systemctl start postgresql@18-main
+```
