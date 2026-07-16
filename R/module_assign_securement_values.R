@@ -257,8 +257,13 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     })
 
     iv$add_rule("securement_prob", sv_required())
-    iv$add_rule("public_name", sv_required())
     iv$enable()
+
+    # Separate validator so the public_name required rule only gates/highlights
+    # the setup_template button, not submit_edit_properties
+    iv_template <- InputValidator$new()
+    iv_template$add_rule("public_name", sv_required())
+    iv_template$enable()
 
     ## Reactive :: Property List ----
     property_list <- reactive({
@@ -696,7 +701,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     ## Event :: Setup template action ----
     observeEvent(input$setup_template, {
       req(input$property_iat)
-      req(input$public_name)
+      req(iv_template$is_valid())
 
       action_type_ids <- dbGetQuery(db_con, "SELECT id FROM action_item_type")
 
