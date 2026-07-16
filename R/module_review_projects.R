@@ -157,7 +157,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           "
         SELECT p.property_description, 
                p.phase_id_description, 
-               p.phase_id_followup,
+               p.phase_id_change,
                p.securement_action_description,
                p.date_securement_description,
                p.date_added,
@@ -323,9 +323,9 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             df$phase
           ),
           div(
-            strong("Phase Followup:"),
+            strong("Phase Set:"),
             br(),
-            format(as.Date(df$phase_id_followup), "%B %d, %Y")
+            format(as.Date(df$phase_id_change), "%B %d, %Y")
           )
         ),
 
