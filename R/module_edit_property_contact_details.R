@@ -65,6 +65,11 @@ module_edit_property_contacts_server <- function(
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    ## Input Validation ----
+    iv <- InputValidator$new()
+    iv$add_rule("edit_postal_code", ~ if (isTruthy(.)) validate_postal_code(.))
+    iv$enable()
+
     ## Reactive :: Contact choices ----
     contact_choices <- reactive({
       db_updated()
@@ -120,7 +125,13 @@ module_edit_property_contacts_server <- function(
           phone_cell,
           dnc,
           property_contact_description,
-          re_constituent_id
+          re_constituent_id,
+          address_line1,
+          address_line2,
+          city,
+          state_province_code,
+          postal_code,
+          country_code
         FROM property_contact_details 
         WHERE id = {contact_id}",
         .con = db_con
@@ -253,6 +264,87 @@ module_edit_property_contacts_server <- function(
             rows = 3,
             placeholder = "Enter notes or description about this contact"
           )
+        ),
+        div(
+          style = "display: flex; align-items: center; gap: 8px;",
+          h6("Mailing Address", class = "text-muted"),
+          popover(
+            icon("question-circle"),
+            includeMarkdown("popups/mailing_address.md"),
+            title = "Mailing Address Help",
+            placement = "top"
+          )
+        ),
+        layout_columns(
+          col_widths = c(6, 6),
+          textInput(
+            inputId = ns("edit_address_line1"),
+            label = "Address Line 1",
+            value = if (!is.null(record) && !is.na(record$address_line1)) {
+              record$address_line1
+            } else {
+              ""
+            },
+            placeholder = "Enter street address"
+          ),
+          textInput(
+            inputId = ns("edit_address_line2"),
+            label = "Address Line 2",
+            value = if (!is.null(record) && !is.na(record$address_line2)) {
+              record$address_line2
+            } else {
+              ""
+            },
+            placeholder = "Enter apartment, unit, or suite"
+          )
+        ),
+        layout_columns(
+          col_widths = c(6, 6),
+          textInput(
+            inputId = ns("edit_city"),
+            label = "City",
+            value = if (!is.null(record) && !is.na(record$city)) {
+              record$city
+            } else {
+              ""
+            },
+            placeholder = "Enter city"
+          ),
+          textInput(
+            inputId = ns("edit_state_province_code"),
+            label = "Province/State",
+            value = if (
+              !is.null(record) && !is.na(record$state_province_code)
+            ) {
+              record$state_province_code
+            } else {
+              ""
+            },
+            placeholder = "Enter province or state"
+          )
+        ),
+        layout_columns(
+          col_widths = c(6, 6),
+          textInput(
+            inputId = ns("edit_postal_code"),
+            label = "Postal Code",
+            value = if (!is.null(record) && !is.na(record$postal_code)) {
+              record$postal_code
+            } else {
+              ""
+            },
+            placeholder = "Enter postal code"
+          ),
+          textInput(
+            inputId = ns("edit_country_code"),
+            label = "Country",
+            value = if (!is.null(record) && !is.na(record$country_code)) {
+              record$country_code
+            } else {
+              ""
+            },
+            placeholder = "Enter country code"
+          )
         )
       )
     })
@@ -260,6 +352,7 @@ module_edit_property_contacts_server <- function(
     ## Event :: Write changes ----
     observeEvent(input$submit_edit, {
       req(input$contact_id)
+      req(iv$is_valid())
 
       contact_id <- as.integer(input$contact_id)
 
@@ -305,6 +398,36 @@ module_edit_property_contacts_server <- function(
         },
         re_constituent_id = if (isTruthy(input$edit_re_constituent_id)) {
           as.character(input$edit_re_constituent_id)
+        } else {
+          NA_character_
+        },
+        address_line1 = if (isTruthy(input$edit_address_line1)) {
+          as.character(input$edit_address_line1)
+        } else {
+          NA_character_
+        },
+        address_line2 = if (isTruthy(input$edit_address_line2)) {
+          as.character(input$edit_address_line2)
+        } else {
+          NA_character_
+        },
+        city = if (isTruthy(input$edit_city)) {
+          as.character(input$edit_city)
+        } else {
+          NA_character_
+        },
+        state_province_code = if (isTruthy(input$edit_state_province_code)) {
+          as.character(input$edit_state_province_code)
+        } else {
+          NA_character_
+        },
+        postal_code = if (isTruthy(input$edit_postal_code)) {
+          as.character(input$edit_postal_code)
+        } else {
+          NA_character_
+        },
+        country_code = if (isTruthy(input$edit_country_code)) {
+          as.character(input$edit_country_code)
         } else {
           NA_character_
         }

@@ -42,11 +42,9 @@ module_outreach_queries_ui <- function(id) {
             )
           ),
           card_body(
-            div(
-              style = "display: flex; flex-direction: column; gap: 15px;",
-              DTOutput(outputId = ns("view_df"), height = "100%"),
-              div(style = "flex-grow: 1;")
-            )
+            style = "padding: 0.5rem 1rem;",
+            min_height = "300px",
+            DTOutput(outputId = ns("view_df"), height = "100%")
           )
         )
       )
@@ -178,7 +176,6 @@ module_outreach_queries_server <- function(
             c('10', '25', '50', '100', 'All')
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
           stateSave = FALSE,
           searching = TRUE
@@ -190,7 +187,8 @@ module_outreach_queries_server <- function(
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 

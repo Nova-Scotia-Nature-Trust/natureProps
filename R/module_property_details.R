@@ -438,6 +438,7 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
             NA_character_
           ),
           phase_id = input$phase,
+          phase_id_change = input$date_added,
           source_id = input$source,
           team_lead_id = input$team_lead,
           project_region_id = if_else(

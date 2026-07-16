@@ -179,9 +179,12 @@ module_property_contact_communication_server <- function(
         updateSelectizeInput(
           session,
           inputId = "contact",
-          choices = setNames(
-            contacts()$id,
-            contacts()$display_label
+          choices = c(
+            "",
+            setNames(
+              contacts()$id,
+              contacts()$display_label
+            )
           ),
           selected = isolate(input$contact),
           server = TRUE

@@ -117,6 +117,8 @@ module_securement_review_ui <- function(id) {
             )
           ),
           card_body(
+            style = "padding: 0.5rem 1rem;",
+            min_height = "300px",
             DTOutput(outputId = ns("view_df"), height = "100%")
           )
         )
@@ -481,9 +483,23 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
             c("10", "25", "50", "100", "All")
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
-          stateSave = FALSE
+          stateSave = FALSE,
+          autoWidth = TRUE, # Need this to be set when using custom col widths
+          columnDefs = list(
+            list(
+              width = "400px",
+              targets = which(names(data_for_display) == "Securement Status") -
+                1
+            ),
+            list(
+              width = "200px",
+              targets = which(
+                names(data_for_display) == "Property Name Public"
+              ) -
+                1
+            )
+          )
         ),
         filter = list(
           position = "top",
@@ -492,7 +508,8 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons", "FixedHeader")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 

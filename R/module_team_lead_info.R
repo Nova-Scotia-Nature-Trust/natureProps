@@ -22,7 +22,7 @@ module_team_lead_info_UI <- function(id) {
 
       # Action card ----
       card(
-        height = "auto",
+        height = "100%",
         full_screen = TRUE,
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -34,13 +34,15 @@ module_team_lead_info_UI <- function(id) {
           )
         ),
         card_body(
-          DTOutput(outputId = ns("actions_table"), height = "auto")
+          style = "padding: 0.5rem 1rem;",
+          min_height = "300px",
+          DTOutput(outputId = ns("actions_table"), height = "100%")
         )
       ),
 
       # Securement Action card ----
       card(
-        height = "auto",
+        height = "100%",
         full_screen = TRUE,
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -52,13 +54,15 @@ module_team_lead_info_UI <- function(id) {
           )
         ),
         card_body(
-          DTOutput(outputId = ns("securement_actions_table"), height = "auto")
+          style = "padding: 0.5rem 1rem;",
+          min_height = "300px",
+          DTOutput(outputId = ns("securement_actions_table"), height = "100%")
         )
       ),
 
       # Team Lead Property Card ----
       card(
-        height = "auto",
+        height = "100%",
         full_screen = TRUE,
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -70,7 +74,9 @@ module_team_lead_info_UI <- function(id) {
           )
         ),
         card_body(
-          DTOutput(outputId = ns("properties_table"), height = "auto")
+          style = "padding: 0.5rem 1rem;",
+          min_height = "300px",
+          DTOutput(outputId = ns("properties_table"), height = "100%")
         )
       )
     )
@@ -235,7 +241,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', 'All')
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
           stateSave = FALSE
         ),
@@ -246,7 +251,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 
@@ -267,7 +273,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', 'All')
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
           stateSave = FALSE
         ),
@@ -278,7 +283,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 
@@ -299,7 +305,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', 'All')
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
           stateSave = FALSE
         ),
@@ -310,7 +315,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 
