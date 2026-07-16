@@ -87,3 +87,4 @@ documents/Securement Process Documentation.docx
 documents/Securement Process – Data Management (restructured).docx
 tests/
 .posit/assistant/plans
+.posit/assistant/settings.json
