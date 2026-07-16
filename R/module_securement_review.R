@@ -493,7 +493,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
                 1
             ),
             list(
-              width = "400px",
+              width = "200px",
               targets = which(
                 names(data_for_display) == "Property Name Public"
               ) -
