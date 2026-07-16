@@ -92,7 +92,8 @@ module_data_viewer_ui <- function(id, panel_id) {
         )
       ),
       card_body(
-        style = "height: calc(100vh - 265px); padding: 0.5rem 1rem;",
+        style = "padding: 0.5rem 1rem;",
+        min_height = "300px",
         DTOutput(outputId = ns("view_df"), height = "100%")
       )
     )
@@ -346,7 +347,6 @@ module_data_viewer_server <- function(
             c("10", "25", "50", "100", "All")
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
           order = rv$order,
           stateSave = FALSE
@@ -358,7 +358,8 @@ module_data_viewer_server <- function(
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 

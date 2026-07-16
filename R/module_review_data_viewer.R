@@ -43,6 +43,8 @@ module_review_data_viewer_ui <- function(id) {
             )
           ),
           card_body(
+            style = "padding: 0.5rem 1rem;",
+            min_height = "300px",
             DTOutput(outputId = ns("data_table"), height = "100%")
           )
         )
@@ -147,7 +149,6 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
             c('10', '25', '50', '100', 'All')
           ),
           scrollX = TRUE,
-          scrollY = "400px",
           fixedHeader = TRUE,
           stateSave = FALSE
         ),
@@ -158,7 +159,8 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 

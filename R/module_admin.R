@@ -5,7 +5,7 @@ module_admin_ui <- function(id) {
   div(
     actionButton(
       inputId = ns("create_cons_lands"),
-      label = "Update Conservation Lands Table",
+      label = "Update Conservation Lands GIS Table",
       class = "btn-primary"
     ),
     div(style = "margin-top: 8px;"),
