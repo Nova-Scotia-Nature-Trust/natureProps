@@ -292,8 +292,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         query_02_result <- dbGetQuery(db_con, query_02)
 
-        prop_string <- query_02_result |>
-          pull(property_name) |>
+        pids_string <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "
+            SELECT pa.pid 
+            FROM properties pr
+            LEFT JOIN parcels pa ON pr.id = pa.property_id
+            WHERE pr.property_name = {prop_name}",
+            .con = db_con
+          )
+        ) |>
+          pull(pid) |>
           unique() |>
           paste(collapse = ", ")
 
@@ -340,7 +350,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         if (nrow(record_01) == 1) {
           selected_record(list(
             info = record_01,
-            pids = prop_string,
+            pids = pids_string,
             contacts = contacts_df,
             comms = comms_df,
             actions = actions_df
