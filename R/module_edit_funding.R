@@ -63,12 +63,34 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
-      dbGetQuery(
+      choices <- dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties ORDER BY property_name;"
-      ) |>
-        select(property_name, id) |>
+        "SELECT pr.id, 
+              pr.property_name,
+              pr.property_name_public
+        FROM properties pr 
+        JOIN ownership ow ON pr.ownership_id = ow.id
+        WHERE ownership_value IS NOT NULL
+        ORDER BY property_name_public;"
+      )
+
+      name_dupes <- choices |>
+        get_dupes(property_name_public) |>
+        distinct(property_name_public) |>
+        pull()
+
+      choices <- choices |>
+        mutate(
+          property_name_view = if_else(
+            property_name_public %in% name_dupes,
+            str_glue("{property_name_public} || {property_name}"),
+            property_name_public
+          )
+        ) |>
+        select(property_name_view, id) |>
         deframe()
+
+      return(choices)
     })
 
     ## Reactive :: Federal funding choices ----

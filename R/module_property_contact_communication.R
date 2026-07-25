@@ -11,20 +11,17 @@ module_property_contact_communication_ui <- function(id) {
       card_body(
         div(
           style = "display: flex; flex-direction: column; gap: 15px;",
-          layout_columns(
-            col_widths = c(6, 6),
-            selectInput(
-              ns("communication_type"),
-              "Select Type",
-              choices = c(
-                "",
-                "Property Contact Communication",
-                "Outreach"
-              ),
-              selected = character(0)
+          selectInput(
+            ns("communication_type"),
+            "Select Type",
+            choices = c(
+              "",
+              "Property Contact Communication",
+              "Outreach"
             ),
-            uiOutput(ns("conditional_contact_ui"))
+            selected = character(0)
           ),
+          uiOutput(ns("conditional_contact_ui")),
           layout_columns(
             col_widths = c(6, 6),
             selectizeInput(
@@ -104,17 +101,44 @@ module_property_contact_communication_server <- function(
     iv_contact$add_rule("contact", sv_required())
     iv_contact$enable()
 
-    ## Reactive :: Property Contacts ----
+    iv_contact_property <- InputValidator$new()
+    iv_contact_property$add_rule("contact_property_id", sv_required())
+    iv_contact_property$enable()
+
+    ## Reactive :: Properties List (only properties with linked contacts) ----
+    properties_list <- reactive({
+      db_updated()
+      dbGetQuery(
+        db_con,
+        "
+        SELECT p.id, p.property_name
+        FROM properties p
+        WHERE EXISTS (
+          SELECT 1 FROM properties_contact pc WHERE pc.property_id = p.id
+        )
+        ORDER BY p.property_name;
+        "
+      )
+    })
+
+    ## Reactive :: Property Contacts (scoped to selected property) ----
     contacts <- reactive({
       db_updated()
-      contacts <- dbReadTable(db_con, "property_contact_details") |>
+      req(input$contact_property_id)
+      dbGetQuery(
+        db_con,
+        glue_sql(
+          "
+          SELECT pcd.*
+          FROM property_contact_details pcd
+          INNER JOIN properties_contact pc ON pc.property_contact_id = pcd.id
+          WHERE pc.property_id = {input$contact_property_id}
+          ",
+          .con = db_con
+        )
+      ) |>
         mutate(
-          display_name = glue("{name_first} {name_last} (ID:{id})"),
-          display_label = if_else(
-            !is.na(email) & email != "",
-            glue("{display_name} - {email}"),
-            display_name
-          )
+          display_label = glue("{name_first} {name_last} (ID:{id})")
         ) |>
         arrange(name_last, name_first)
     })
@@ -140,21 +164,34 @@ module_property_contact_communication_server <- function(
       "SELECT * FROM communication_purpose ORDER BY purpose_value"
     )
 
-    ## Conditional UI ----
+    ## Conditional UI :: Property + Contact (or PID) Select ----
     output$conditional_contact_ui <- renderUI({
       ns <- session$ns
 
       req(input$communication_type)
 
       if (input$communication_type == "Property Contact Communication") {
-        selectizeInput(
-          ns("contact"),
-          "Select Property Contact ID",
-          choices = NULL,
-          multiple = FALSE,
-          options = list(
-            create = FALSE,
-            placeholder = "Select a property contact"
+        layout_columns(
+          col_widths = c(6, 6),
+          selectizeInput(
+            ns("contact_property_id"),
+            "Select Property",
+            choices = NULL,
+            multiple = FALSE,
+            options = list(
+              create = FALSE,
+              placeholder = "Select a property"
+            )
+          ),
+          selectizeInput(
+            ns("contact"),
+            "Select Property Contact",
+            choices = NULL,
+            multiple = FALSE,
+            options = list(
+              create = FALSE,
+              placeholder = "Select a property first"
+            )
           )
         )
       } else if (input$communication_type == "Outreach") {
@@ -178,15 +215,15 @@ module_property_contact_communication_server <- function(
       if (input$communication_type == "Property Contact Communication") {
         updateSelectizeInput(
           session,
-          inputId = "contact",
+          inputId = "contact_property_id",
           choices = c(
             "",
             setNames(
-              contacts()$id,
-              contacts()$display_label
+              properties_list()$id,
+              properties_list()$property_name
             )
           ),
-          selected = isolate(input$contact),
+          selected = isolate(input$contact_property_id),
           server = TRUE
         )
       } else {
@@ -201,6 +238,24 @@ module_property_contact_communication_server <- function(
           server = TRUE
         )
       }
+    })
+
+    ## Observe :: Populate Property Contacts For Selected Property ----
+    observeEvent(input$contact_property_id, {
+      req(input$contact_property_id)
+      updateSelectizeInput(
+        session,
+        inputId = "contact",
+        choices = c(
+          "",
+          setNames(
+            contacts()$id,
+            contacts()$display_label
+          )
+        ),
+        selected = isolate(input$contact),
+        server = TRUE
+      )
     })
 
     ## Update Lookup Inputs ----
@@ -231,10 +286,12 @@ module_property_contact_communication_server <- function(
       req(iv$is_valid())
 
       if (input$communication_type == "Property Contact Communication") {
+        req(input$contact_property_id, iv_contact_property$is_valid())
         req(input$contact, iv_contact$is_valid())
         # Create the new communication record
         new_communication <- tibble(
           property_contact_id = input$contact,
+          property_id = input$contact_property_id,
           communication_purpose_id = input$communication_purpose_id,
           communication_method_id = input$communication_method_id,
           date_contacted = input$date_contacted,

@@ -3,11 +3,12 @@ DROP VIEW IF EXISTS view_insurance;
 CREATE VIEW view_insurance AS 
 SELECT
    pr.property_name_public AS "Property Name",
+   STRING_AGG(pa.pid::text, ', ') AS "PIDs",
    pr.internal_record_id AS "Internal Record ID",
    INITCAP( TRIM( REGEXP_REPLACE( MIN(pp.padd_county), '\s*county\s*', '', 'i' ) ) ) AS "County",
    o.ownership_value AS "Ownership",
    pr.owner_name AS "Owner",
-   at.acquisition_value AS "Acquistition Type",
+   at.acquisition_value AS "Acquisition Type",
    pr.date_closed AS "Date Closed",
    SUM( COALESCE(pa.size_confirmed_ha, ROUND(info.area_ha, 2)) ) AS "Size (ha)",
    SUM( COALESCE( pa.size_confirmed_acres, ROUND(info.area_ha * 2.47105, 2) ) ) AS "Size (acres)",

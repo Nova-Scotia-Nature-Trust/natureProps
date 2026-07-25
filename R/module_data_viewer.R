@@ -20,7 +20,8 @@ choices_securement <- list(
   "Insurance View" = "insurance",
   "LLT Projects" = "llt_projects",
   "Securement Communication" = "securement_communication",
-  "Property Contact Details" = "property_contact_details_view"
+  "Property Contact Details" = "property_contact_details_view",
+  "Property Pricing" = "property_pricing"
 )
 
 choices_action_item <- list(
@@ -123,7 +124,7 @@ module_data_viewer_server <- function(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_property_contacts;")
         },
-        order_col = 2,
+        order_col = 3,
         order_dir = "asc"
       ),
       communication_data_view = list(
@@ -220,8 +221,15 @@ module_data_viewer_server <- function(
             "SELECT * FROM view_securement_communication_history;"
           )
         },
-        order_col = 5,
-        order_dir = "desc"
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      property_pricing = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_property_pricing;")
+        },
+        order_col = 0,
+        order_dir = "asc"
       ),
       cons_lands_view_grouped = list(
         fetch = function(db_con) {

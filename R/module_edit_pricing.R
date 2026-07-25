@@ -103,7 +103,9 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
           price_offer,
           price_purchase,
           donated_value,
-          hst
+          hst,
+          unpaid_land_value,
+          price_offer_history
         FROM properties 
         WHERE id = {property_id}",
         .con = db_con
@@ -160,7 +162,23 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       hst_val <- if (!is.null(record) && !is.na(record$hst)) {
         record$hst
       } else {
+        FALSE
+      }
+
+      unpaid_land_value_val <- if (
+        !is.null(record) && !is.na(record$unpaid_land_value)
+      ) {
+        record$unpaid_land_value
+      } else {
         NULL
+      }
+
+      price_offer_history_val <- if (
+        !is.null(record) && !is.na(record$price_offer_history)
+      ) {
+        record$price_offer_history
+      } else {
+        ""
       }
 
       tagList(
@@ -188,12 +206,24 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         ),
         layout_columns(
           col_widths = c(6, 6),
-          numericInput(
-            inputId = ns("edit_price_purchase"),
-            label = "Purchase Price",
-            value = price_purchase_val,
-            min = 0,
-            step = 1000
+          div(
+            div(
+              style = "display: flex; align-items: center; gap: 8px;",
+              "Purchase Price",
+              popover(
+                icon("question-circle"),
+                "If HST is applicable do not include that amount in the Purchase Price field",
+                title = "Context",
+                placement = "top"
+              )
+            ),
+            numericInput(
+              inputId = ns("edit_price_purchase"),
+              label = NULL,
+              value = price_purchase_val,
+              min = 0,
+              step = 1000
+            )
           ),
           numericInput(
             inputId = ns("edit_donated_value"),
@@ -203,12 +233,28 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
             step = 1000
           )
         ),
-        numericInput(
-          inputId = ns("edit_hst"),
-          label = "HST",
-          value = hst_val,
-          min = 0,
-          step = 100
+        layout_columns(
+          col_widths = c(6, 6),
+          checkboxInput(
+            inputId = ns("edit_hst"),
+            label = "HST",
+            value = hst_val
+          ),
+          numericInput(
+            inputId = ns("edit_unpaid_land_value"),
+            label = "Unpaid Land Value",
+            value = unpaid_land_value_val,
+            min = 0,
+            step = 1000
+          )
+        ),
+        textAreaInput(
+          inputId = ns("edit_price_offer_history"),
+          label = "Price Offer History",
+          value = price_offer_history_val,
+          rows = 4,
+          resize = "vertical",
+          width = "100%"
         )
       )
     })
@@ -241,10 +287,16 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         } else {
           NA_real_
         },
-        hst = if (isTruthy(input$edit_hst)) {
-          as.numeric(input$edit_hst)
+        hst = isTruthy(input$edit_hst),
+        unpaid_land_value = if (isTruthy(input$edit_unpaid_land_value)) {
+          as.numeric(input$edit_unpaid_land_value)
         } else {
           NA_real_
+        },
+        price_offer_history = if (isTruthy(input$edit_price_offer_history)) {
+          input$edit_price_offer_history
+        } else {
+          NA_character_
         }
       )
       # Update the record
@@ -291,7 +343,9 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       updateNumericInput(session, "edit_price_offer", value = NULL)
       updateNumericInput(session, "edit_price_purchase", value = NULL)
       updateNumericInput(session, "edit_donated_value", value = NULL)
-      updateNumericInput(session, "edit_hst", value = NULL)
+      updateCheckboxInput(session, "edit_hst", value = FALSE)
+      updateNumericInput(session, "edit_unpaid_land_value", value = NULL)
+      updateTextAreaInput(session, "edit_price_offer_history", value = "")
     })
   })
 }

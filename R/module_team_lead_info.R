@@ -125,15 +125,15 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         glue_sql(
           "SELECT
                   p.property_name,
+                  tla.id,
                   tla.action_item_description,
-                  tla.due_date,
-                  tla.action_complete
+                  tla.due_date
                 FROM
                   team_lead_actions tla
                   LEFT JOIN properties p ON tla.property_id = p.id
                   LEFT JOIN team_lead tl ON tla.team_lead_id = tl.id
                 WHERE
-                  tl.team_value = {input$team_lead_choice}
+                  tl.team_value = {input$team_lead_choice} AND tla.action_complete = FALSE
                 ORDER BY
                   tla.due_date,
                   p.property_name;",
@@ -142,9 +142,9 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
       ) |>
         rename(
           `Property Name` = property_name,
+          `Action ID` = id,
           `Action Item Description` = action_item_description,
-          `Due Date` = due_date,
-          `Completed` = action_complete
+          `Due Date` = due_date
         )
 
       actions_data(actions)
@@ -192,7 +192,7 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
           LEFT JOIN action_item_status ais ON sai.action_item_status_id = ais.id
           LEFT JOIN action_item_type ait ON sai.action_item_type_id = ait.id
         WHERE
-          tl.team_value = {input$team_lead_choice}
+          tl.team_value = {input$team_lead_choice} AND ais.status_value NOT IN ('Not Required', 'Completed')
         ORDER BY
           pr.property_name;",
           .con = db_con

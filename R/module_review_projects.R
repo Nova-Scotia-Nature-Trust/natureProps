@@ -278,14 +278,13 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         query_02 <- glue_sql(
           "   
-        SELECT pa.pid,                
+        SELECT pr.property_name,                
                con.property_contact_description, 
                con.name_last, 
                con.name_first
-        FROM parcels pa
-        LEFT JOIN properties pr ON pa.property_id = pr.id
-        LEFT JOIN parcel_property_contact ppc ON pa.id = ppc.parcel_id
-        LEFT JOIN property_contact_details con ON ppc.property_contact_id = con.id  
+        FROM properties pr 
+        LEFT JOIN properties_contact pc ON pr.id = pc.property_id
+        LEFT JOIN property_contact_details con ON pc.property_contact_id = con.id  
         WHERE pr.property_name = {prop_name};
         ",
           .con = db_con
@@ -293,7 +292,17 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         query_02_result <- dbGetQuery(db_con, query_02)
 
-        pids_string <- query_02_result |>
+        pids_string <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "
+            SELECT pa.pid 
+            FROM properties pr
+            LEFT JOIN parcels pa ON pr.id = pa.property_id
+            WHERE pr.property_name = {prop_name}",
+            .con = db_con
+          )
+        ) |>
           pull(pid) |>
           unique() |>
           paste(collapse = ", ")
@@ -301,7 +310,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         # One row per distinct contact, used for the Property Contact table
         contacts_df <- query_02_result |>
           filter(!is.na(name_first) | !is.na(name_last)) |>
-          distinct(name_first, name_last, property_contact_description)
+          distinct(name_first, name_last, property_contact_description) |>
+          arrange(name_last, name_first)
 
         query_03 <- glue_sql(
           "   
@@ -457,7 +467,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           div(
             div(
               style = "display: flex; align-items: center; gap: 8px;",
-              strong("Property Contact Description"),
+              strong("Property Contact(s) Description"),
               popover(
                 icon("question-circle"),
                 includeMarkdown("popups/prop_contact_desc.md"),

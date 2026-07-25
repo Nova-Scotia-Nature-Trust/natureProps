@@ -14,23 +14,33 @@ module_property_contact_securement_communication_ui <- function(id) {
           layout_columns(
             col_widths = c(6, 6),
             selectizeInput(
+              ns("contact_property_id"),
+              "Select Property",
+              choices = NULL,
+              multiple = FALSE,
+              options = list(
+                create = FALSE,
+                placeholder = "Select a property"
+              )
+            ),
+            selectizeInput(
               ns("contact"),
               "Select Property Contact",
               choices = NULL,
               multiple = FALSE,
               options = list(
                 create = FALSE,
-                placeholder = "Select a property contact"
+                placeholder = "Select a property first"
               )
-            ),
+            )
+          ),
+          layout_columns(
+            col_widths = c(4, 4, 4),
             selectizeInput(
               ns("communication_method_id"),
               "Communication Method",
               choices = NULL
-            )
-          ),
-          layout_columns(
-            col_widths = c(6, 6),
+            ),
             dateInput(
               inputId = ns("date_contacted"),
               label = "Date Contacted",
@@ -82,23 +92,47 @@ module_property_contact_securement_communication_server <- function(
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
     iv <- InputValidator$new()
+    iv$add_rule("contact_property_id", sv_required())
     iv$add_rule("contact", sv_required())
     iv$add_rule("communication_method_id", sv_required())
     iv$add_rule("communication_description", sv_required())
     iv$add_rule("date_contacted", sv_required())
     iv$enable()
 
-    ## Reactive :: Property Contacts ----
+    ## Reactive :: Properties List (only properties with linked contacts) ----
+    properties_list <- reactive({
+      db_updated()
+      dbGetQuery(
+        db_con,
+        "
+        SELECT p.id, p.property_name
+        FROM properties p
+        WHERE EXISTS (
+          SELECT 1 FROM properties_contact pc WHERE pc.property_id = p.id
+        )
+        ORDER BY p.property_name;
+        "
+      )
+    })
+
+    ## Reactive :: Property Contacts (scoped to selected property) ----
     contacts <- reactive({
       db_updated()
-      contacts <- dbReadTable(db_con, "property_contact_details") |>
+      req(input$contact_property_id)
+      dbGetQuery(
+        db_con,
+        glue_sql(
+          "
+          SELECT pcd.*
+          FROM property_contact_details pcd
+          INNER JOIN properties_contact pc ON pc.property_contact_id = pcd.id
+          WHERE pc.property_id = {input$contact_property_id}
+          ",
+          .con = db_con
+        )
+      ) |>
         mutate(
-          display_name = glue("{name_first} {name_last} (ID:{id})"),
-          display_label = if_else(
-            !is.na(email) & email != "",
-            glue("{display_name} - {email}"),
-            display_name
-          )
+          display_label = glue("{name_first} {name_last} (ID:{id})")
         ) |>
         arrange(name_last, name_first)
     })
@@ -127,14 +161,35 @@ module_property_contact_securement_communication_server <- function(
       selected = character(0)
     )
 
-    ## Observe :: Contact Input ----
+    ## Observe :: Property Input ----
     observe({
       updateSelectizeInput(
         session,
+        inputId = "contact_property_id",
+        choices = c(
+          "",
+          setNames(
+            properties_list()$id,
+            properties_list()$property_name
+          )
+        ),
+        selected = isolate(input$contact_property_id),
+        server = TRUE
+      )
+    })
+
+    ## Observe :: Populate Property Contacts For Selected Property ----
+    observeEvent(input$contact_property_id, {
+      req(input$contact_property_id)
+      updateSelectizeInput(
+        session,
         inputId = "contact",
-        choices = setNames(
-          contacts()$id,
-          contacts()$display_label
+        choices = c(
+          "",
+          setNames(
+            contacts()$id,
+            contacts()$display_label
+          )
         ),
         selected = isolate(input$contact),
         server = TRUE
@@ -148,6 +203,7 @@ module_property_contact_securement_communication_server <- function(
       # Create the new communication record
       new_communication <- tibble(
         property_contact_id = input$contact,
+        property_id = input$contact_property_id,
         communication_purpose_id = securement_purpose_id,
         communication_method_id = input$communication_method_id,
         date_contacted = input$date_contacted,
@@ -176,11 +232,20 @@ module_property_contact_securement_communication_server <- function(
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
         session,
-        "contact",
-        choices = setNames(
-          contacts()$id,
-          contacts()$display_label
+        "contact_property_id",
+        choices = c(
+          "",
+          setNames(
+            properties_list()$id,
+            properties_list()$property_name
+          )
         ),
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        "contact",
+        choices = character(0),
         selected = character(0)
       )
       updateSelectizeInput(
