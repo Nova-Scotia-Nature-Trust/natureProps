@@ -144,6 +144,7 @@ module_eco_highlights_server <- function(
 
     ## Reactive :: Property List ----
     property_list <- reactive({
+      req(input$property_filter)
       db_updated()
       properties <- dbGetQuery(
         db_con,
@@ -257,10 +258,10 @@ module_eco_highlights_server <- function(
 
       property_name(name)
 
-      total_shoreline_length = query_shoreline(pid_list(), gis_con) |>
+      total_shoreline_length <- query_shoreline(pid_list(), gis_con) |>
         pull(shoreline_length) |>
         sum()
-      total_coastline_length = query_coastline(pid_list(), gis_con) |>
+      total_coastline_length <- query_coastline(pid_list(), gis_con) |>
         pull(coastline_length) |>
         sum()
       total_old_growth_area <- query_old_growth_forest(pid_list(), gis_con) |>
@@ -269,7 +270,7 @@ module_eco_highlights_server <- function(
       total_karst_forest_area <- query_karst_forest(pid_list(), gis_con) |>
         pull(karst_forest_area) |>
         sum()
-      waterbird_colony_count = query_bird_colony(pid_list(), gis_con)
+      waterbird_colony_count <- query_bird_colony(pid_list(), gis_con)
       waterbird_colony_count <- length(unique(
         waterbird_colony_count$waterbird_colony_id
       ))
