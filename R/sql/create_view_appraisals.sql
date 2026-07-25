@@ -4,9 +4,9 @@ CREATE VIEW view_appraisals AS
 SELECT
    pr.property_name AS "Property Name",
    STRING_AGG(pa.pid::text, ', ') AS "PIDs",
-   ap.appraisal_date AS "Date of Appraisal",
+   ap.appraisal_effective_date AS "Appraisal Effective Date",
    ap.appraiser_name AS "Name of Appraiser",
-   ap.appraisal_value AS "Appraisal Value (CAD)",
+   ap.fmv AS "Fair Market Value (CAD)",
    ap.appraisal_notes AS "Notes" 
 FROM
    appraisals ap 
@@ -18,9 +18,9 @@ FROM
       ON pa.property_id = pr.id 
 GROUP BY
    pr.property_name,
-   ap.appraisal_date,
+   ap.appraisal_effective_date,
    ap.appraiser_name,
-   ap.appraisal_value,
+   ap.fmv,
    ap.appraisal_notes 
 ORDER BY
    pr.property_name;

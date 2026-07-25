@@ -89,8 +89,8 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
     ## Input validation ----
     iv <- InputValidator$new()
-    iv$add_rule("edit_appraisal_date", sv_required())
-    iv$add_rule("edit_appraisal_value", sv_required())
+    iv$add_rule("edit_appraisal_effective_date", sv_required())
+    iv$add_rule("edit_fmv", sv_required())
     iv$add_rule("edit_appraiser_name", sv_required())
     iv$enable()
 
@@ -219,10 +219,10 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         "SELECT 
           a.id,
           a.property_id,
-          a.appraisal_date,
+          a.appraisal_effective_date,
           a.appraiser_name
         FROM appraisals a
-        ORDER BY a.appraisal_date DESC;"
+        ORDER BY a.appraisal_effective_date DESC;"
       )
 
       req(input$property_exists)
@@ -235,7 +235,7 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         paste0(
           appraisal_data$appraiser_name,
           " (",
-          format(as.Date(appraisal_data$appraisal_date), "%Y-%m-%d"),
+          format(as.Date(appraisal_data$appraisal_effective_date), "%Y-%m-%d"),
           ")"
         )
       )
@@ -268,9 +268,9 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         "SELECT 
           a.id,
           a.property_id,
-          a.appraisal_date,
+          a.appraisal_effective_date,
           a.appraiser_name,
-          a.appraisal_value,
+          a.fmv,
           a.appraisal_notes,
           p.property_name
         FROM appraisals a
@@ -295,10 +295,10 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         "No appraisal selected"
       }
 
-      appraisal_date_val <- if (
-        !is.null(record) && !is.na(record$appraisal_date)
+      appraisal_effective_date_val <- if (
+        !is.null(record) && !is.na(record$appraisal_effective_date)
       ) {
-        as.Date(record$appraisal_date)
+        as.Date(record$appraisal_effective_date)
       } else {
         NA
       }
@@ -311,10 +311,8 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         ""
       }
 
-      appraisal_value_val <- if (
-        !is.null(record) && !is.na(record$appraisal_value)
-      ) {
-        record$appraisal_value
+      fmv_val <- if (!is.null(record) && !is.na(record$fmv)) {
+        record$fmv
       } else {
         NULL
       }
@@ -336,15 +334,15 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         layout_columns(
           col_widths = c(6, 6),
           dateInput(
-            inputId = ns("edit_appraisal_date"),
-            label = "Appraisal Date",
-            value = appraisal_date_val,
+            inputId = ns("edit_appraisal_effective_date"),
+            label = "Appraisal Effective Date",
+            value = appraisal_effective_date_val,
             format = "yyyy-mm-dd"
           ),
           numericInput(
-            inputId = ns("edit_appraisal_value"),
-            label = "Appraisal Value",
-            value = appraisal_value_val,
+            inputId = ns("edit_fmv"),
+            label = "Fair Market Value",
+            value = fmv_val,
             min = 0,
             step = 1000
           )
@@ -379,16 +377,16 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
       update_df <- tibble(
         id = input$appraisal,
-        appraisal_date = valid_or_na(
-          as.Date(input$edit_appraisal_date),
+        appraisal_effective_date = valid_or_na(
+          as.Date(input$edit_appraisal_effective_date),
           NA_Date_
         ),
         appraiser_name = valid_or_na(
           input$edit_appraiser_name,
           NA_character_
         ),
-        appraisal_value = valid_or_na(
-          as.numeric(input$edit_appraisal_value),
+        fmv = valid_or_na(
+          as.numeric(input$edit_fmv),
           NA_real_
         ),
         appraisal_notes = valid_or_na(
@@ -431,13 +429,13 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
       new_record <- tibble(
         property_id = input$property_new,
-        appraisal_date = valid_or_na(
-          as.Date(input$edit_appraisal_date),
+        appraisal_effective_date = valid_or_na(
+          as.Date(input$edit_appraisal_effective_date),
           NA_Date_
         ),
         appraiser_name = valid_or_na(input$edit_appraiser_name, NA_character_),
-        appraisal_value = valid_or_na(
-          as.numeric(input$edit_appraisal_value),
+        fmv = valid_or_na(
+          as.numeric(input$edit_fmv),
           NA_real_
         ),
         appraisal_notes = valid_or_na(input$edit_appraisal_notes, NA_character_)
@@ -498,9 +496,13 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         selected = character(0)
       )
 
-      updateDateInput(session, "edit_appraisal_date", value = as.Date(NA))
+      updateDateInput(
+        session,
+        "edit_appraisal_effective_date",
+        value = as.Date(NA)
+      )
       updateTextInput(session, "edit_appraiser_name", value = "")
-      updateNumericInput(session, "edit_appraisal_value", value = NA)
+      updateNumericInput(session, "edit_fmv", value = NA)
       updateTextAreaInput(session, "edit_appraisal_notes", value = "")
     })
   })

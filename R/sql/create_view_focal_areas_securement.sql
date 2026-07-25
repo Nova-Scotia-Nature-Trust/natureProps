@@ -9,10 +9,10 @@ SELECT
    SUM( COALESCE(pa.size_confirmed_acres, ROUND(info.area_ha * 2.47105, 2)) ) AS "Size (acres)",
    ROUND(pr.price_purchase, 0) AS "Purchase Price",
    ROUND(pr.price_purchase / SUM( COALESCE(pa.size_confirmed_ha, info.area_ha) * 2.47105 ), 0 ) AS "Price Per Acre",
-   ROUND(AVG(ap.appraisal_value), 0) AS "Average Appraisal (CAD)",
+   ROUND(AVG(ap.fmv), 0) AS "Fair Market Value (CAD)",
    ROUND(
-       AVG(ap.appraisal_value) / SUM( COALESCE(pa.size_confirmed_ha, info.area_ha) * 2.47105 ), 0
-   ) AS "Appraised Price Per Acre"  
+       AVG(ap.fmv) / SUM( COALESCE(pa.size_confirmed_ha, info.area_ha) * 2.47105 ), 0
+   ) AS "FMV Price Per Acre"  
 FROM
    focus_area_internal fo 
    INNER JOIN
