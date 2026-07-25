@@ -127,7 +127,9 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
             is.na(results$due_date),
             "No date",
             format(results$due_date, "%Y-%m-%d")
-          )
+          ),
+          " - ID:",
+          results$id
         )
       )
     })
