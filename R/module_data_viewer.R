@@ -221,8 +221,8 @@ module_data_viewer_server <- function(
             "SELECT * FROM view_securement_communication_history;"
           )
         },
-        order_col = 5,
-        order_dir = "desc"
+        order_col = 0,
+        order_dir = "asc"
       ),
       property_pricing = list(
         fetch = function(db_con) {
