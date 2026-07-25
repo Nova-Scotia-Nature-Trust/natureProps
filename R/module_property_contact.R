@@ -26,14 +26,14 @@ module_property_contact_ui <- function(id) {
           layout_columns(
             col_widths = c(6, 6),
             selectizeInput(
-              inputId = ns("pid"),
-              label = "Select PID(s):",
+              inputId = ns("property_id"),
+              label = "Select one or more properties:",
               choices = NULL,
               multiple = TRUE,
               options = list(
                 create = FALSE,
                 plugins = list("remove_button"),
-                placeholder = "Select PIDs to be assigned to a contact"
+                placeholder = "Select properties to be assigned to a contact"
               )
             )
           ),
@@ -124,7 +124,7 @@ module_property_contact_ui <- function(id) {
           h5("Link Property Contact"),
           popover(
             icon("question-circle"),
-            "Assign additional PIDs to an existing property contact. Select the PIDs you want to add, then choose the contact to link them to.",
+            "Assign additional properties to an existing property contact. Select the properties you want to add, then choose the contact to link them to.",
             title = "Link Contacts",
             placement = "right"
           )
@@ -134,14 +134,14 @@ module_property_contact_ui <- function(id) {
         div(
           style = "display: flex; flex-direction: column; gap: 15px;",
           selectizeInput(
-            inputId = ns("pid_update"),
-            label = "Select PID(s) to Add:",
+            inputId = ns("property_id_update"),
+            label = "Select one or more properties to add:",
             choices = NULL,
             multiple = TRUE,
             options = list(
               create = FALSE,
               plugins = list("remove_button"),
-              placeholder = "Select PIDs to link to contact"
+              placeholder = "Select properties to link to contact"
             )
           ),
           selectizeInput(
@@ -182,7 +182,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     iv_create$add_rule("email", ~ if (isTruthy(.)) sv_email()(.))
     iv_create$add_rule("name_first", sv_required())
     iv_create$add_rule("name_last", sv_required())
-    iv_create$add_rule("pid", sv_required())
+    iv_create$add_rule("property_id", sv_required())
     iv_create$add_rule(
       "phone_home",
       ~ if (isTruthy(.)) validate_phone_number(.)
@@ -195,29 +195,29 @@ module_property_contact_server <- function(id, db_con, db_updated) {
 
     ## Input Validation :: Update Existing Contact ----
     iv_update <- InputValidator$new()
-    iv_update$add_rule("pid_update", sv_required())
+    iv_update$add_rule("property_id_update", sv_required())
     iv_update$add_rule("contact", sv_required())
     iv_update$enable()
 
-    ## Reactive :: PID List ----
-    pid_list <- reactive({
+    ## Reactive :: Properties List ----
+    properties_list <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT id, pid FROM parcels 
-         ORDER BY pid;"
+        "SELECT id, property_name FROM properties 
+         ORDER BY property_name;"
       )
     })
 
     observe({
       updateSelectizeInput(
         session,
-        "pid",
+        "property_id",
         choices = setNames(
-          pid_list()$id,
-          pid_list()$pid
+          properties_list()$id,
+          properties_list()$property_name
         ),
-        selected = isolate(input$pid),
+        selected = isolate(input$property_id),
         server = TRUE
       )
     })
@@ -225,12 +225,12 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     observe({
       updateSelectizeInput(
         session,
-        inputId = "pid_update",
+        inputId = "property_id_update",
         choices = setNames(
-          pid_list()$id,
-          pid_list()$pid
+          properties_list()$id,
+          properties_list()$property_name
         ),
-        selected = isolate(input$pid_update),
+        selected = isolate(input$property_id_update),
         server = TRUE
       )
     })
@@ -240,12 +240,7 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       db_updated()
       contacts <- dbReadTable(db_con, "property_contact_details") |>
         mutate(
-          display_name = glue("{name_first} {name_last}"),
-          display_label = if_else(
-            !is.na(email) & email != "",
-            glue("{display_name} ({email})"),
-            display_name
-          )
+          display_label = str_glue("{name_first} {name_last}  (ID:{id})")
         ) |>
         arrange(name_last, name_first)
     })
@@ -266,6 +261,22 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     ## Event :: Submit property contact details ----
     observeEvent(input$submit_property_contact, {
       req(iv_create$is_valid())
+
+      # Require at least one contact method before proceeding
+      if (
+        !isTruthy(input$email) &&
+          !isTruthy(input$phone_home) &&
+          !isTruthy(input$phone_cell)
+      ) {
+        shinyalert(
+          title = "Missing Contact Method",
+          text = "Please provide at least one of Email, Home Phone, or Cell Phone.",
+          type = "warning",
+          closeOnClickOutside = FALSE,
+          timer = 10000
+        )
+        return()
+      }
 
       new_property_contact <- tibble(
         name_last = input$name_last,
@@ -319,44 +330,101 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       ) |>
         pull(id)
 
-      if (length(input$pid) > 0) {
-        dbx::dbxInsert(
+      if (length(input$property_id) > 0) {
+        # Guard against re-linking a property already tied to this contact
+        # (violates the unique_properties_contact constraint)
+        existing_property_ids <- dbGetQuery(
           db_con,
-          table = "parcel_property_contact",
-          records = tibble(
-            parcel_id = input$pid,
-            property_contact_id = rep(
-              x = property_contact_id,
-              times = length(input$pid)
+          glue_sql(
+            "SELECT property_id FROM properties_contact WHERE property_contact_id = {property_contact_id}",
+            .con = db_con
+          )
+        ) |>
+          pull(property_id)
+
+        new_property_ids <- setdiff(input$property_id, existing_property_ids)
+
+        if (length(new_property_ids) > 0) {
+          dbx::dbxInsert(
+            db_con,
+            table = "properties_contact",
+            records = tibble(
+              property_id = new_property_ids,
+              property_contact_id = rep(
+                x = property_contact_id,
+                times = length(new_property_ids)
+              )
             )
           )
-        )
+        }
+
+        if (length(new_property_ids) < length(input$property_id)) {
+          shinyalert(
+            title = "Some Properties Skipped",
+            text = glue(
+              "Skipped {length(input$property_id) - length(new_property_ids)} propert(y/ies) already linked to this contact."
+            ),
+            type = "info",
+            closeOnClickOutside = FALSE,
+            timer = 10000
+          )
+        }
       } else {
-        message("NO PID ASSOCIATED WITH PROPERTY CONTACT")
+        message("NO PROPERTY ASSOCIATED WITH PROPERTY CONTACT")
       }
     })
 
-    ## Event :: Update property contact with new PIDs ----
+    ## Event :: Update property contact with new properties ----
     observeEvent(input$update_property_contact, {
       req(iv_update$is_valid())
 
-      dbx::dbxInsert(
+      # Guard against re-linking a property already tied to this contact
+      # (violates the unique_properties_contact constraint)
+      existing_property_ids <- dbGetQuery(
         db_con,
-        table = "parcel_property_contact",
-        records = tibble(
-          parcel_id = input$pid_update,
-          property_contact_id = input$contact
+        glue_sql(
+          "SELECT property_id FROM properties_contact WHERE property_contact_id = {input$contact}",
+          .con = db_con
         )
-      )
+      ) |>
+        pull(property_id)
 
-      db_updated(db_updated() + 1)
+      new_property_ids <- setdiff(
+        input$property_id_update,
+        existing_property_ids
+      )
+      n_skipped <- length(input$property_id_update) - length(new_property_ids)
+
+      if (length(new_property_ids) > 0) {
+        dbx::dbxInsert(
+          db_con,
+          table = "properties_contact",
+          records = tibble(
+            property_id = new_property_ids,
+            property_contact_id = input$contact
+          )
+        )
+
+        db_updated(db_updated() + 1)
+      }
+
+      success_text <- glue(
+        "Successfully linked {length(new_property_ids)} propert(y/ies) to the property contact."
+      )
+      if (n_skipped > 0) {
+        success_text <- glue(
+          "{success_text} Skipped {n_skipped} propert(y/ies) already linked to this contact."
+        )
+      }
 
       shinyalert(
-        title = "Success",
-        text = glue(
-          "Successfully linked {length(input$pid_update)} PID(s) to the property contact."
-        ),
-        type = "success",
+        title = if (length(new_property_ids) > 0) "Success" else "No Changes",
+        text = if (length(new_property_ids) > 0) {
+          success_text
+        } else {
+          "All selected properties are already linked to this contact."
+        },
+        type = if (length(new_property_ids) > 0) "success" else "info",
         closeOnClickOutside = FALSE,
         timer = 10000
       )
@@ -364,10 +432,10 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       ## Clear inputs after successful update
       updateSelectizeInput(
         session,
-        "pid_update",
+        "property_id_update",
         choices = setNames(
-          pid_list()$id,
-          pid_list()$pid
+          properties_list()$id,
+          properties_list()$property_name
         ),
         selected = character(0),
         server = TRUE
@@ -388,10 +456,10 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
         session,
-        "pid",
+        "property_id",
         choices = setNames(
-          pid_list()$id,
-          pid_list()$pid
+          properties_list()$id,
+          properties_list()$property_name
         ),
         selected = character(0)
       )
@@ -408,10 +476,10 @@ module_property_contact_server <- function(id, db_con, db_updated) {
     observeEvent(input$clear_inputs_update, {
       updateSelectizeInput(
         session,
-        "pid_update",
+        "property_id_update",
         choices = setNames(
-          pid_list()$id,
-          pid_list()$pid
+          properties_list()$id,
+          properties_list()$property_name
         ),
         selected = character(0)
       )

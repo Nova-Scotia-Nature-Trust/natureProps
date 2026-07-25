@@ -1,36 +1,16 @@
 DROP VIEW IF EXISTS view_securement_communication_history;
 CREATE VIEW view_securement_communication_history AS 
-WITH property_info AS 
-(
-   SELECT
-      ppc.property_contact_id,
-      STRING_AGG(pa.pid::text, ', ' 
-   ORDER BY
-      pa.pid) AS pids,
-      STRING_AGG( DISTINCT prop.property_name, ', ' 
-   ORDER BY
-      prop.property_name ) AS property_names 
-   FROM
-      parcel_property_contact ppc 
-      JOIN
-         parcels pa 
-         ON ppc.parcel_id = pa.id 
-      LEFT JOIN
-         properties prop 
-         ON pa.property_id = prop.id 
-   GROUP BY
-      ppc.property_contact_id 
-)
 SELECT
+   p.property_name AS "Property Name",
    com.property_contact_id AS "Property Contact ID",
-   property_info.property_names AS "Property Name(s)",
    con.name_first AS "First Name",
    con.name_last AS "Last Name",
+   pur.purpose_value AS "Communication Purpose",
    me.method_value AS "Communication Method",
    com.date_contacted AS "Date Contacted",
    com.communication_description AS "Description",
    com.date_follow_up AS "Follow Up Date",
-   property_info.pids AS "PIDs" 
+   pid.pids AS "PIDs" 
 FROM
    property_contact_communication com 
    LEFT JOIN
@@ -43,8 +23,23 @@ FROM
       communication_purpose pur 
       ON com.communication_purpose_id = pur.id 
    LEFT JOIN
-      property_info 
-      ON com.property_contact_id = property_info.property_contact_id 
-WHERE pur.purpose_value = 'Securement'
+      properties p 
+      ON com.property_id = p.id 
+   LEFT JOIN
+      (
+         SELECT
+            property_id,
+            string_agg(pid::text, ', ' 
+         ORDER BY
+            pid) AS pids 
+         FROM
+            parcels 
+         GROUP BY
+            property_id 
+      )
+      pid 
+      ON p.id = pid.property_id 
+WHERE
+   pur.purpose_value = 'Securement' 
 ORDER BY
-   property_info.property_names;
+   p.property_name;

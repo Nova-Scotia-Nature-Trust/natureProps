@@ -10,19 +10,21 @@ CREATE VIEW view_property_contacts AS WITH property_info AS
    ORDER BY
       pr.property_name ) AS property_names 
    FROM
-      parcel_property_contact ppc 
-      JOIN
-         parcels pa 
-         ON ppc.parcel_id = pa.id 
+      properties_contact ppc 
+      
       LEFT JOIN
          properties pr 
-         ON pa.property_id = pr.id 
+         ON ppc.property_id = pr.id 
+        LEFT JOIN
+         parcels pa 
+         ON pr.id = pa.property_id 
    GROUP BY
       ppc.property_contact_id 
 )
 SELECT
    pr.property_names AS "Property Name",
    pr.pids AS "Property Contact PIDs",
+   con.id AS "Property Contact ID",
    con.name_last AS "Last Name",
    con.name_first AS "First Name",
    con.email AS "Email",
@@ -34,4 +36,6 @@ FROM
    property_contact_details con 
    LEFT JOIN
       property_info pr 
-      ON con.id = pr.property_contact_id;
+      ON con.id = pr.property_contact_id
+ORDER BY con.name_last, con.name_first;
+      
