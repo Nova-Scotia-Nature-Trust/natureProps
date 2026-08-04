@@ -183,8 +183,8 @@ module_data_viewer_server <- function(
       ),
       secured_props_view = list(
         fetch = function(db_con) prep_view_secured_properties(db_con, gis_con),
-        order_col = 0,
-        order_dir = "asc"
+        order_col = 9,
+        order_dir = "desc"
       ),
       appraisals = list(
         fetch = function(db_con) {
