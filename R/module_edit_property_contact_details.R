@@ -71,7 +71,7 @@ module_edit_property_contacts_server <- function(
     iv$enable()
 
     ## Reactive :: Contact choices ----
-    contact_choices <- reactive({
+    contacts <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
@@ -79,17 +79,7 @@ module_edit_property_contacts_server <- function(
         FROM property_contact_details 
         ORDER BY name_last, name_first;"
       ) |>
-        mutate(
-          display_name = paste(
-            coalesce(name_last, ""),
-            coalesce(name_first, ""),
-            sep = ", "
-          ) |>
-            str_trim() |>
-            str_remove("^,\\s*|\\s*,$")
-        ) |>
-        select(display_name, id) |>
-        deframe()
+        mutate(display_label = glue("{name_last}, {name_first} (ID:{id})"))
     })
 
     ## Update contact dropdown ----
@@ -97,7 +87,13 @@ module_edit_property_contacts_server <- function(
       updateSelectizeInput(
         session,
         inputId = "contact_id",
-        choices = c("", contact_choices()),
+        choices = c(
+          "",
+          setNames(
+            contacts()$id,
+            contacts()$display_label
+          )
+        ),
         selected = isolate(input$contact_id),
         server = TRUE
       )
