@@ -478,7 +478,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             div(
               class = "info-box",
               if (nrow(rec$contacts) == 0) {
-                "No contacts on file."
+                "No property contacts in database."
               } else {
                 rec$contacts |>
                   mutate(
@@ -517,7 +517,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             div(
               class = "info-box",
               if (is.na(info$securement_action_description)) {
-                "No securement status recorded."
+                "No securement status description available."
               } else if (is.na(info$date_securement_description)) {
                 info$securement_action_description
               } else {
@@ -558,7 +558,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         div(
           strong("Action Items"),
           if (nrow(rec$actions) == 0) {
-            p(class = "text-muted", "No action items.")
+            p(class = "text-muted", "No general action items.")
           } else {
             lapply(seq_len(nrow(rec$actions)), function(i) {
               action <- rec$actions[i, ]
@@ -602,7 +602,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               is.na(info$stewardship_concerns) ||
                 info$stewardship_concerns == ""
             ) {
-              "None on file."
+              "None identified at this time."
             } else {
               info$stewardship_concerns
             }
