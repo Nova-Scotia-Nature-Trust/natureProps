@@ -71,63 +71,49 @@ module_edit_securement_properties_server <- function(
       dbGetQuery(
         db_con,
         "SELECT id, property_name FROM properties ORDER BY property_name;"
-      ) |>
-        select(property_name, id) |>
-        deframe()
+      )
     })
 
     phase_choices <- reactive({
       dbGetQuery(
         db_con,
         "SELECT id, phase_value FROM phase ORDER BY phase_value;"
-      ) |>
-        select(phase_value, id) |>
-        deframe()
+      )
     })
 
     focus_area_internal_choices <- reactive({
       dbGetQuery(
         db_con,
         "SELECT id, internal_value FROM focus_area_internal ORDER BY internal_value;"
-      ) |>
-        select(internal_value, id) |>
-        deframe()
+      )
     })
 
     team_lead_choices <- reactive({
       dbGetQuery(
         db_con,
         "SELECT id, team_value FROM team_lead ORDER BY team_value;"
-      ) |>
-        select(team_value, id) |>
-        deframe()
+      )
     })
 
     project_region_choices <- reactive({
       dbGetQuery(
         db_con,
         "SELECT id, region_value FROM project_region ORDER BY region_value;"
-      ) |>
-        select(region_value, id) |>
-        deframe()
+      )
     })
 
     project_theme_choices <- reactive({
       dbGetQuery(
         db_con,
         "SELECT id, theme_value FROM project_theme ORDER BY theme_value;"
-      ) |>
-        select(theme_value, id) |>
-        deframe()
+      )
     })
 
     source_choices <- reactive({
       dbGetQuery(
         db_con,
         "SELECT id, source_value FROM source ORDER BY source_value;"
-      ) |>
-        select(source_value, id) |>
-        deframe()
+      )
     })
 
     # -----------------------------
@@ -137,7 +123,13 @@ module_edit_securement_properties_server <- function(
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         selected = isolate(input$property_name),
         server = TRUE
       )
@@ -254,7 +246,13 @@ module_edit_securement_properties_server <- function(
           selectizeInput(
             ns("edit_focus_area_internal_id"),
             "Focus Area Internal",
-            choices = c("", focus_area_internal_choices()),
+            choices = c(
+              "",
+              setNames(
+                focus_area_internal_choices()$id,
+                focus_area_internal_choices()$internal_value
+              )
+            ),
             selected = record$focus_area_internal_id,
             multiple = FALSE
           ),
@@ -262,7 +260,13 @@ module_edit_securement_properties_server <- function(
           selectizeInput(
             ns("edit_team_lead_id"),
             "Team Lead",
-            choices = c("", team_lead_choices()),
+            choices = c(
+              "",
+              setNames(
+                team_lead_choices()$id,
+                team_lead_choices()$team_value
+              )
+            ),
             selected = record$team_lead_id,
             multiple = FALSE
           ),
@@ -270,7 +274,13 @@ module_edit_securement_properties_server <- function(
           selectizeInput(
             ns("edit_phase_id"),
             "Phase",
-            choices = c("", phase_choices()),
+            choices = c(
+              "",
+              setNames(
+                phase_choices()$id,
+                phase_choices()$phase_value
+              )
+            ),
             selected = record$phase_id,
             multiple = FALSE
           ),
@@ -304,7 +314,13 @@ module_edit_securement_properties_server <- function(
           selectizeInput(
             ns("edit_project_region_id"),
             "Project Region",
-            choices = c("", project_region_choices()),
+            choices = c(
+              "",
+              setNames(
+                project_region_choices()$id,
+                project_region_choices()$region_value
+              )
+            ),
             selected = record$project_region_id,
             multiple = FALSE
           ),
@@ -312,7 +328,10 @@ module_edit_securement_properties_server <- function(
           selectizeInput(
             ns("edit_project_theme_id"),
             "Project Theme(s)",
-            choices = project_theme_choices(),
+            choices = setNames(
+              project_theme_choices()$id,
+              project_theme_choices()$theme_value
+            ),
             selected = selected_themes,
             multiple = TRUE
           ),
@@ -320,7 +339,13 @@ module_edit_securement_properties_server <- function(
           selectizeInput(
             ns("edit_source_id"),
             "Source",
-            choices = c("", source_choices()),
+            choices = c(
+              "",
+              setNames(
+                source_choices()$id,
+                source_choices()$source_value
+              )
+            ),
             selected = record$source_id,
             multiple = FALSE
           ),
@@ -549,8 +574,14 @@ module_edit_securement_properties_server <- function(
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        selected = "",
-        choices = c("", property_choices()),
+        selected = character(0),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         server = TRUE
       )
     })

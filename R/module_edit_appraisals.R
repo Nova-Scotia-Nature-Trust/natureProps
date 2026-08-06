@@ -287,7 +287,7 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
     output$edit_fields_ui <- renderUI({
       record <- property_appraisal()
 
-      property_name_text <- if (!is.null(record)) {
+      property_name_text <- if (isTruthy(record$property_name)) {
         paste0("Editing appraisal for: ", record$property_name)
       } else if (isTruthy(input$property_new)) {
         paste0("Adding new appraisal for: ", property_name_new())
@@ -296,30 +296,26 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       }
 
       appraisal_effective_date_val <- if (
-        !is.null(record) && !is.na(record$appraisal_effective_date)
+        isTruthy(record$appraisal_effective_date)
       ) {
         as.Date(record$appraisal_effective_date)
       } else {
         NA
       }
 
-      appraiser_name_val <- if (
-        !is.null(record) && !is.na(record$appraiser_name)
-      ) {
+      appraiser_name_val <- if (isTruthy(record$appraiser_name)) {
         record$appraiser_name
       } else {
         ""
       }
 
-      fmv_val <- if (!is.null(record) && !is.na(record$fmv)) {
+      fmv_val <- if (isTruthy(record$fmv)) {
         record$fmv
       } else {
         NULL
       }
 
-      appraisal_notes_val <- if (
-        !is.null(record) && !is.na(record$appraisal_notes)
-      ) {
+      appraisal_notes_val <- if (isTruthy(record$appraisal_notes)) {
         record$appraisal_notes
       } else {
         ""

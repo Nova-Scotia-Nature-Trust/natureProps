@@ -229,12 +229,12 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       # If probability is set to Potential
       if (!is.null(sec_prob) && sec_prob == potential_id) {
         # Allow NULL value
-        if (is.null(value) || value == "") {
+        if (!isTruthy(value)) {
           return(NULL) # Stop validation
         }
       } else {
         # If Expected/Confirmed, then closing_year is required
-        if (is.null(value) || value == "") {
+        if (!isTruthy(value)) {
           return(
             "Valid year is required when securement probability is Confirmed or Expected"
           )

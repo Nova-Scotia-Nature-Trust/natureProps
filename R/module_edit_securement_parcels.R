@@ -111,9 +111,7 @@ module_edit_securement_parcels_server <- function(
       dbGetQuery(
         db_con,
         "SELECT id, acquisition_value FROM acquisition_securement_type ORDER BY acquisition_value;"
-      ) |>
-        select(acquisition_value, id) |>
-        deframe()
+      )
     })
 
     ## Reactive :: Priority ranking choices ----
@@ -121,9 +119,7 @@ module_edit_securement_parcels_server <- function(
       dbGetQuery(
         db_con,
         "SELECT id, ranking_value FROM ranking;"
-      ) |>
-        select(ranking_value, id) |>
-        deframe()
+      )
     })
 
     ## Update property dropdown ----
@@ -213,7 +209,13 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_acquisition_type_id"),
             label = "Acquisition Type",
-            choices = c("", acquisition_type_choices()),
+            choices = c(
+              "",
+              setNames(
+                acquisition_type_choices()$id,
+                acquisition_type_choices()$acquisition_value
+              )
+            ),
             selected = if (
               !is.null(record) && !is.na(record$acquisition_type_id)
             ) {
@@ -253,7 +255,13 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_landowner_interest_ranking_id"),
             label = "Landowner Interest Ranking",
-            choices = c("", priority_ranking_choices()),
+            choices = c(
+              "",
+              setNames(
+                priority_ranking_choices()$id,
+                priority_ranking_choices()$ranking_value
+              )
+            ),
             selected = if (
               !is.null(record) && !is.na(record$landowner_interest_ranking_id)
             ) {
@@ -273,7 +281,13 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_priority_securement_ranking_id"),
             label = "Priority Securement Ranking",
-            choices = c("", priority_ranking_choices()),
+            choices = c(
+              "",
+              setNames(
+                priority_ranking_choices()$id,
+                priority_ranking_choices()$ranking_value
+              )
+            ),
             selected = if (
               !is.null(record) && !is.na(record$priority_securement_ranking_id)
             ) {
@@ -290,7 +304,13 @@ module_edit_securement_parcels_server <- function(
           selectizeInput(
             inputId = ns("edit_priority_ecological_ranking_id"),
             label = "Priority Ecological Ranking",
-            choices = c("", priority_ranking_choices()),
+            choices = c(
+              "",
+              setNames(
+                priority_ranking_choices()$id,
+                priority_ranking_choices()$ranking_value
+              )
+            ),
             selected = if (
               !is.null(record) && !is.na(record$priority_ecological_ranking_id)
             ) {
@@ -421,7 +441,7 @@ module_edit_securement_parcels_server <- function(
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        selected = "",
+        selected = character(0),
         choices = c("", property_choices()),
         server = TRUE
       )
@@ -429,7 +449,7 @@ module_edit_securement_parcels_server <- function(
       updateSelectizeInput(
         session,
         inputId = "pid",
-        selected = "",
+        selected = character(0),
         choices = character(0),
         options = list(
           create = FALSE,

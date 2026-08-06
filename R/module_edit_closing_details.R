@@ -69,8 +69,8 @@ module_edit_closing_details_server <- function(
     iv <- InputValidator$new()
 
     iv$add_rule("edit_date_closed_fiscal", function(value) {
-      if (is.null(value) || value == "") {
-        return() # Allow empty values
+      if (!isTruthy(value)) {
+        return()
       }
 
       # Check format: YYYY/YY
@@ -147,18 +147,14 @@ module_edit_closing_details_server <- function(
         distinct(property_name_public) |>
         pull()
 
-      choices <- choices |>
+      choices |>
         mutate(
           property_name_view = if_else(
             property_name_public %in% name_dupes,
             str_glue("{property_name_public} || {property_name}"),
             property_name_public
           )
-        ) |>
-        select(property_name_view, id) |>
-        deframe()
-
-      return(choices)
+        )
     })
 
     ## Reactive :: Acquisition securement type choices ----
@@ -166,9 +162,7 @@ module_edit_closing_details_server <- function(
       dbGetQuery(
         db_con,
         "SELECT id, acquisition_value FROM acquisition_securement_type ORDER BY acquisition_value;"
-      ) |>
-        select(acquisition_value, id) |>
-        deframe()
+      )
     })
 
     ## Reactive :: Ownership choices ----
@@ -176,9 +170,7 @@ module_edit_closing_details_server <- function(
       dbGetQuery(
         db_con,
         "SELECT id, ownership_value FROM ownership ORDER BY ownership_value;"
-      ) |>
-        select(ownership_value, id) |>
-        deframe()
+      )
     })
 
     ## Update property dropdown ----
@@ -186,7 +178,13 @@ module_edit_closing_details_server <- function(
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name_view
+          )
+        ),
         selected = "",
         server = TRUE
       )
@@ -286,7 +284,13 @@ module_edit_closing_details_server <- function(
           selectizeInput(
             inputId = ns("edit_acquisition_securement_type_id"),
             label = "Acquisition Securement Type",
-            choices = c("", acquisition_securement_type_choices()),
+            choices = c(
+              "",
+              setNames(
+                acquisition_securement_type_choices()$id,
+                acquisition_securement_type_choices()$acquisition_value
+              )
+            ),
             selected = if (!is.na(record$acquisition_securement_type_id)) {
               record$acquisition_securement_type_id
             } else {
@@ -301,7 +305,13 @@ module_edit_closing_details_server <- function(
           selectizeInput(
             inputId = ns("edit_ownership_id"),
             label = "Ownership",
-            choices = c("", ownership_choices()),
+            choices = c(
+              "",
+              setNames(
+                ownership_choices()$id,
+                ownership_choices()$ownership_value
+              )
+            ),
             selected = if (!is.na(record$ownership_id)) {
               record$ownership_id
             } else {
@@ -506,8 +516,14 @@ module_edit_closing_details_server <- function(
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        selected = "",
-        choices = c("", property_choices()),
+        selected = character(0),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name_view
+          )
+        ),
         server = TRUE
       )
     })

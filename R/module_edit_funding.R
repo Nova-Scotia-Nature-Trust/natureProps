@@ -79,18 +79,14 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
         distinct(property_name_public) |>
         pull()
 
-      choices <- choices |>
+      choices |>
         mutate(
           property_name_view = if_else(
             property_name_public %in% name_dupes,
             str_glue("{property_name_public} || {property_name}"),
             property_name_public
           )
-        ) |>
-        select(property_name_view, id) |>
-        deframe()
-
-      return(choices)
+        )
     })
 
     ## Reactive :: Federal funding choices ----
@@ -98,9 +94,7 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
       dbGetQuery(
         db_con,
         "SELECT id, federal_value FROM fund_federal ORDER BY federal_value;"
-      ) |>
-        select(federal_value, id) |>
-        deframe()
+      )
     })
 
     ## Reactive :: Campaign choices ----
@@ -108,9 +102,7 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
       dbGetQuery(
         db_con,
         "SELECT id, campaign_value FROM campaign ORDER BY campaign_value;"
-      ) |>
-        select(campaign_value, id) |>
-        deframe()
+      )
     })
 
     ## Update property dropdown ----
@@ -118,7 +110,13 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name_view
+          )
+        ),
         selected = "",
         server = TRUE
       )
@@ -198,7 +196,10 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
           selectizeInput(
             inputId = ns("edit_fund_federal_ids"),
             label = "Federal Funding",
-            choices = fund_federal_choices(),
+            choices = setNames(
+              fund_federal_choices()$id,
+              fund_federal_choices()$federal_value
+            ),
             selected = if (length(record$fund_federal_ids[[1]]) > 0) {
               record$fund_federal_ids[[1]]
             } else {
@@ -213,7 +214,13 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
           selectizeInput(
             inputId = ns("edit_campaign_id"),
             label = "Campaign",
-            choices = c("", campaign_choices()),
+            choices = c(
+              "",
+              setNames(
+                campaign_choices()$id,
+                campaign_choices()$campaign_value
+              )
+            ),
             selected = if (!is.na(record$campaign_id)) {
               record$campaign_id
             } else {
@@ -325,8 +332,14 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        selected = "",
-        choices = c("", property_choices()),
+        selected = character(0),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name_view
+          )
+        ),
         server = TRUE
       )
     })
