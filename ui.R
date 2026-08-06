@@ -131,10 +131,6 @@ ui <- page_navbar(
         module_assign_securement_values_ui("assign_priorities")
       ),
       nav_panel(
-        title = "Internal Communications",
-        module_internal_communications_UI("internal_communications")
-      ),
-      nav_panel(
         title = "Data Viewer",
         module_review_data_viewer_ui("review_data")
       ),
