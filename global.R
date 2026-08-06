@@ -27,8 +27,12 @@ library(promises)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 
-# Create database connection
-db_con <- create_db_pool("nsnt-properties", port = 5432)
+# Database environment switching
+is_dev <- Sys.getenv("APP_ENV") == "development"
+db_con <- create_db_pool(
+  if (is_dev) "nsnt-properties-test" else "nsnt-properties",
+  port = 5432
+)
 prd_con <- create_db_pool("nsprd", port = 5432)
 gis_con <- create_db_pool("nsnt_gis", port = 5432)
 
