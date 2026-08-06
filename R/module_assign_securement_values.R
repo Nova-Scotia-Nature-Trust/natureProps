@@ -128,6 +128,11 @@ module_assign_securement_values_ui <- function(id) {
                     height = "150px",
                     width = "100%"
                   ),
+                  checkboxInput(
+                    inputId = ns("clear_securement"),
+                    label = "Clear all securement values",
+                    value = FALSE
+                  ),
                   actionButton(
                     inputId = ns("submit_edit_properties"),
                     label = "Submit Changes",
@@ -219,6 +224,11 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     iv <- InputValidator$new()
 
     iv$add_rule("closing_year", function(value) {
+      # Skip validation when clearing values
+      if (isTRUE(input$clear_securement)) {
+        return(NULL)
+      }
+
       sec_prob <- input$securement_prob
 
       potential_id <- dbGetQuery(
@@ -256,7 +266,16 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       return(NULL)
     })
 
-    iv$add_rule("securement_prob", sv_required())
+    iv$add_rule("securement_prob", function(value) {
+      # Skip when clearing values
+      if (isTRUE(input$clear_securement)) {
+        return(NULL)
+      }
+      if (!isTruthy(value)) {
+        return("Securement probability is required")
+      }
+      NULL
+    })
     iv$enable()
 
     # Separate validator so the public_name required rule only gates/highlights
@@ -443,6 +462,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     ## Event :: Load Property Record  ----
     observeEvent(input$property, {
       req(input$property)
+      updateCheckboxInput(session, "clear_securement", value = FALSE)
       record <- load_property_record(db_con, input$property) |>
         arrange(pid)
 
@@ -571,7 +591,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
 
     ## Event :: Write changes (property) ----
     observeEvent(input$submit_edit_properties, {
-      req(input$property, input$securement_prob)
+      req(input$property)
       req(iv$is_valid())
       db_id <- as.integer(input$property_name)
       #' This function checks if an input is truthy and
@@ -581,21 +601,33 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         if (isTruthy(x)) x else na
       }
 
+      clearing <- isTRUE(input$clear_securement)
+
       df <- tibble(
         id = input$property,
-        securement_probability_id = input$securement_prob,
-        anticipated_closing_year = valid_or_na(
-          input$closing_year,
+        securement_probability_id = if (clearing) {
+          NA_integer_
+        } else {
+          input$securement_prob
+        },
+        anticipated_closing_year = if (clearing) {
           NA_character_
-        ),
-        anticipated_closing_date = valid_or_na(
-          input$closing_date,
+        } else {
+          valid_or_na(
+            input$closing_year,
+            NA_character_
+          )
+        },
+        anticipated_closing_date = if (clearing) {
           as.Date(NA)
-        ),
-        aps_conditions_date = valid_or_na(
-          input$conditions_date,
+        } else {
+          valid_or_na(input$closing_date, as.Date(NA))
+        },
+        aps_conditions_date = if (clearing) {
           as.Date(NA)
-        ),
+        } else {
+          valid_or_na(input$conditions_date, as.Date(NA))
+        },
         securement_action_description = valid_or_na(
           input$securement_notes,
           NA_character_
@@ -750,6 +782,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
     observeEvent(input$clear_inputs, {
       selected_record(NULL)
       original_securement_notes(NULL)
+      updateCheckboxInput(session, "clear_securement", value = FALSE)
 
       updateSelectizeInput(
         session,
