@@ -1,3 +1,5 @@
+db_con <- create_db_pool("nsnt-properties", port = 5432)
+
 DBI::dbExecute(
   db_con,
   readr::read_file("R/sql/create_view_focal_areas_outreach.sql"),
@@ -64,7 +66,22 @@ DBI::dbExecute(
   immediate = TRUE
 )
 DBI::dbExecute(
-  gis_con,
-  readr::read_file("R/sql/create_mv_cons_lands_metrics.sql"),
+  db_con,
+  readr::read_file("R/sql/create_view_llt_projects.sql"),
+  immediate = TRUE
+)
+DBI::dbExecute(
+  db_con,
+  readr::read_file("R/sql/create_view_comms_securement_history.sql"),
+  immediate = TRUE
+)
+DBI::dbExecute(
+  db_con,
+  readr::read_file("R/sql/create_view_conservation_lands.sql"),
+  immediate = TRUE
+)
+DBI::dbExecute(
+  db_con,
+  readr::read_file("R/sql/create_view_property_pricing.sql"),
   immediate = TRUE
 )

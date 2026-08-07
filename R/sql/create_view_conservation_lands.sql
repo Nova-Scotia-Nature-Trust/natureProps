@@ -14,8 +14,13 @@ SELECT
   fae.external_value AS "Focus Area",
   ast.acquisition_value AS "Acquisition Securement Type",
   o.ownership_value AS "Ownership",
+  pr.owner_name AS "Owner Name",
   pr.ecogift_number AS "Ecogift Number",
+  pr.donor_vendor AS "Donor / Vendor",
   pr.date_closed_fiscal AS "Fiscal Year Closed",
+  pr.date_closed AS "Date Closed",
+  pr.llt_funding_secured AS "LLT Funding Secured",
+  ca.campaign_value AS "Campaign", 
   pr.public_view AS "Public View",
   pr.notes_sensitivity AS "Sensitivity Notes",
   pa.size_confirmed_ha AS "Size (Hectares)",
@@ -32,6 +37,8 @@ LEFT JOIN focus_area_external fae
   ON fai.focus_area_external_id = fae.id
 LEFT JOIN acquisition_securement_type ast 
   ON pr.acquisition_securement_type_id = ast.id
+LEFT JOIN campaign ca 
+  ON pr.campaign_id = ca.id 
 LEFT JOIN parcels pa 
   ON pa.property_id = pr.id
 WHERE 
