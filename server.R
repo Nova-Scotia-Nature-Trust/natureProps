@@ -62,6 +62,7 @@ server <- function(input, output, session) {
   module_prop_stats_server(
     "prop_stats",
     db_con,
+    gis_con,
     db_updated
   )
 
