@@ -263,13 +263,18 @@ module_species_properties_server <- function(
         species_data(),
         options = list(
           pageLength = 25,
-          scrollY = "500px",
-          scrollCollapse = FALSE,
-          searching = TRUE,
-          info = TRUE,
-          paging = TRUE
+          lengthMenu = list(
+            c(10, 25, 50, -1),
+            c('10', '25', '50', 'All')
+          ),
+          scrollX = TRUE,
+          fixedHeader = TRUE,
+          stateSave = FALSE
         ),
-        rownames = FALSE
+        rownames = FALSE,
+        selection = "single",
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 
