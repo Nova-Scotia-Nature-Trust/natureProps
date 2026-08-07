@@ -62,13 +62,13 @@ module_securement_review_ui <- function(id) {
               actionButton(
                 inputId = ns("submit_edit"),
                 label = "Submit Edit",
-                class = "btn-primary",
+                class = "btn-success",
                 width = "100%"
               ),
               actionButton(
                 inputId = ns("clear_inputs_dates"),
                 label = "Clear Inputs",
-                class = "btn-secondary",
+                class = "btn-secondary mt-2",
                 width = "100%"
               )
             ),
@@ -92,13 +92,13 @@ module_securement_review_ui <- function(id) {
               actionButton(
                 inputId = ns("submit_action_items"),
                 label = "Submit Edit",
-                class = "btn-primary",
+                class = "btn-success",
                 width = "100%"
               ),
               actionButton(
                 inputId = ns("clear_inputs_actions"),
                 label = "Clear Inputs",
-                class = "btn-secondary",
+                class = "btn-secondary mt-2",
                 width = "100%"
               )
             )

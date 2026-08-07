@@ -133,7 +133,7 @@ module_property_details_ui <- function(id) {
             actionButton(
               inputId = ns("submit_property"),
               label = "Add Property",
-              class = "btn-primary"
+              class = "btn-success"
             ),
             actionButton(
               inputId = ns("clear_inputs"),
@@ -182,7 +182,7 @@ module_property_details_ui <- function(id) {
             actionButton(
               inputId = ns("submit_update"),
               label = "Add PID to Property",
-              class = "btn-primary"
+              class = "btn-success"
             ),
             actionButton(
               inputId = ns("clear_update_inputs"),
