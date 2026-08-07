@@ -15,6 +15,11 @@ module_team_lead_info_UI <- function(id) {
         inputId = ns("clear_inputs"),
         label = "Clear Inputs",
         width = "100%"
+      ),
+      input_switch(
+        ns("show_completed"),
+        "Show Completed General Actions",
+        value = FALSE
       )
     ),
     layout_columns(
@@ -127,13 +132,14 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
                   p.property_name,
                   tla.id,
                   tla.action_item_description,
-                  tla.due_date
+                  tla.due_date,
+                  tla.action_complete
                 FROM
                   team_lead_actions tla
                   LEFT JOIN properties p ON tla.property_id = p.id
                   LEFT JOIN team_lead tl ON tla.team_lead_id = tl.id
                 WHERE
-                  tl.team_value = {input$team_lead_choice} AND tla.action_complete = FALSE
+                  tl.team_value = {input$team_lead_choice}
                 ORDER BY
                   tla.due_date,
                   p.property_name;",
@@ -224,12 +230,20 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
       securement_actions_data(NULL)
     })
 
+    # Filtered actions reactive ----
+    filtered_actions <- reactive({
+      req(actions_data())
+      actions_data() |>
+        filter(action_complete == isTRUE(input$show_completed)) |>
+        select(-action_complete)
+    })
+
     # Render actions table ----
     output$actions_table <- renderDT({
-      req(actions_data())
+      req(filtered_actions())
 
       # Convert character columns to factors for select inputs
-      data_for_display <- actions_data() |>
+      data_for_display <- filtered_actions() |>
         mutate(across(where(is.character), as.factor))
 
       DT::datatable(
@@ -333,7 +347,7 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         glue("{team_lead}_action_items_{format(Sys.Date(), '%Y%m%d')}.csv")
       },
       content = function(file) {
-        data_to_download <- actions_data()
+        data_to_download <- filtered_actions()
 
         if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
           write_csv(data_to_download, file)
