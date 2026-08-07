@@ -337,6 +337,13 @@ module_property_contact_communication_server <- function(
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectInput(session, "communication_type", selected = character(0))
+      updateSelectizeInput(
+        session,
+        "contact_property_id",
+        selected = character(0)
+      )
+      updateSelectizeInput(session, "contact", selected = character(0))
+      updateSelectizeInput(session, "pid", selected = character(0))
 
       updateSelectizeInput(
         session,
