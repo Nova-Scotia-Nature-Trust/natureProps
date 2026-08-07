@@ -7,6 +7,7 @@ module_property_mapbox_ui <- function(id) {
   layout_sidebar(
     sidebar = sidebar(
       accordion(
+        id = ns("map_accordion"),
         open = FALSE,
         multiple = FALSE,
         accordion_panel(
@@ -42,6 +43,16 @@ module_property_mapbox_ui <- function(id) {
           )
         ),
         accordion_panel(
+          title = "Securement Probability",
+          icon = bs_icon("shield-check"),
+          checkboxGroupInput(
+            ns("sec_prob_filter"),
+            label = "Show properties with:",
+            choices = c("Confirmed", "Expected", "Potential"),
+            selected = c("Confirmed", "Expected", "Potential")
+          )
+        ),
+        accordion_panel(
           title = "Map Controls",
           icon = bs_icon("gear"),
           selectInput(
@@ -72,6 +83,11 @@ module_property_mapbox_ui <- function(id) {
         )
       ),
       hr(),
+      actionButton(
+        ns("show_active_projects"),
+        "Show Active Projects",
+        class = "btn-primary w-100"
+      ),
       actionButton(
         ns("reset_view"),
         "Reset Map View",
@@ -244,8 +260,66 @@ module_property_mapbox_server <- function(
       result
     })
 
+    # ---- Securement Probability Points ----
+    prior_fiscal <- str_remove(
+      quarter(Sys.Date() - 365, type = "year_start/end", fiscal_start = 4),
+      " Q[0-9]"
+    )
+
+    securement_prob_sf <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      # Query db_con: get property info + associated PIDs via the parcels join
+      prop_data <- dbGetQuery(
+        db_con,
+        "SELECT
+          pa.pid,
+          pr.property_name,
+          COALESCE(pr.anticipated_closing_year, 'Unassigned') AS anticipated_closing_year,
+          sp.probability_value
+        FROM properties pr
+        JOIN securement_probability sp ON pr.securement_probability_id = sp.id
+        JOIN parcels pa ON pa.property_id = pr.id
+        WHERE pr.securement_probability_id IS NOT NULL;"
+      ) |>
+        filter(anticipated_closing_year > prior_fiscal)
+
+      req(nrow(prop_data) > 0)
+
+      pids <- prop_data |> pull(pid)
+
+      pid_query <- glue_sql(
+        "SELECT pid, geom FROM parcels WHERE pid IN ({pids*});",
+        .con = gis_con
+      )
+
+      parcel_geoms <- st_read(gis_con, query = pid_query, quiet = TRUE) |>
+        left_join(prop_data, by = "pid")
+
+      # Union parcel geometries per property, then compute centroid
+      centroids <- parcel_geoms |>
+        group_by(property_name, probability_value, anticipated_closing_year) |>
+        summarise(geom = st_union(geom), .groups = "drop") |>
+        st_centroid()
+
+      centroids |>
+        mutate(
+          popup_html = glue(
+            "<div style='font-size: 14px;'>",
+            "<b>Property:</b> {property_name}<br>",
+            "<b>Securement Probability:</b> {probability_value}<br>",
+            "<b>Anticipated Closing Year:</b> {coalesce(anticipated_closing_year, 'Not set')}",
+            "</div>"
+          )
+        )
+    })
+
     ns_bounds <- c(-66.4, 43.5, -59.8, 46.9)
+
     map_layer_ids <- c(
+      "securement_probability_points",
       "securement_priority",
       "ecological_priority",
       "nsnt_conservation_lands_layer",
@@ -353,6 +427,23 @@ module_property_mapbox_server <- function(
           visibility = "none",
           line_width = 3
         ) |>
+        # Securement Probability Points
+        add_circle_layer(
+          id = "securement_probability_points",
+          source = securement_prob_sf(),
+          circle_radius = 10,
+          circle_color = match_expr(
+            column = "probability_value",
+            values = c("Confirmed", "Expected", "Potential"),
+            stops = c("#2E7D32", "#1976D2", "#d36912ff")
+          ),
+          circle_stroke_color = "white",
+          circle_stroke_width = 1.5,
+          circle_opacity = 0.9,
+          popup = "popup_html",
+          tooltip = "property_name",
+          visibility = "none"
+        ) |>
         # NSNT Conservation Lands
         add_vector_source(
           id = "nsnt_conservation_lands",
@@ -369,6 +460,7 @@ module_property_mapbox_server <- function(
         # Layers control
         add_layers_control(
           layers = list(
+            "Securement Probability" = "securement_probability_points",
             "Securement Priority" = "securement_priority",
             "Ecological Priority" = "ecological_priority",
             "Nature Trust Conservation Lands" = "nsnt_conservation_lands_layer",
@@ -433,6 +525,26 @@ module_property_mapbox_server <- function(
             element_border_width = 1
           )
         ) |>
+        add_categorical_legend(
+          unique_id = "prob_legend",
+          add = TRUE,
+          legend_title = "Securement Probability",
+          values = c("Confirmed", "Expected", "Potential"),
+          colors = c("#2E7D32", "#1976D2", "#d36912ff"),
+          patch_shape = "circle",
+          position = "bottom-right",
+          width = "210px",
+          layer_id = "securement_probability_points",
+          interactive = TRUE,
+          style = list(
+            background_opacity = 0.95,
+            border_width = 1,
+            border_color = "gray",
+            title_color = "black",
+            element_border_color = "black",
+            element_border_width = 1
+          )
+        ) |>
         add_screenshot_control(
           position = "top-left",
           filename = "nsnt-map-screenshot",
@@ -478,6 +590,56 @@ module_property_mapbox_server <- function(
 
       mapboxgl_proxy("map") |> fit_bounds(target, animate = TRUE)
     })
+
+    # ---- Show Active Projects ----
+    observeEvent(input$show_active_projects, {
+      proxy <- mapboxgl_proxy("map")
+
+      # Hide all layers except securement probability points
+      for (layer_id in map_layer_ids) {
+        visibility <- if (layer_id == "securement_probability_points") {
+          "visible"
+        } else {
+          "none"
+        }
+        proxy <- proxy |>
+          set_layout_property(layer_id, "visibility", visibility)
+      }
+
+      # Switch basemap to light
+      proxy |> set_style(mapbox_style("light"), diff = TRUE)
+      updateSelectInput(session, "map_style", selected = "light")
+
+      # Expand the securement probability accordion panel
+      accordion_panel_open("map_accordion", "Securement Probability")
+    })
+
+    # ---- Securement Probability Filter ----
+    observeEvent(
+      input$sec_prob_filter,
+      {
+        selected <- input$sec_prob_filter
+        if (is.null(selected) || length(selected) == 0) {
+          # Hide all points when no category is selected
+          mapboxgl_proxy("map") |>
+            set_filter(
+              "securement_probability_points",
+              list("==", list("get", "probability_value"), "")
+            )
+        } else {
+          mapboxgl_proxy("map") |>
+            set_filter(
+              "securement_probability_points",
+              list(
+                "in",
+                list("get", "probability_value"),
+                list("literal", selected)
+              )
+            )
+        }
+      },
+      ignoreNULL = FALSE
+    )
 
     # ---- Toggle Layers ----
     observeEvent(input$hide_all_layers, {

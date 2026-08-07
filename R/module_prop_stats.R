@@ -66,7 +66,7 @@ module_prop_stats_UI <- function(id) {
     ),
 
     layout_columns(
-      col_widths = c(6, 6),
+      col_widths = c(4, 8),
 
       # Left card: All indicator boxes
       card(
@@ -90,8 +90,10 @@ module_prop_stats_UI <- function(id) {
       ),
       card(
         height = "auto",
+        full_screen = TRUE,
         card_body(
-          plotOutput(ns("closing_year_plot"))
+          # plotOutput(ns("closing_year_plot"))
+          mapboxglOutput(ns("closing_year_map"), height = "400px")
         )
       )
     )
@@ -99,7 +101,7 @@ module_prop_stats_UI <- function(id) {
 }
 
 # Server ----
-module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
+module_prop_stats_server <- function(id, db_con, gis_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     valboxes <- reactiveValues()
 
@@ -376,36 +378,112 @@ module_prop_stats_server <- function(id, db_con, db_updated = NULL) {
       }
     })
 
-    output$closing_year_plot <- renderPlot({
-      plot_data() |>
-        ggplot(aes(x = anticipated_closing_year, fill = probability_value)) +
-        geom_bar(
-          position = position_dodge2(preserve = "single"),
-          color = "black",
-          linewidth = 0.3
-        ) +
-        scale_fill_manual(
-          values = c(
-            "Confirmed" = "#2E7D32",
-            "Expected" = "#1976D2",
-            "Potential" = "#d36912ff"
+    # output$closing_year_plot <- renderPlot({
+    #   plot_data() |>
+    #     ggplot(aes(x = anticipated_closing_year, fill = probability_value)) +
+    #     geom_bar(
+    #       position = position_dodge2(preserve = "single"),
+    #       color = "black",
+    #       linewidth = 0.3
+    #     ) +
+    #     scale_fill_manual(
+    #       values = c(
+    #         "Confirmed" = "#2E7D32",
+    #         "Expected" = "#1976D2",
+    #         "Potential" = "#d36912ff"
+    #       )
+    #     ) +
+    #     scale_y_continuous(breaks = scales::breaks_width(2)) +
+    #     labs(
+    #       title = "Project Status",
+    #       x = "Anticipated Closing Year",
+    #       y = "Number of Properties",
+    #       fill = "Securement Probability"
+    #     ) +
+    #     theme(
+    #       axis.text.x = element_text(size = 18),
+    #       axis.text.y = element_text(size = 18),
+    #       axis.title.x = element_text(size = 20),
+    #       axis.title.y = element_text(size = 20),
+    #       plot.title = element_text(size = 20),
+    #       legend.title = element_text(size = 18),
+    #       legend.text = element_text(size = 18)
+    #     )
+    # })
+
+    prob_map_sf <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      prop_data <- dbGetQuery(
+        db_con,
+        "SELECT
+          pa.pid,
+          pr.property_name,
+          COALESCE(pr.anticipated_closing_year, 'Unassigned') AS anticipated_closing_year,
+          sp.probability_value
+        FROM properties pr
+        JOIN securement_probability sp ON pr.securement_probability_id = sp.id
+        JOIN parcels pa ON pa.property_id = pr.id
+        WHERE pr.securement_probability_id IS NOT NULL;"
+      ) |>
+        filter(anticipated_closing_year > prior_fiscal)
+
+      req(nrow(prop_data) > 0)
+
+      pids <- prop_data |> pull(pid)
+
+      parcel_geoms <- st_read(
+        gis_con,
+        query = glue_sql(
+          "SELECT pid, geom FROM parcels WHERE pid IN ({pids*});",
+          .con = gis_con
+        ),
+        quiet = TRUE
+      ) |>
+        left_join(prop_data, by = "pid")
+
+      parcel_geoms |>
+        group_by(property_name, probability_value, anticipated_closing_year) |>
+        summarise(geom = st_union(geom), .groups = "drop") |>
+        st_centroid() |>
+        mutate(
+          popup_html = glue(
+            "<div style='font-size: 14px;'>",
+            "<b>Property:</b> {property_name}<br>",
+            "<b>Securement Probability:</b> {probability_value}<br>",
+            "<b>Anticipated Closing Year:</b> {anticipated_closing_year}",
+            "</div>"
           )
-        ) +
-        scale_y_continuous(breaks = scales::breaks_width(2)) +
-        labs(
-          title = "Project Status",
-          x = "Anticipated Closing Year",
-          y = "Number of Properties",
-          fill = "Securement Probability"
-        ) +
-        theme(
-          axis.text.x = element_text(size = 18),
-          axis.text.y = element_text(size = 18),
-          axis.title.x = element_text(size = 20),
-          axis.title.y = element_text(size = 20),
-          plot.title = element_text(size = 20),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 18)
+        )
+    })
+
+    output$closing_year_map <- renderMapboxgl({
+      mapboxgl(mapbox_style("light")) |>
+        fit_bounds(c(-66.4, 43.5, -59.8, 46.9), animate = FALSE) |>
+        add_circle_layer(
+          id = "prob_points",
+          source = prob_map_sf(),
+          circle_radius = 10,
+          circle_color = match_expr(
+            column = "probability_value",
+            values = c("Confirmed", "Expected", "Potential"),
+            stops = c("#2E7D32", "#1976D2", "#d36912ff")
+          ),
+          circle_stroke_color = "white",
+          circle_stroke_width = 1.5,
+          circle_opacity = 0.9,
+          popup = "popup_html",
+          tooltip = "property_name"
+        ) |>
+        add_categorical_legend(
+          legend_title = "Securement Probability",
+          values = c("Confirmed", "Expected", "Potential"),
+          colors = c("#2E7D32", "#1976D2", "#d36912ff"),
+          patch_shape = "circle",
+          position = "bottom-right",
+          width = "210px"
         )
     })
   })
