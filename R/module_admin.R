@@ -3,29 +3,8 @@ module_admin_ui <- function(id) {
   ns <- NS(id)
 
   div(
-    actionButton(
-      inputId = ns("create_cons_lands"),
-      label = "Update Conservation Lands GIS Table",
-      class = "btn-primary"
-    ),
-    div(style = "margin-top: 8px;"),
-
-    hr(style = "margin: 20px 0;"),
-
-    downloadButton(
-      outputId = ns("download_cons_lands"),
-      label = "Download Conservation Lands Shapefile",
-      class = "btn-primary"
-    ),
-
-    hr(style = "margin: 20px 0;"),
-
     div(
-      style = "
-    padding: 12px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-     ",
+      style = "padding: 12px; background-color: #f8f9fa; border-radius: 4px;",
 
       tags$h6("Landscape Shapefiles"),
 
@@ -47,14 +26,33 @@ module_admin_ui <- function(id) {
         ns("download_landscape_pids"),
         "Download Landscape Shapefiles",
         class = "btn-primary"
-      ),
-
-      hr(style = "margin: 20px 0;"),
-      actionButton(
-        inputId = ns("refresh_mv"),
-        label = "Recreate Conservation Lands MV",
-        class = "btn-primary"
       )
+    ),
+
+    hr(style = "margin: 20px 0;"),
+
+    actionButton(
+      inputId = ns("refresh_mv"),
+      label = "Recreate Conservation Lands MV",
+      icon = icon("arrows-rotate"),
+      class = "btn-primary"
+    ),
+
+    hr(style = "margin: 20px 0;"),
+    actionButton(
+      inputId = ns("create_cons_lands"),
+      label = "Update Conservation Lands GIS Table",
+      icon = icon("arrows-rotate"),
+      class = "btn-primary"
+    ),
+    div(style = "margin-top: 8px;"),
+
+    hr(style = "margin: 20px 0;"),
+
+    downloadButton(
+      outputId = ns("download_cons_lands"),
+      label = "Download Conservation Lands Shapefile",
+      class = "btn-primary"
     )
   )
 }
@@ -95,14 +93,14 @@ module_admin_server <- function(
         relocate(pid, .after = property_name_public) |>
         relocate(geom, .after = everything())
 
-      upload_spatial_table(
+      update_spatial_table(
         x = cons_lands_spatial,
         geom_type = NULL,
         table_name = "nsnt_conservation_lands",
         db_con = gis_con_16
       )
 
-      upload_spatial_table(
+      update_spatial_table(
         x = cons_lands_spatial,
         geom_type = NULL,
         table_name = "nsnt_conservation_lands",

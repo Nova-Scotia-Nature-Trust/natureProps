@@ -294,12 +294,12 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "team_lead_filter",
-        selected = "",
+        selected = character(0),
         choices = c("", team_lead_choices()),
         server = TRUE
       )
 
-      updateSelectInput(session, "edit_team_lead_id", selected = "")
+      updateSelectInput(session, "edit_team_lead_id", selected = character(0))
       updateTextAreaInput(session, "edit_action_item_description", value = "")
       updateDateInput(session, "edit_due_date", value = "")
       updateCheckboxInput(session, "edit_action_complete", value = FALSE)
@@ -308,7 +308,7 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "record_id",
         choices = c("", action_choices()),
-        selected = "",
+        selected = character(0),
         server = TRUE
       )
     })

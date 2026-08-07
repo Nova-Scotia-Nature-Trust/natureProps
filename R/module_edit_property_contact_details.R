@@ -462,8 +462,14 @@ module_edit_property_contacts_server <- function(
       updateSelectizeInput(
         session,
         inputId = "contact_id",
-        selected = "",
-        choices = c("", contact_choices()),
+        selected = character(0),
+        choices = c(
+          "",
+          setNames(
+            contacts()$id,
+            contacts()$display_label
+          )
+        ),
         server = TRUE
       )
     })

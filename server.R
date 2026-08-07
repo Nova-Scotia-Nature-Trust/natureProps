@@ -62,6 +62,7 @@ server <- function(input, output, session) {
   module_prop_stats_server(
     "prop_stats",
     db_con,
+    gis_con,
     db_updated
   )
 
@@ -105,6 +106,7 @@ server <- function(input, output, session) {
     panel_id = "outreach_panel"
   )
   module_action_item_tracking_server("action_items", db_con, db_updated)
+
   module_data_viewer_server(
     "securement_records_view",
     db_con,
@@ -152,14 +154,10 @@ server <- function(input, output, session) {
 
   module_team_lead_info_server("team_lead_info", db_con, db_updated)
 
-  module_internal_communications_server(
-    "internal_communications",
-    db_con,
-    db_updated
-  )
-
   module_edit_team_actions_server("edit_team", db_con, db_updated)
+
   module_edit_pricing_server("edit_pricing", db_con, db_updated)
+
   module_edit_closing_details_server(
     "edit_closing",
     db_con,
@@ -167,6 +165,7 @@ server <- function(input, output, session) {
     cons_lands_data = cons_lands_data_rv
   )
   module_edit_funding_server("edit_funding", db_con, db_updated)
+
   module_edit_securement_properties_server(
     "edit_securement_properties",
     db_con,

@@ -79,7 +79,7 @@ module_action_item_tracking_ui <- function(id) {
           actionButton(
             inputId = ns("submit_edits"),
             label = "Submit Edits",
-            class = "btn-primary"
+            class = "btn-success"
           ),
           actionButton(
             inputId = ns("clear_inputs"),

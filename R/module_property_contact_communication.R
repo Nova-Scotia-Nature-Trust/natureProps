@@ -63,7 +63,7 @@ module_property_contact_communication_ui <- function(id) {
             actionButton(
               inputId = ns("submit_communication"),
               label = "Submit Communication",
-              class = "btn-primary"
+              class = "btn-success"
             ),
             actionButton(
               inputId = ns("clear_inputs"),

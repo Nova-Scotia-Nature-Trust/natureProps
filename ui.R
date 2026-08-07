@@ -49,11 +49,11 @@ ui <- page_navbar(
     navset_card_tab(
       height = "100%",
       nav_panel(
-        title = "Property Metrics",
+        title = "Overview",
         module_prop_stats_UI("prop_stats")
       ),
       nav_panel(
-        title = "Team Lead",
+        title = "Team Lead Items",
         module_team_lead_info_UI("team_lead_info")
       )
     )
@@ -129,10 +129,6 @@ ui <- page_navbar(
       nav_panel(
         title = "Assign Securement Values",
         module_assign_securement_values_ui("assign_priorities")
-      ),
-      nav_panel(
-        title = "Internal Communications",
-        module_internal_communications_UI("internal_communications")
       ),
       nav_panel(
         title = "Data Viewer",

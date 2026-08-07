@@ -74,9 +74,7 @@ module_edit_llt_projects_server <- function(id, db_con, db_updated = NULL) {
          FROM properties p
          INNER JOIN llt_projects llt ON llt.property_id = p.id
          ORDER BY p.property_name;"
-      ) |>
-        select(property_name, id) |>
-        deframe()
+      )
     })
 
     ## Update property dropdown ----
@@ -84,7 +82,13 @@ module_edit_llt_projects_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         selected = isolate(input$property_name),
         server = TRUE
       )
@@ -307,8 +311,14 @@ module_edit_llt_projects_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        selected = "",
-        choices = c("", property_choices()),
+        selected = character(0),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         server = TRUE
       )
     })

@@ -67,9 +67,7 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       dbGetQuery(
         db_con,
         "SELECT id, property_name FROM properties ORDER BY property_name;"
-      ) |>
-        select(property_name, id) |>
-        deframe()
+      )
     })
 
     ## Update property dropdown ----
@@ -77,7 +75,13 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         selected = isolate(input$property_name),
         server = TRUE
       )
@@ -125,57 +129,49 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       record <- selected_record()
 
       # Extract values if record exists, otherwise NULL
-      property_name_text <- if (!is.null(record)) {
+      property_name_text <- if (isTruthy(record$property_name)) {
         paste0("Editing: ", record$property_name)
       } else {
         "No property selected"
       }
 
-      price_asking_val <- if (!is.null(record) && !is.na(record$price_asking)) {
+      price_asking_val <- if (isTruthy(record$price_asking)) {
         record$price_asking
       } else {
         NULL
       }
 
-      price_offer_val <- if (!is.null(record) && !is.na(record$price_offer)) {
+      price_offer_val <- if (isTruthy(record$price_offer)) {
         record$price_offer
       } else {
         NULL
       }
 
-      price_purchase_val <- if (
-        !is.null(record) && !is.na(record$price_purchase)
-      ) {
+      price_purchase_val <- if (isTruthy(record$price_purchase)) {
         record$price_purchase
       } else {
         NULL
       }
 
-      donated_value_val <- if (
-        !is.null(record) && !is.na(record$donated_value)
-      ) {
+      donated_value_val <- if (isTruthy(record$donated_value)) {
         record$donated_value
       } else {
         NULL
       }
 
-      hst_val <- if (!is.null(record) && !is.na(record$hst)) {
+      hst_val <- if (isTruthy(record$hst)) {
         record$hst
       } else {
         FALSE
       }
 
-      unpaid_land_value_val <- if (
-        !is.null(record) && !is.na(record$unpaid_land_value)
-      ) {
+      unpaid_land_value_val <- if (isTruthy(record$unpaid_land_value)) {
         record$unpaid_land_value
       } else {
         NULL
       }
 
-      price_offer_history_val <- if (
-        !is.null(record) && !is.na(record$price_offer_history)
-      ) {
+      price_offer_history_val <- if (isTruthy(record$price_offer_history)) {
         record$price_offer_history
       } else {
         ""
@@ -334,8 +330,14 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        selected = "",
-        choices = c("", property_choices()),
+        selected = character(0),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         server = TRUE
       )
 

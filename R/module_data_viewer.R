@@ -131,8 +131,8 @@ module_data_viewer_server <- function(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
         },
-        order_col = 1,
-        order_dir = "asc"
+        order_col = 6,
+        order_dir = "desc"
       ),
       outreach_view = list(
         fetch = function(db_con) {

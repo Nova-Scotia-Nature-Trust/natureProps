@@ -95,6 +95,10 @@ module_review_projects_ui <- function(id) {
           border-top: 3px solid #adb5bd;
           opacity: 1;
         }
+
+        .accordion-button {
+          font-size: 1.05rem;
+        }
         "
       )
     ),
@@ -142,7 +146,7 @@ module_review_projects_ui <- function(id) {
             style = "height: 100%; display: flex; flex-direction: column;",
             layout_columns(
               height = "100%",
-              col_widths = c(12, -1),
+              col_widths = c(8, 4),
               ## Card :: Projects ----
               card(
                 height = "100%",
@@ -154,22 +158,86 @@ module_review_projects_ui <- function(id) {
                   div(
                     style = "display: flex; flex-direction: column; gap: 15px;",
                     uiOutput(ns("project_summary_ui")),
-                    # Add a spacer div to prevent pushing everything to bottom
                     div(style = "flex-grow: 1;")
                   )
                 )
-              ) #,
-              ## Card :: Other content ----
-              # card(
-              #   height = "100%",
-              #   card_header(h5("Other content")),
-              #   div(
-              #     style = "display: flex; flex-direction: column; gap: 15px;",
-              #     "Content here.",
-              #     # Add a spacer div to prevent pushing everything to bottom
-              #     div(style = "flex-grow: 1;")
-              #   )
-              # )
+              ),
+              ## Right column: Internal Communications + Action Items ----
+              accordion(
+                id = ns("log_accordion"),
+                multiple = FALSE,
+                # Panel :: Log Internal Communications ----
+                accordion_panel(
+                  "Log Internal Communications",
+                  icon = popover(
+                    icon("question-circle"),
+                    includeMarkdown("popups/internal_comms.md"),
+                    title = "Context",
+                    placement = "right"
+                  ),
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    dateInput(
+                      ns("comm_date"),
+                      "Date",
+                      value = Sys.Date(),
+                      width = "100%"
+                    ),
+                    textAreaInput(
+                      ns("communication_description"),
+                      "Communication Description",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("log_internal"),
+                      label = "Log Communication",
+                      class = "btn-success"
+                    )
+                  )
+                ),
+                # Panel :: Log Action Item ----
+                accordion_panel(
+                  "Log Action Item",
+                  icon = popover(
+                    icon("question-circle"),
+                    includeMarkdown("popups/log_actions.md"),
+                    title = "Context",
+                    placement = "right"
+                  ),
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    selectizeInput(
+                      ns("team_lead"),
+                      "Team Lead",
+                      choices = NULL,
+                      multiple = FALSE,
+                      width = "100%"
+                    ),
+                    dateInput(
+                      ns("due_date"),
+                      "Due Date",
+                      value = as.Date(NA),
+                      width = "100%"
+                    ),
+                    textAreaInput(
+                      ns("action_item_description"),
+                      "Action Item Description",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("log_action"),
+                      label = "Log Action Item",
+                      class = "btn-success"
+                    )
+                  )
+                )
+              )
             )
           )
         )
@@ -213,6 +281,14 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       }
     })
 
+    ## Reactive :: Team lead choices ----
+    team_lead_choices <- reactive({
+      dbGetQuery(
+        db_con,
+        "SELECT id, team_value FROM team_lead ORDER BY team_value"
+      )
+    })
+
     ## Update select input with record IDs based on table
     observe({
       updateSelectizeInput(
@@ -220,6 +296,24 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         inputId = "property",
         choices = c("", property_choices()),
         selected = isolate(input$property),
+        server = TRUE
+      )
+    })
+
+    ## Observer :: Update team lead input ----
+    observe({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      team_leads <- team_lead_choices()
+      team_lead_list <- setNames(team_leads$id, team_leads$team_value)
+
+      updateSelectizeInput(
+        session,
+        "team_lead",
+        choices = c("", team_lead_list),
+        selected = isolate(input$team_lead),
         server = TRUE
       )
     })
@@ -611,6 +705,117 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Event :: Log internal communication ----
+    observeEvent(input$log_internal, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before logging a communication.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(input$comm_date, input$communication_description)
+
+      property_id <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT id FROM properties WHERE property_name = {input$property};",
+          .con = db_con
+        )
+      ) |>
+        pull(id)
+
+      df <- tibble(
+        property_id = property_id,
+        date = as.character(input$comm_date),
+        communication_description = input$communication_description
+      )
+
+      append_db_data(
+        db_table_name = "internal_communications",
+        data = df,
+        con = db_con,
+        silent = TRUE
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Internal communication logged successfully for {input$property}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+    })
+
+    ## Event :: Log action item ----
+    observeEvent(input$log_action, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before logging an action item.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(input$team_lead, input$action_item_description)
+
+      property_id <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT id FROM properties WHERE property_name = {input$property};",
+          .con = db_con
+        )
+      ) |>
+        pull(id)
+
+      df <- tibble(
+        property_id = property_id,
+        team_lead_id = as.integer(input$team_lead),
+        action_item_description = input$action_item_description,
+        due_date = if_else(
+          is.null(input$due_date),
+          NA_character_,
+          as.character(input$due_date)
+        )
+      )
+
+      append_db_data(
+        db_table_name = "team_lead_actions",
+        data = df,
+        con = db_con,
+        silent = TRUE
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Action item logged successfully for {input$property}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+    })
+
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
@@ -620,10 +825,23 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         selected = character(0),
         server = TRUE
       )
-    })
 
-    ## Clear selected record and input UI elements when table changes
-    observeEvent(input$clear_inputs, {
+      team_leads <- team_lead_choices()
+      team_lead_list <- setNames(team_leads$id, team_leads$team_value)
+
+      updateSelectizeInput(
+        session,
+        inputId = "team_lead",
+        choices = c("", team_lead_list),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateTextAreaInput(session, "communication_description", value = "")
+      updateTextAreaInput(session, "action_item_description", value = "")
+      updateDateInput(session, "comm_date", value = Sys.Date())
+      updateDateInput(session, "due_date", value = NA)
+
       selected_record(NULL)
     })
 

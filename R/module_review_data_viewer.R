@@ -13,16 +13,10 @@ module_review_data_viewer_ui <- function(id) {
           width = 300,
           selectizeInput(
             ns("table_choice"),
-            "Select table",
-            choices = c("", "Properties", "Parcels"),
+            label = NULL,
+            choices = c("Select a table..." = "", "Properties", "Parcels"),
             multiple = FALSE,
             width = "100%"
-          ),
-          actionButton(
-            inputId = ns("load_table"),
-            label = "Load Table",
-            width = "100%",
-            class = "btn-primary"
           ),
           actionButton(
             inputId = ns("clear_inputs"),
@@ -62,8 +56,11 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
     table_data <- reactiveVal(NULL)
 
     # Event :: Load table ----
-    observeEvent(input$load_table, {
-      req(input$table_choice)
+    observeEvent(input$table_choice, {
+      if (!isTruthy(input$table_choice)) {
+        table_data(NULL)
+        return()
+      }
       if (!is.null(db_updated)) {
         db_updated()
       }

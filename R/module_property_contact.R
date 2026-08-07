@@ -102,7 +102,7 @@ module_property_contact_ui <- function(id) {
             actionButton(
               inputId = ns("submit_property_contact"),
               label = "Add Property Contact",
-              class = "btn-primary"
+              class = "btn-success"
             ),
             actionButton(
               inputId = ns("clear_inputs"),
@@ -159,7 +159,7 @@ module_property_contact_ui <- function(id) {
             actionButton(
               inputId = ns("update_property_contact"),
               label = "Update Contact",
-              class = "btn-primary"
+              class = "btn-success"
             ),
             actionButton(
               inputId = ns("clear_inputs_update"),
