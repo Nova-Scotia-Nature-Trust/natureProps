@@ -77,13 +77,11 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
     iv$enable()
 
     ## Reactive :: Team lead choices ----
-    team_lead_choices <- reactive({
+    team_leads <- reactive({
       dbGetQuery(
         db_con,
-        "SELECT id, team_value FROM team_lead ORDER BY team_value;"
-      ) |>
-        select(team_value, id) |>
-        deframe()
+        "SELECT DISTINCT id, team_value FROM team_lead ORDER BY team_value"
+      )
     })
 
     ## Update team lead dropdown ----
@@ -91,7 +89,13 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "team_lead_filter",
-        choices = c("", team_lead_choices()),
+        choices = c(
+          "",
+          setNames(
+            team_leads()$id,
+            team_leads()$team_value
+          )
+        ),
         selected = "",
         server = TRUE
       )
@@ -167,7 +171,8 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
           team_lead_id,
           action_item_description,
           due_date,
-          action_complete
+          action_complete,
+          date_completed
         FROM team_lead_actions 
         WHERE id = {action_id}",
         .con = db_con
@@ -192,7 +197,13 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
           selectInput(
             inputId = ns("edit_team_lead_id"),
             label = "Team Lead",
-            choices = c("", team_lead_choices()),
+            choices = c(
+              "",
+              setNames(
+                team_leads()$id,
+                team_leads()$team_value
+              )
+            ),
             selected = if (!is.null(record) && !is.na(record$team_lead_id)) {
               record$team_lead_id
             } else {
@@ -222,14 +233,26 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
           height = "200px",
           width = "100%"
         ),
-        checkboxInput(
-          inputId = ns("edit_action_complete"),
-          label = "Action Complete",
-          value = if (!is.null(record) && !is.na(record$action_complete)) {
-            record$action_complete
-          } else {
-            FALSE
-          }
+        layout_columns(
+          col_widths = c(6, 6),
+          checkboxInput(
+            inputId = ns("edit_action_complete"),
+            label = "Action Complete",
+            value = if (!is.null(record) && !is.na(record$action_complete)) {
+              record$action_complete
+            } else {
+              FALSE
+            }
+          ),
+          dateInput(
+            inputId = ns("edit_date_completed"),
+            label = "Date Completed",
+            value = if (!is.null(record) && !is.na(record$date_completed)) {
+              record$date_completed
+            } else {
+              ""
+            }
+          )
         )
       )
     })
@@ -260,7 +283,12 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
         } else {
           as.Date(NA)
         },
-        action_complete = input$edit_action_complete
+        action_complete = input$edit_action_complete,
+        date_completed = if (isTruthy(input$edit_date_completed)) {
+          format(input$edit_date_completed, "%Y-%m-%d")
+        } else {
+          as.Date(NA)
+        }
       )
 
       # Update the record
@@ -295,7 +323,13 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "team_lead_filter",
         selected = character(0),
-        choices = c("", team_lead_choices()),
+        choices = c(
+          "",
+          setNames(
+            team_leads()$id,
+            team_leads()$team_value
+          )
+        ),
         server = TRUE
       )
 
@@ -303,6 +337,7 @@ module_edit_team_actions_server <- function(id, db_con, db_updated = NULL) {
       updateTextAreaInput(session, "edit_action_item_description", value = "")
       updateDateInput(session, "edit_due_date", value = "")
       updateCheckboxInput(session, "edit_action_complete", value = FALSE)
+      updateDateInput(session, "edit_date_completed", value = "")
 
       updateSelectizeInput(
         session,
