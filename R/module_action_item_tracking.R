@@ -82,6 +82,11 @@ module_action_item_tracking_ui <- function(id) {
             class = "btn-success"
           ),
           actionButton(
+            inputId = ns("clear_action_fields"),
+            label = "Clear Selected Field(s) Data",
+            class = "btn-warning"
+          ),
+          actionButton(
             inputId = ns("clear_inputs"),
             label = "Clear Inputs",
             class = "btn-secondary"
@@ -115,9 +120,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
                 pr.property_name_public,
                 pr.property_name
         FROM securement_action_items AS sai
-        LEFT JOIN properties AS pr ON sai.property_id = pr.id
-        LEFT JOIN phase ph ON pr.phase_id = ph.id 
-        WHERE ph.phase_value IN ('Active - Securement', 'Secured')
+        LEFT JOIN properties AS pr ON sai.property_id = pr.id        
         ORDER BY pr.property_name_public;"
       )
     })
@@ -189,7 +192,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
     team_lead <- reactive({
       dbGetQuery(
         db_con,
-        "SELECT id, team_value FROM team_lead ORDER BY team_value;"
+        "SELECT id, team_value FROM team_lead  WHERE team_value NOT IN ('Rich LaPaix', 'Keith Spafford') ORDER BY team_value;"
       )
     })
 
@@ -266,6 +269,49 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
           "{nrow(updated_data)} action items updated for {selected_property_name()}"
         ),
         type = "success",
+        timer = 5000
+      )
+    })
+
+    ## Observe Event :: Clear Action Fields ----
+    observeEvent(input$clear_action_fields, {
+      req(input$property, input$action_item_type)
+
+      clear_data <- tibble(
+        property_id = input$property,
+        action_item_type_id = input$action_item_type,
+        action_due_date = as.Date(NA),
+        team_lead_id = as.integer(NA),
+        action_item_status_id = as.integer(NA),
+        action_completed_date = as.Date(NA),
+        action_item_notes = as.character(NA)
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "securement_action_items",
+        records = clear_data,
+        where_cols = c("property_id", "action_item_type_id")
+      )
+
+      db_updated(db_updated() + 1)
+
+      updateDateInput(session, "action_due_date", value = as.Date(NA))
+      updateSelectizeInput(session, "team_lead", selected = character(0))
+      updateSelectizeInput(
+        session,
+        "action_item_status",
+        selected = character(0)
+      )
+      updateDateInput(session, "action_completed_date", value = as.Date(NA))
+      updateTextAreaInput(session, "action_item_notes", value = "")
+
+      shinyalert(
+        title = "Fields Cleared",
+        text = glue::glue(
+          "{nrow(clear_data)} action item(s) cleared for {selected_property_name()}"
+        ),
+        type = "info",
         timer = 5000
       )
     })
