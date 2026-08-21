@@ -3,6 +3,7 @@ DROP VIEW IF EXISTS view_securement_action_items;
 CREATE VIEW view_securement_action_items AS 
 SELECT
     pr.property_name AS "Property Name",
+    pr.property_name_public AS "Property Name Public",
     STRING_AGG(pa.pid::text, ', ') AS "PIDs",    
     ait.type_value AS "Action Item",
     sai.action_due_date AS "Due Date",
@@ -25,11 +26,10 @@ FROM
     LEFT JOIN phase ph
         ON pr.phase_id = ph.id
 WHERE
-    pr.securement_probability_id IS NOT NULL 
-    AND pr.anticipated_closing_year IS NOT NULL
-    AND ph.phase_value IN ('Active - Securement', 'Secured')
+    pr.securement_probability_id IS NOT NULL
 GROUP BY
     pr.property_name,
+    pr.property_name_public,
     ait.id,
     ait.type_value,
     sai.action_due_date,
@@ -38,5 +38,5 @@ GROUP BY
     sai.action_completed_date,
     sai.action_item_notes
 ORDER BY
-    pr.property_name,
+    pr.property_name_public,
     ait.id;
