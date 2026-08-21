@@ -33,7 +33,7 @@ module_property_mapbox_ui <- function(id) {
             multiple = FALSE,
             options = list(
               placeholder = "Type to search...",
-              maxOptions = 50 # Limit displayed options for performance
+              maxOptions = 50
             )
           ),
           actionButton(
@@ -45,11 +45,26 @@ module_property_mapbox_ui <- function(id) {
         accordion_panel(
           title = "Securement Probability",
           icon = bs_icon("shield-check"),
-          checkboxGroupInput(
+          selectizeInput(
             ns("sec_prob_filter"),
-            label = "Show properties with:",
+            label = "Securement Probability",
             choices = c("Confirmed", "Expected", "Potential"),
-            selected = c("Confirmed", "Expected", "Potential")
+            selected = c("Confirmed", "Expected", "Potential"),
+            multiple = TRUE,
+            options = list(plugins = list("remove_button"))
+          ),
+          selectizeInput(
+            ns("sec_year_filter"),
+            label = "Anticipated Closing Year",
+            choices = NULL,
+            selected = NULL,
+            multiple = TRUE,
+            options = list(plugins = list("remove_button"))
+          ),
+          actionButton(
+            ns("show_active_projects"),
+            "Show Active Projects",
+            class = "btn-primary w-100"
           )
         ),
         accordion_panel(
@@ -84,11 +99,6 @@ module_property_mapbox_ui <- function(id) {
       ),
       hr(),
       actionButton(
-        ns("show_active_projects"),
-        "Show Active Projects",
-        class = "btn-primary w-100"
-      ),
-      actionButton(
         ns("reset_view"),
         "Reset Map View",
         class = "btn-secondary"
@@ -108,6 +118,7 @@ module_property_mapbox_ui <- function(id) {
   )
 }
 
+
 # Server ----
 module_property_mapbox_server <- function(
   id,
@@ -124,7 +135,10 @@ module_property_mapbox_server <- function(
         db_updated()
       }
 
-      dbGetQuery(db_con, "SELECT property_name FROM properties;") |>
+      dbGetQuery(
+        db_con,
+        "SELECT property_name FROM properties;"
+      ) |>
         pull(property_name) |>
         sort()
     })
@@ -141,9 +155,10 @@ module_property_mapbox_server <- function(
 
     parcel_choices <- dbGetQuery(
       gis_con,
-      "SELECT pid 
-        FROM parcels WHERE pid != '00000000' 
-        ORDER BY pid;"
+      "SELECT pid
+       FROM parcels
+       WHERE pid != '00000000'
+       ORDER BY pid;"
     ) |>
       pull(pid)
 
@@ -158,7 +173,7 @@ module_property_mapbox_server <- function(
     # ---- Parcel & Property Data ----
     all_parcels_data <- reactive({
       parcel_query <- glue_sql(
-        "SELECT 
+        "SELECT
           prop.property_name,
           prop.property_description,
           tl.team_value as team_lead,
@@ -170,19 +185,31 @@ module_property_mapbox_server <- function(
           info.area_ha,
           info.area_ha * 2.471 AS area_acres
         FROM parcels par
-        LEFT JOIN properties prop ON par.property_id = prop.id
-        LEFT JOIN team_lead tl ON prop.team_lead_id = tl.id
-        LEFT JOIN phase ph ON prop.phase_id = ph.id
-        LEFT JOIN ranking ra_eco ON par.priority_ecological_ranking_id = ra_eco.id
-        LEFT JOIN ranking ra_sec ON par.priority_securement_ranking_id = ra_sec.id
-        LEFT JOIN parcel_info info ON par.id = info.parcel_id;",
+        LEFT JOIN properties prop
+          ON par.property_id = prop.id
+        LEFT JOIN team_lead tl
+          ON prop.team_lead_id = tl.id
+        LEFT JOIN phase ph
+          ON prop.phase_id = ph.id
+        LEFT JOIN ranking ra_eco
+          ON par.priority_ecological_ranking_id = ra_eco.id
+        LEFT JOIN ranking ra_sec
+          ON par.priority_securement_ranking_id = ra_sec.id
+        LEFT JOIN parcel_info info
+          ON par.id = info.parcel_id;",
         .con = db_con
       )
 
-      result <- dbGetQuery(db_con, parcel_query)
+      result <- dbGetQuery(
+        db_con,
+        parcel_query
+      )
 
       # Landowners
-      db_owners <- dbGetQuery(db_con, "SELECT * FROM landowners;") |>
+      db_owners <- dbGetQuery(
+        db_con,
+        "SELECT * FROM landowners;"
+      ) |>
         as_tibble()
 
       db_formatted_owners <- db_owners |>
@@ -196,7 +223,10 @@ module_property_mapbox_server <- function(
             str_trim() |>
             str_squish(),
           individual_name = na_if(individual_name, ""),
-          owner_display = coalesce(owner_name_corp, individual_name)
+          owner_display = coalesce(
+            owner_name_corp,
+            individual_name
+          )
         ) |>
         filter(!is.na(owner_display)) |>
         select(parcel_id, owner_display)
@@ -204,7 +234,10 @@ module_property_mapbox_server <- function(
       db_owners_collapsed <- db_formatted_owners |>
         group_by(parcel_id) |>
         summarize(
-          landowner_names = paste(owner_display, collapse = ", "),
+          landowner_names = paste(
+            owner_display,
+            collapse = ", "
+          ),
           .groups = "drop"
         )
 
@@ -213,22 +246,40 @@ module_property_mapbox_server <- function(
         db_owners_collapsed,
         by = c("id" = "parcel_id")
       )
+
       return(result)
     })
 
     parcels_sf <- reactive({
       req(all_parcels_data())
-      all_pids <- all_parcels_data() |> pull(pid) |> unique()
+
+      all_pids <- all_parcels_data() |>
+        pull(pid) |>
+        unique()
 
       pid_geom_query <- glue_sql(
-        "SELECT pid, geom FROM parcels WHERE pid IN ({all_pids*});",
+        "SELECT pid, geom
+         FROM parcels
+         WHERE pid IN ({all_pids*});",
         .con = gis_con
       )
 
-      result <- st_read(gis_con, query = pid_geom_query) |>
-        left_join(all_parcels_data(), by = "pid")
+      result <- st_read(
+        gis_con,
+        query = pid_geom_query
+      ) |>
+        left_join(
+          all_parcels_data(),
+          by = "pid"
+        )
 
-      priority_levels <- c("Very High", "High", "Medium", "Low", "Very Low")
+      priority_levels <- c(
+        "Very High",
+        "High",
+        "Medium",
+        "Low",
+        "Very Low"
+      )
 
       result <- result |>
         mutate(
@@ -243,7 +294,7 @@ module_property_mapbox_server <- function(
           parcel_popup = glue(
             "<div style='font-size: 14px;'>",
             "<b>Property Name:</b> {property_name} <br>",
-            '<b>PID:</b> <a href="https://pol.novascotia.ca/POL/PropertyDetail/Index?pid={pid}" target="_blank">{pid}</a><br>',
+            "<b>PID:</b> <a href=\"https://pol.novascotia.ca/POL/PropertyDetail/Index?pid={pid}\" target=\"_blank\">{pid}</a><br>",
             "<b>Ecological Priority:</b> {coalesce(as.character(ecological_priority), 'Not assigned')} <br>",
             "<b>Securement Priority:</b> {coalesce(as.character(securement_priority), 'Not assigned')} <br>",
             "<b>Phase:</b> {coalesce(as.character(phase), 'Not assigned')} <br>",
@@ -254,7 +305,9 @@ module_property_mapbox_server <- function(
             "<b>Size (hectares):</b> {coalesce(as.character(round(area_ha, 0)), 'Unknown')} <br>",
             "</div>"
           ),
-          parcel_tooltip = glue("{property_name} - PID: {pid}")
+          parcel_tooltip = glue(
+            "{property_name} - PID: {pid}"
+          )
         )
 
       result
@@ -262,7 +315,11 @@ module_property_mapbox_server <- function(
 
     # ---- Securement Probability Points ----
     prior_fiscal <- str_remove(
-      quarter(Sys.Date() - 365, type = "year_start/end", fiscal_start = 4),
+      quarter(
+        Sys.Date() - 365,
+        type = "year_start/end",
+        fiscal_start = 4
+      ),
       " Q[0-9]"
     )
 
@@ -271,37 +328,62 @@ module_property_mapbox_server <- function(
         db_updated()
       }
 
-      # Query db_con: get property info + associated PIDs via the parcels join
+      # Query db_con: get property info + associated PIDs
       prop_data <- dbGetQuery(
         db_con,
         "SELECT
           pa.pid,
           pr.property_name,
-          COALESCE(pr.anticipated_closing_year, 'Unassigned') AS anticipated_closing_year,
+          COALESCE(
+            pr.anticipated_closing_year,
+            'Unassigned'
+          ) AS anticipated_closing_year,
           sp.probability_value
         FROM properties pr
-        JOIN securement_probability sp ON pr.securement_probability_id = sp.id
-        JOIN parcels pa ON pa.property_id = pr.id
+        JOIN securement_probability sp
+          ON pr.securement_probability_id = sp.id
+        JOIN parcels pa
+          ON pa.property_id = pr.id
         WHERE pr.securement_probability_id IS NOT NULL;"
       ) |>
-        filter(anticipated_closing_year > prior_fiscal)
+        filter(
+          anticipated_closing_year > prior_fiscal
+        )
 
       req(nrow(prop_data) > 0)
 
-      pids <- prop_data |> pull(pid)
+      pids <- prop_data |>
+        pull(pid)
 
       pid_query <- glue_sql(
-        "SELECT pid, geom FROM parcels WHERE pid IN ({pids*});",
+        "SELECT pid, geom
+         FROM parcels
+         WHERE pid IN ({pids*});",
         .con = gis_con
       )
 
-      parcel_geoms <- st_read(gis_con, query = pid_query, quiet = TRUE) |>
-        left_join(prop_data, by = "pid")
+      parcel_geoms <- st_read(
+        gis_con,
+        query = pid_query,
+        quiet = TRUE
+      ) |>
+        left_join(
+          prop_data,
+          by = "pid"
+        )
 
-      # Union parcel geometries per property, then compute centroid
+      # Union parcel geometries per property,
+      # then compute centroid
       centroids <- parcel_geoms |>
-        group_by(property_name, probability_value, anticipated_closing_year) |>
-        summarise(geom = st_union(geom), .groups = "drop") |>
+        group_by(
+          property_name,
+          probability_value,
+          anticipated_closing_year
+        ) |>
+        summarise(
+          geom = st_union(geom),
+          .groups = "drop"
+        ) |>
         st_centroid()
 
       centroids |>
@@ -316,8 +398,15 @@ module_property_mapbox_server <- function(
         )
     })
 
-    ns_bounds <- c(-66.4, 43.5, -59.8, 46.9)
+    # ---- Map Bounds ----
+    ns_bounds <- c(
+      -66.4,
+      43.5,
+      -59.8,
+      46.9
+    )
 
+    # ---- Map Layer IDs ----
     map_layer_ids <- c(
       "securement_probability_points",
       "securement_priority",
@@ -331,8 +420,14 @@ module_property_mapbox_server <- function(
 
     # ---- Render Map with All Layers ----
     output$map <- renderMapboxgl({
-      # pal_priority <- RColorBrewer::brewer.pal(5, "RdYlBu")
-      pal_priority <- c("#D7191C", "#FDAE61", "#FFFF8A", "#9D8BD0", "#674AB5")
+      pal_priority <- c(
+        "#D7191C",
+        "#FDAE61",
+        "#FFFF8A",
+        "#9D8BD0",
+        "#674AB5"
+      )
+
       pal_nsnt <- "#3d9c68"
       pal_crown <- "#FFA500"
       pal_papa_pending <- "#D3D3D3"
@@ -343,8 +438,12 @@ module_property_mapbox_server <- function(
       mapboxgl(
         mapbox_style("satellite-streets")
       ) |>
-        fit_bounds(ns_bounds, animate = FALSE) |>
-        # NSPRD
+        fit_bounds(
+          ns_bounds,
+          animate = FALSE
+        ) |>
+
+        # ---- NSPRD ----
         add_vector_source(
           id = "nsprd",
           tiles = "http://192.168.1.51:7800/public.parcels/{z}/{x}/{y}.pbf"
@@ -360,7 +459,8 @@ module_property_mapbox_server <- function(
           visibility = "none",
           popup = "pol_url_html"
         ) |>
-        # Crown Land
+
+        # ---- Crown Land ----
         add_vector_source(
           id = "crown_land",
           tiles = "http://192.168.1.51:7800/public.crown_land/{z}/{x}/{y}.pbf"
@@ -373,7 +473,8 @@ module_property_mapbox_server <- function(
           fill_opacity = 0.5,
           visibility = "none"
         ) |>
-        # Pending Protected Areas
+
+        # ---- Pending Protected Areas ----
         add_vector_source(
           id = "papa_pending",
           tiles = "http://192.168.1.51:7800/public.papa_pending/{z}/{x}/{y}.pbf"
@@ -386,7 +487,8 @@ module_property_mapbox_server <- function(
           fill_opacity = 1,
           tooltip = "int_name"
         ) |>
-        # Protected Areas
+
+        # ---- Protected Areas ----
         add_vector_source(
           id = "papa",
           tiles = "http://192.168.1.51:7800/public.papa/{z}/{x}/{y}.pbf"
@@ -399,43 +501,69 @@ module_property_mapbox_server <- function(
           fill_opacity = 1,
           tooltip = "prot_name"
         ) |>
-        # Ecological Priority
+
+        # ---- Ecological Priority ----
         add_fill_layer(
           id = "ecological_priority",
           source = parcels_sf(),
           fill_color = match_expr(
             column = "ecological_priority",
-            values = c("Very High", "High", "Medium", "Low", "Very Low"),
+            values = c(
+              "Very High",
+              "High",
+              "Medium",
+              "Low",
+              "Very Low"
+            ),
             stops = pal_priority,
             default = pal_missing_priority
           ),
           fill_opacity = 0.85,
           popup = "parcel_popup",
           tooltip = "parcel_tooltip",
-          hover_options = list(fill_color = pal_hover, fill_opacity = 0.75)
+          hover_options = list(
+            fill_color = pal_hover,
+            fill_opacity = 0.75
+          )
         ) |>
-        # Securement Priority
+
+        # ---- Securement Priority ----
         add_line_layer(
           id = "securement_priority",
           source = parcels_sf(),
           line_color = match_expr(
             column = "securement_priority",
-            values = c("Very High", "High", "Medium", "Low", "Very Low"),
+            values = c(
+              "Very High",
+              "High",
+              "Medium",
+              "Low",
+              "Very Low"
+            ),
             stops = pal_priority,
             default = pal_missing_priority
           ),
           visibility = "none",
           line_width = 3
         ) |>
-        # Securement Probability Points
+
+        # ---- Securement Probability Points ----
         add_circle_layer(
           id = "securement_probability_points",
           source = securement_prob_sf(),
           circle_radius = 10,
           circle_color = match_expr(
             column = "probability_value",
-            values = c("Confirmed", "Expected", "Potential"),
-            stops = c("#2E7D32", "#1976D2", "#d36912ff")
+            values = c(
+              "Confirmed",
+              "Expected",
+              "Potential"
+            ),
+            stops = c(
+              "#2E7D32",
+              "#1976D2",
+              "#d36912ff"
+            )
           ),
           circle_stroke_color = "white",
           circle_stroke_width = 1.5,
@@ -444,7 +572,8 @@ module_property_mapbox_server <- function(
           tooltip = "property_name",
           visibility = "none"
         ) |>
-        # NSNT Conservation Lands
+
+        # ---- NSNT Conservation Lands ----
         add_vector_source(
           id = "nsnt_conservation_lands",
           tiles = "http://192.168.1.51:7800/public.nsnt_conservation_lands/{z}/{x}/{y}.pbf"
@@ -457,7 +586,8 @@ module_property_mapbox_server <- function(
           fill_opacity = 1,
           tooltip = "property_name_public"
         ) |>
-        # Layers control
+
+        # ---- Layers Control ----
         add_layers_control(
           layers = list(
             "Securement Probability" = "securement_probability_points",
@@ -472,13 +602,24 @@ module_property_mapbox_server <- function(
           position = "top-right",
           collapsible = TRUE
         ) |>
-        # add_navigation_control(position = "bottom-right") |>
-        add_reset_control(position = "top-left", animate = TRUE) |>
+
+        # ---- Reset Control ----
+        add_reset_control(
+          position = "top-left",
+          animate = TRUE
+        ) |>
+
+        # ---- Ecological Priority Legend ----
         add_categorical_legend(
           unique_id = "pri_legend",
-          # draggable = TRUE, # Available in dev package
           legend_title = "Ecological Priority",
-          values = c("Very High", "High", "Medium", "Low", "Very Low"),
+          values = c(
+            "Very High",
+            "High",
+            "Medium",
+            "Low",
+            "Very Low"
+          ),
           colors = pal_priority,
           patch_shape = "square",
           position = "bottom-left",
@@ -494,11 +635,11 @@ module_property_mapbox_server <- function(
             element_border_width = 1
           )
         ) |>
+
+        # ---- General Legend ----
         add_categorical_legend(
           unique_id = "gen_legend",
           add = TRUE,
-          # margin_bottom = "1px",
-          # draggable = TRUE, # Available in dev package
           legend_title = NULL,
           values = c(
             "Crown Land",
@@ -525,12 +666,22 @@ module_property_mapbox_server <- function(
             element_border_width = 1
           )
         ) |>
+
+        # ---- Securement Probability Legend ----
         add_categorical_legend(
           unique_id = "prob_legend",
           add = TRUE,
           legend_title = "Securement Probability",
-          values = c("Confirmed", "Expected", "Potential"),
-          colors = c("#2E7D32", "#1976D2", "#d36912ff"),
+          values = c(
+            "Confirmed",
+            "Expected",
+            "Potential"
+          ),
+          colors = c(
+            "#2E7D32",
+            "#1976D2",
+            "#d36912ff"
+          ),
           patch_shape = "circle",
           position = "bottom-right",
           width = "210px",
@@ -545,6 +696,8 @@ module_property_mapbox_server <- function(
             element_border_width = 1
           )
         ) |>
+
+        # ---- Screenshot ----
         add_screenshot_control(
           position = "top-left",
           filename = "nsnt-map-screenshot",
@@ -554,6 +707,8 @@ module_property_mapbox_server <- function(
           image_scale = 3,
           button_title = "Capture Screenshot"
         ) |>
+
+        # ---- Scale ----
         add_scale_control(
           position = "top-left",
           unit = "metric",
@@ -564,76 +719,182 @@ module_property_mapbox_server <- function(
     # ---- Map Style ----
     observeEvent(input$map_style, {
       mapboxgl_proxy("map") |>
-        set_style(mapbox_style(input$map_style), diff = TRUE)
+        set_style(
+          mapbox_style(input$map_style),
+          diff = TRUE,
+          preserve_layers = TRUE
+        )
     })
 
     # ---- Zoom to Property ----
     observeEvent(input$load_property, {
       req(input$property != "")
-      target <- parcels_sf() |> filter(property_name == input$property)
-      mapboxgl_proxy("map") |> fit_bounds(target, animate = TRUE)
+
+      target <- parcels_sf() |>
+        filter(property_name == input$property)
+
+      mapboxgl_proxy("map") |>
+        fit_bounds(
+          target,
+          animate = TRUE
+        )
     })
 
     # ---- Zoom to Parcel ----
     observeEvent(input$load_parcel, {
       req(input$parcel != "")
 
-      # target <- parcels_sf() |> filter(pid == input$parcel)
-
       target <- st_read(
         dsn = gis_con,
         query = glue_sql(
-          "SELECT geom FROM parcels WHERE pid = {input$parcel}; ",
+          "SELECT geom
+           FROM parcels
+           WHERE pid = {input$parcel};",
           .con = gis_con
         )
       )
 
-      mapboxgl_proxy("map") |> fit_bounds(target, animate = TRUE)
+      mapboxgl_proxy("map") |>
+        fit_bounds(
+          target,
+          animate = TRUE
+        )
     })
 
     # ---- Show Active Projects ----
     observeEvent(input$show_active_projects, {
-      proxy <- mapboxgl_proxy("map")
+      # Change the basemap through the existing
+      # map_style observer.
+      #
+      # IMPORTANT:
+      # Do not call set_style() directly here.
+      updateSelectInput(
+        session,
+        "map_style",
+        selected = "light"
+      )
 
       # Hide all layers except securement probability points
+      proxy <- mapboxgl_proxy("map")
+
       for (layer_id in map_layer_ids) {
         visibility <- if (layer_id == "securement_probability_points") {
           "visible"
         } else {
           "none"
         }
+
         proxy <- proxy |>
-          set_layout_property(layer_id, "visibility", visibility)
+          set_layout_property(
+            layer_id,
+            "visibility",
+            visibility
+          )
       }
 
-      # Switch basemap to light
-      proxy |> set_style(mapbox_style("light"), diff = TRUE)
-      updateSelectInput(session, "map_style", selected = "light")
+      # Show securement probability legend
+      proxy |>
+        add_categorical_legend(
+          unique_id = "prob_legend",
+          add = TRUE,
+          legend_title = "Securement Probability",
+          values = c(
+            "Confirmed",
+            "Expected",
+            "Potential"
+          ),
+          colors = c(
+            "#2E7D32",
+            "#1976D2",
+            "#d36912ff"
+          ),
+          patch_shape = "circle",
+          position = "bottom-right",
+          width = "210px",
+          layer_id = "securement_probability_points",
+          interactive = TRUE,
+          style = list(
+            background_opacity = 0.95,
+            border_width = 1,
+            border_color = "gray",
+            title_color = "black",
+            element_border_color = "black",
+            element_border_width = 1
+          )
+        )
+    })
 
-      # Expand the securement probability accordion panel
-      accordion_panel_open("map_accordion", "Securement Probability")
+    # ---- Populate Closing Year Filter Choices ----
+    observe({
+      req(securement_prob_sf())
+
+      year_choices <- securement_prob_sf() |>
+        pull(anticipated_closing_year) |>
+        unique() |>
+        sort()
+
+      updateSelectizeInput(
+        session,
+        "sec_year_filter",
+        choices = year_choices,
+        selected = year_choices
+      )
     })
 
     # ---- Securement Probability Filter ----
     observeEvent(
-      input$sec_prob_filter,
+      list(
+        input$sec_prob_filter,
+        input$sec_year_filter
+      ),
       {
-        selected <- input$sec_prob_filter
-        if (is.null(selected) || length(selected) == 0) {
-          # Hide all points when no category is selected
+        prob_selected <- input$sec_prob_filter
+        year_selected <- input$sec_year_filter
+
+        if (
+          is.null(prob_selected) ||
+            length(prob_selected) == 0 ||
+            is.null(year_selected) ||
+            length(year_selected) == 0
+        ) {
+          # Hide all points when either filter is empty
           mapboxgl_proxy("map") |>
             set_filter(
               "securement_probability_points",
-              list("==", list("get", "probability_value"), "")
+              list(
+                "==",
+                list("get", "probability_value"),
+                ""
+              )
             )
         } else {
           mapboxgl_proxy("map") |>
             set_filter(
               "securement_probability_points",
               list(
-                "in",
-                list("get", "probability_value"),
-                list("literal", selected)
+                "all",
+                list(
+                  "in",
+                  list(
+                    "get",
+                    "probability_value"
+                  ),
+                  list(
+                    "literal",
+                    prob_selected
+                  )
+                ),
+                list(
+                  "in",
+                  list(
+                    "get",
+                    "anticipated_closing_year"
+                  ),
+                  list(
+                    "literal",
+                    year_selected
+                  )
+                )
               )
             )
         }
@@ -644,26 +905,60 @@ module_property_mapbox_server <- function(
     # ---- Toggle Layers ----
     observeEvent(input$hide_all_layers, {
       proxy <- mapboxgl_proxy("map")
+
       for (layer_id in map_layer_ids) {
         proxy <- proxy |>
-          set_layout_property(layer_id, "visibility", "none")
+          set_layout_property(
+            layer_id,
+            "visibility",
+            "none"
+          )
       }
     })
 
     observeEvent(input$show_all_layers, {
       proxy <- mapboxgl_proxy("map")
+
       for (layer_id in map_layer_ids) {
         proxy <- proxy |>
-          set_layout_property(layer_id, "visibility", "visible")
+          set_layout_property(
+            layer_id,
+            "visibility",
+            "visible"
+          )
       }
+
+      # Restore all legends
+      #
+      # shinyjs::runjs(
+      #   "
+      #   ['prob_legend', 'pri_legend', 'gen_legend'].forEach(function(id) {
+      #     var el = document.getElementById(id);
+      #     if (el) el.style.display = '';
+      #   });
+      # "
+      # )
     })
 
     # ---- Reset Map View ----
     observeEvent(input$reset_view, {
       mapboxgl_proxy("map") |>
-        fit_bounds(ns_bounds, animate = TRUE)
-      updateSelectizeInput(session, "property", selected = "")
-      updateSelectizeInput(session, "parcel", selected = "")
+        fit_bounds(
+          ns_bounds,
+          animate = TRUE
+        )
+
+      updateSelectizeInput(
+        session,
+        "property",
+        selected = ""
+      )
+
+      updateSelectizeInput(
+        session,
+        "parcel",
+        selected = ""
+      )
     })
   })
 }
