@@ -173,7 +173,7 @@ module_property_contact_securement_communication_server <- function(
             properties_list()$property_name
           )
         ),
-        selected = isolate(input$contact_property_id),
+        selected = "",
         server = TRUE
       )
     })
@@ -191,7 +191,7 @@ module_property_contact_securement_communication_server <- function(
             contacts()$display_label
           )
         ),
-        selected = isolate(input$contact),
+        selected = "",
         server = TRUE
       )
     })
@@ -226,10 +226,12 @@ module_property_contact_securement_communication_server <- function(
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
       }
+
+      clear_inputs()
     })
 
-    ## Event :: Clear inputs ----
-    observeEvent(input$clear_inputs, {
+    ## Helper ----
+    clear_inputs <- function() {
       updateSelectizeInput(
         session,
         "contact_property_id",
@@ -264,6 +266,11 @@ module_property_contact_securement_communication_server <- function(
         "communication_description",
         value = character(0)
       )
+    }
+
+    ## Event :: Clear inputs ----
+    observeEvent(input$clear_inputs, {
+      clear_inputs()
     })
   })
 }
