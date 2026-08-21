@@ -53,7 +53,11 @@ ui <- page_navbar(
         module_prop_stats_UI("prop_stats")
       ),
       nav_panel(
-        title = "Team Lead Items",
+        title = "Team Lead Actions",
+        module_team_lead_actions_UI("team_lead_actions")
+      ),
+      nav_panel(
+        title = "Team Lead Info",
         module_team_lead_info_UI("team_lead_info")
       )
     )
@@ -160,6 +164,12 @@ ui <- page_navbar(
       nav_panel(
         title = "Team Actions",
         module_edit_team_actions_ui("edit_team"),
+      ),
+      nav_panel(
+        title = "Property Contact Communication",
+        module_edit_property_contact_communication_ui(
+          "edit_property_contact_communication"
+        ),
       ),
       nav_panel(
         title = "Property Pricing",

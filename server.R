@@ -154,7 +154,15 @@ server <- function(input, output, session) {
 
   module_team_lead_info_server("team_lead_info", db_con, db_updated)
 
+  module_team_lead_actions_server("team_lead_actions", db_con, db_updated)
+
   module_edit_team_actions_server("edit_team", db_con, db_updated)
+
+  module_edit_property_contact_communication_server(
+    "edit_property_contact_communication",
+    db_con,
+    db_updated
+  )
 
   module_edit_pricing_server("edit_pricing", db_con, db_updated)
 
