@@ -1,0 +1,208 @@
+---
+title: "Project Overview"
+format:
+  docx:
+    toc: false
+params:
+  data_path: NA
+---
+
+```{r}
+#| echo: false
+#| include: false
+library(dplyr)
+library(knitr)
+library(flextable)
+
+# Suppress a known xfun::attr() deprecation warning triggered internally by
+# knitr::kable() with the installed xfun/knitr version combo; not a content issue.
+knitr::opts_chunk$set(warning = FALSE)
+
+# flextable defaults to its own font (Arial) instead of the docx theme font
+# (Aptos); match it to the rest of the document.
+flextable::set_flextable_defaults(font.family = "Aptos")
+
+record <- readRDS(params$data_path)
+info <- record$info
+```
+
+# `r record$property_name`
+
+## Summary
+
+```{r}
+#| echo: false
+phase_followup <- if (is.na(info$phase_id_change)) {
+  "\u2014"
+} else {
+  format(as.Date(info$phase_id_change), "%B %d, %Y")
+}
+
+summary_tbl <- tibble::tibble(
+  Field = c("Date Added", "Team Lead", "Project Phase", "Phase Set", "PIDs"),
+  Value = c(
+    format(as.Date(info$date_added), "%B %d, %Y"),
+    ifelse(is.na(info$team_lead), "\u2014", info$team_lead),
+    ifelse(is.na(info$phase), "\u2014", info$phase),
+    phase_followup,
+    ifelse(record$pids == "", "\u2014", record$pids)
+  )
+)
+
+knitr::kable(summary_tbl, col.names = NULL)
+```
+
+## Property & Opportunity Overview
+
+`r ifelse(is.na(info$property_description), "No overview available.", info$property_description)`
+
+## Phase Description
+
+`r ifelse(is.na(info$phase_id_description), "No phase description available.", info$phase_id_description)`
+
+## Property Contact(s)
+
+```{r}
+#| echo: false
+#| results: asis
+
+if (nrow(record$contacts) == 0) {
+  cat("No property contacts in database.\n")
+} else {
+  for (i in seq_len(nrow(record$contacts))) {
+    contact <- record$contacts[i, ]
+
+    name <- paste(
+      na.omit(c(contact$name_first, contact$name_last)),
+      collapse = " "
+    )
+    if (name == "") {
+      name <- "Unknown contact"
+    }
+
+    header <- if (
+      !is.na(contact$property_contact_description) &&
+        contact$property_contact_description != ""
+    ) {
+      paste0(name, " \u2014 ", contact$property_contact_description)
+    } else {
+      name
+    }
+
+    cat("", header, "\n\n", sep = "")
+
+    details <- c(
+      if (!is.na(contact$email) && contact$email != "") {
+        paste0("Email: ", contact$email)
+      },
+      if (!is.na(contact$phone_home) && contact$phone_home != "") {
+        paste0("Home: ", contact$phone_home)
+      },
+      if (!is.na(contact$phone_cell) && contact$phone_cell != "") {
+        paste0("Cell: ", contact$phone_cell)
+      }
+    )
+
+    if (length(details) > 0) {
+      cat(paste(details, collapse = " | "), "\n\n")
+    }
+  }
+}
+```
+
+## Securement Status
+
+```{r}
+#| echo: false
+#| results: asis
+
+if (is.na(info$securement_action_description)) {
+  cat("No securement status description available.\n")
+} else if (is.na(info$date_securement_description)) {
+  cat(info$securement_action_description, "\n")
+} else {
+  cat(
+    format(as.Date(info$date_securement_description), "%B %d, %Y"),
+    ": ",
+    info$securement_action_description,
+    "\n",
+    sep = ""
+  )
+}
+```
+
+## Internal Communications
+
+```{r}
+#| echo: false
+
+if (nrow(record$comms) == 0) {
+  knitr::asis_output("No internal communications logged.")
+} else {
+  record$comms |>
+    mutate(date = format(as.Date(date), "%B %d, %Y")) |>
+    rename(Date = date, Description = communication_description) |>
+    flextable() |>
+    width(j = c("Date", "Description"), width = c(1.3, 5.2))
+}
+```
+
+## Property Contact Communications
+
+```{r}
+#| echo: false
+
+if (nrow(record$contact_comms) == 0) {
+  knitr::asis_output("No property contact communications logged.")
+} else {
+  record$contact_comms |>
+    mutate(date_contacted = format(as.Date(date_contacted), "%B %d, %Y")) |>
+    select(
+      Date = date_contacted,
+      Purpose = communication_purpose,
+      Description = communication_description
+    ) |>
+    flextable() |>
+    width(j = c("Date", "Purpose", "Description"), width = c(1.3, 1.5, 3.7))
+}
+```
+
+## Action Items
+
+```{r}
+#| echo: false
+
+if (nrow(record$actions) == 0) {
+  knitr::asis_output("No general action items.")
+} else {
+  record$actions |>
+    mutate(
+      Status = if_else(action_complete, "Complete", "Open", missing = "Open"),
+      `Due Date` = format(as.Date(due_date), "%B %d, %Y")
+    ) |>
+    select(
+      Status,
+      `Team Lead` = team_value,
+      `Due Date`,
+      Description = action_item_description
+    ) |>
+    flextable() |>
+    width(
+      j = c("Status", "Team Lead", "Due Date", "Description"),
+      width = c(0.9, 1.3, 1.1, 3.2)
+    )
+}
+```
+
+## Stewardship Concerns
+
+```{r}
+#| echo: false
+#| results: asis
+
+if (is.na(info$stewardship_concerns) || info$stewardship_concerns == "") {
+  cat("None identified at this time.\n")
+} else {
+  cat(info$stewardship_concerns, "\n")
+}
+```

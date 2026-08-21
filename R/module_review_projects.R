@@ -131,16 +131,22 @@ module_review_projects_ui <- function(id) {
               width = "80%"
             ),
             actionButton(
-              inputId = ns("clear_inputs"),
-              label = "Clear Inputs",
-              class = "btn-secondary"
-            ),
-            actionButton(
               inputId = ns("refresh_data"),
               label = "Refresh Data",
               icon = icon("arrows-rotate"),
               class = "btn-primary"
-            )
+            ),
+            downloadButton(
+              outputId = ns("generate_report"),
+              label = "Generate Report",
+              icon = icon("file-word"),
+              class = "btn-primary"
+            ),
+            actionButton(
+              inputId = ns("clear_inputs"),
+              label = "Clear Inputs",
+              class = "btn-secondary"
+            ),
           ),
           div(
             style = "height: 100%; display: flex; flex-direction: column;",
@@ -931,6 +937,27 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         )
       )
     })
+
+    ## Download :: Generate property report ----
+    output$generate_report <- downloadHandler(
+      filename = function() {
+        paste0(input$property, "_report_", Sys.Date(), ".docx")
+      },
+      content = function(file) {
+        req(selected_record())
+
+        shinyalert(
+          title = "Generating Report",
+          text = "Report generation in progress. The download will begin shortly.",
+          type = "info",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE,
+          timer = 5000
+        )
+
+        render_property_report(selected_record(), input$property, file)
+      }
+    )
 
     ## Event :: Log internal communication ----
     observeEvent(input$log_internal, {
