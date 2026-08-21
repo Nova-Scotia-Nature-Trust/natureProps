@@ -223,7 +223,7 @@ module_property_contact_communication_server <- function(
               properties_list()$property_name
             )
           ),
-          selected = isolate(input$contact_property_id),
+          selected = character(0),
           server = TRUE
         )
       } else {
@@ -234,7 +234,7 @@ module_property_contact_communication_server <- function(
             pid_list()$id,
             pid_list()$pid
           ),
-          selected = isolate(input$pid),
+          selected = character(0),
           server = TRUE
         )
       }
@@ -253,7 +253,7 @@ module_property_contact_communication_server <- function(
             contacts()$display_label
           )
         ),
-        selected = isolate(input$contact),
+        selected = character(0),
         server = TRUE
       )
     })
@@ -332,10 +332,12 @@ module_property_contact_communication_server <- function(
       if (!is.null(db_updated)) {
         db_updated(db_updated() + 1)
       }
+
+      clear_inputs()
     })
 
-    ## Event :: Clear inputs ----
-    observeEvent(input$clear_inputs, {
+    ## Helper :: Reset all inputs ----
+    clear_inputs <- function() {
       updateSelectInput(session, "communication_type", selected = character(0))
       updateSelectizeInput(
         session,
@@ -370,6 +372,11 @@ module_property_contact_communication_server <- function(
         "communication_description",
         value = character(0)
       )
+    }
+
+    ## Event :: Clear inputs ----
+    observeEvent(input$clear_inputs, {
+      clear_inputs()
     })
   })
 }
