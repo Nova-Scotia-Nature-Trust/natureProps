@@ -78,7 +78,7 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
           LEFT JOIN securement_probability sp ON p.securement_probability_id = sp.id
           LEFT JOIN phase ph ON p.phase_id = ph.id
           LEFT JOIN team_lead tl ON p.team_lead_id = tl.id
-          WHERE sp.probability_value IS NOT NULL
+          WHERE sp.probability_value IS NOT NULL AND ph.phase_value != 'Secured'
           ORDER BY p.property_name"
         ) |>
           rename(
