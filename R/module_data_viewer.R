@@ -7,7 +7,8 @@ choices_outreach <- list(
   "Outreach" = "outreach_view",
   "Land & Securement History" = "land_secure_comms",
   "Property Descriptions" = "property_descriptions",
-  "Landowner & Address" = "landowner_address"
+  "Landowner & Address" = "landowner_address",
+  "Landowner Changes in POL" = "landowner_changes"
 )
 
 choices_securement <- list(
@@ -158,6 +159,13 @@ module_data_viewer_server <- function(
       landowner_address = list(
         fetch = function(db_con) prep_view_landowner_address(db_con),
         order_col = 0,
+        order_dir = "asc"
+      ),
+      landowner_changes = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_landowner_changes;")
+        },
+        order_col = 1,
         order_dir = "asc"
       ),
       action_items_view = list(
