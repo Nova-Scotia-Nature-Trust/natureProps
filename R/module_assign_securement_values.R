@@ -385,7 +385,6 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
             WHERE sai.property_id = pr.id
         )
         AND pr.securement_probability_id IS NOT NULL
-        AND pr.anticipated_closing_year IS NOT NULL
         ORDER BY
           pr.property_name;"
       )

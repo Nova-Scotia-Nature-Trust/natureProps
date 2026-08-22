@@ -76,6 +76,23 @@ module_edit_securement_parcels_server <- function(
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    ## Input validation ----
+    iv <- InputValidator$new()
+
+    iv$add_rule("edit_tax_exempt_year", function(value) {
+      if (isTRUE(input$edit_tax_exempt) && !isTruthy(value)) {
+        "Tax Exempt Year is required"
+      }
+    })
+
+    iv$add_rule("edit_tax_exempt_year", function(value) {
+      if (isTruthy(value) && (value < 1900 || value > 2200)) {
+        "Tax Exempt Year must be between 1900 and 2200"
+      }
+    })
+
+    iv$enable()
+
     ## Reactive :: Property choices ----
     property_choices <- reactive({
       db_updated()
@@ -176,7 +193,9 @@ module_edit_securement_parcels_server <- function(
           size_confirmed_acres,
           size_confirmed_notes,
           af_transaction,
-          landowner_interest_ranking_id
+          landowner_interest_ranking_id,
+          tax_exempt,
+          tax_exempt_year
         FROM parcels 
         WHERE pid = {pid}",
         .con = db_con
@@ -326,6 +345,30 @@ module_edit_securement_parcels_server <- function(
           )
         ),
         layout_columns(
+          col_widths = c(6, 6),
+          checkboxInput(
+            inputId = ns("edit_tax_exempt"),
+            label = "Tax Exempt",
+            value = if (!is.null(record) && !is.na(record$tax_exempt)) {
+              record$tax_exempt
+            } else {
+              FALSE
+            }
+          ),
+          numericInput(
+            inputId = ns("edit_tax_exempt_year"),
+            label = "Tax Exempt Year",
+            value = if (!is.null(record) && !is.na(record$tax_exempt_year)) {
+              record$tax_exempt_year
+            } else {
+              NA_real_
+            },
+            min = 1900,
+            max = 2200,
+            step = 1
+          )
+        ),
+        layout_columns(
           col_widths = c(12),
           textAreaInput(
             inputId = ns("edit_size_confirmed_notes"),
@@ -346,7 +389,7 @@ module_edit_securement_parcels_server <- function(
 
     ## Event :: Write changes ----
     observeEvent(input$submit_edit, {
-      req(input$pid)
+      req(input$pid, iv$is_valid())
 
       pid <- input$pid
 
@@ -404,6 +447,16 @@ module_edit_securement_parcels_server <- function(
           isTruthy(input$edit_landowner_interest_ranking_id)
         ) {
           as.integer(input$edit_landowner_interest_ranking_id)
+        } else {
+          NA_integer_
+        },
+        tax_exempt = if (isTruthy(input$edit_tax_exempt)) {
+          as.logical(input$edit_tax_exempt)
+        } else {
+          NA
+        },
+        tax_exempt_year = if (isTruthy(input$edit_tax_exempt_year)) {
+          as.integer(input$edit_tax_exempt_year)
         } else {
           NA_integer_
         }

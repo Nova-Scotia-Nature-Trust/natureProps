@@ -15,35 +15,10 @@ module_team_lead_info_UI <- function(id) {
         inputId = ns("clear_inputs"),
         label = "Clear Inputs",
         width = "100%"
-      ),
-      input_switch(
-        ns("show_completed"),
-        "Show Completed General Actions",
-        value = FALSE
       )
     ),
     layout_columns(
-      col_widths = c(4, 4, 4),
-
-      # Action card ----
-      card(
-        height = "100%",
-        full_screen = TRUE,
-        card_header(
-          class = "d-flex justify-content-between align-items-center",
-          h5("General Action Items"),
-          downloadButton(
-            outputId = ns("download_actions"),
-            label = "Download",
-            class = "btn-sm"
-          )
-        ),
-        card_body(
-          style = "padding: 0.5rem 1rem;",
-          min_height = "300px",
-          DTOutput(outputId = ns("actions_table"), height = "100%")
-        )
-      ),
+      col_widths = c(6, 6),
 
       # Securement Action card ----
       card(
@@ -124,37 +99,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         db_updated()
       }
 
-      # Query action items with property name and team lead
-      actions <- dbGetQuery(
-        db_con,
-        glue_sql(
-          "SELECT
-                  p.property_name,
-                  tla.id,
-                  tla.action_item_description,
-                  tla.due_date,
-                  tla.action_complete
-                FROM
-                  team_lead_actions tla
-                  LEFT JOIN properties p ON tla.property_id = p.id
-                  LEFT JOIN team_lead tl ON tla.team_lead_id = tl.id
-                WHERE
-                  tl.team_value = {input$team_lead_choice}
-                ORDER BY
-                  tla.due_date,
-                  p.property_name;",
-          .con = db_con
-        )
-      ) |>
-        rename(
-          `Property Name` = property_name,
-          `Action ID` = id,
-          `Action Item Description` = action_item_description,
-          `Due Date` = due_date
-        )
-
-      actions_data(actions)
-
       # Query properties assigned to team lead
       properties <- dbGetQuery(
         db_con,
@@ -225,49 +169,8 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         server = TRUE
       )
 
-      actions_data(NULL)
       properties_data(NULL)
       securement_actions_data(NULL)
-    })
-
-    # Filtered actions reactive ----
-    filtered_actions <- reactive({
-      req(actions_data())
-      actions_data() |>
-        filter(action_complete == isTRUE(input$show_completed)) |>
-        select(-action_complete)
-    })
-
-    # Render actions table ----
-    output$actions_table <- renderDT({
-      req(filtered_actions())
-
-      # Convert character columns to factors for select inputs
-      data_for_display <- filtered_actions() |>
-        mutate(across(where(is.character), as.factor))
-
-      DT::datatable(
-        data_for_display,
-        options = list(
-          pageLength = 25,
-          lengthMenu = list(
-            c(10, 25, 50, -1),
-            c('10', '25', '50', 'All')
-          ),
-          scrollX = TRUE,
-          fixedHeader = TRUE,
-          stateSave = FALSE
-        ),
-        filter = list(
-          position = "top",
-          clear = TRUE,
-          plain = TRUE
-        ),
-        rownames = FALSE,
-        selection = "single",
-        extensions = c("Buttons"),
-        fillContainer = TRUE
-      )
     })
 
     # Render properties table ----
@@ -333,30 +236,6 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
         fillContainer = TRUE
       )
     })
-
-    ## Download handler for actions ----
-    output$download_actions <- downloadHandler(
-      filename = function() {
-        team_lead <- input$team_lead_choice
-        if (team_lead == "") {
-          team_lead <- "team_lead"
-        }
-        # Clean the team lead name for filename
-        team_lead <- str_replace_all(team_lead, " ", "_") |>
-          str_to_lower()
-        glue("{team_lead}_action_items_{format(Sys.Date(), '%Y%m%d')}.csv")
-      },
-      content = function(file) {
-        data_to_download <- filtered_actions()
-
-        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
-          write_csv(data_to_download, file)
-        } else {
-          # Write empty file if no data
-          write_csv(data.frame(), file)
-        }
-      }
-    )
 
     ## Download handler for properties ----
     output$download_properties <- downloadHandler(

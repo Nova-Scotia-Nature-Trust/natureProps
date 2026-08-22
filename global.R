@@ -24,6 +24,8 @@ library(mapgl)
 library(shinycssloaders)
 library(future)
 library(promises)
+library(quarto)
+library(openxlsx2)
 conflicted::conflict_scout()
 walk(list.files("R/functions", full.names = TRUE), source)
 

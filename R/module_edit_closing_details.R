@@ -32,6 +32,13 @@ module_edit_closing_details_ui <- function(id) {
             inputId = ns("clear_edit"),
             label = "Clear",
             class = "btn-secondary"
+          ),
+          hr(),
+          downloadButton(
+            outputId = ns("download_closing_details"),
+            label = "Download Closing Details",
+            icon = icon("file-excel"),
+            class = "btn-primary"
           )
         ),
         ## Main panel ----
@@ -194,6 +201,7 @@ module_edit_closing_details_server <- function(
     selected_record <- reactiveVal(tibble(
       id = NA_integer_,
       property_name = NA_character_,
+      property_name_public = NA_character_,
       internal_record_id = NA_character_,
       landscape_url = NA_character_,
       acquisition_securement_type_id = NA_integer_,
@@ -216,6 +224,7 @@ module_edit_closing_details_server <- function(
         "SELECT 
           id,
           property_name,
+          property_name_public,
           internal_record_id,
           landscape_url,
           acquisition_securement_type_id,
@@ -493,12 +502,29 @@ module_edit_closing_details_server <- function(
       )
     })
 
+    ## Download :: Closing details workbook ----
+    output$download_closing_details <- downloadHandler(
+      filename = function() {
+        paste0(selected_record()$property_name_public, "_closing_details.xlsx")
+      },
+      content = function(file) {
+        req(!is.na(selected_record()$id))
+
+        generate_closing_details_xlsx(
+          db_con = db_con,
+          property_id = selected_record()$id,
+          output_file = file
+        )
+      }
+    )
+
     ## Event :: Clear inputs ----
     observeEvent(input$clear_edit, {
       # Reset to empty template
       selected_record(tibble(
         id = NA_integer_,
         property_name = NA_character_,
+        property_name_public = NA_character_,
         internal_record_id = NA_character_,
         landscape_url = NA_character_,
         acquisition_securement_type_id = NA_integer_,

@@ -131,16 +131,22 @@ module_review_projects_ui <- function(id) {
               width = "80%"
             ),
             actionButton(
-              inputId = ns("clear_inputs"),
-              label = "Clear Inputs",
-              class = "btn-secondary"
-            ),
-            actionButton(
               inputId = ns("refresh_data"),
               label = "Refresh Data",
               icon = icon("arrows-rotate"),
               class = "btn-primary"
-            )
+            ),
+            downloadButton(
+              outputId = ns("generate_report"),
+              label = "Generate Report",
+              icon = icon("file-word"),
+              class = "btn-primary"
+            ),
+            actionButton(
+              inputId = ns("clear_inputs"),
+              label = "Clear Inputs",
+              class = "btn-secondary"
+            ),
           ),
           div(
             style = "height: 100%; display: flex; flex-direction: column;",
@@ -165,6 +171,7 @@ module_review_projects_ui <- function(id) {
               ## Right column: Internal Communications + Action Items ----
               accordion(
                 id = ns("log_accordion"),
+                open = FALSE,
                 multiple = FALSE,
                 # Panel :: Log Internal Communications ----
                 accordion_panel(
@@ -198,6 +205,7 @@ module_review_projects_ui <- function(id) {
                     )
                   )
                 ),
+
                 # Panel :: Log Action Item ----
                 accordion_panel(
                   "Log Action Item",
@@ -233,6 +241,65 @@ module_review_projects_ui <- function(id) {
                     actionButton(
                       inputId = ns("log_action"),
                       label = "Log Action Item",
+                      class = "btn-success"
+                    )
+                  )
+                ),
+                # Panel :: Log Property Contact Communication ----
+                accordion_panel(
+                  "Log Property Contact Communication",
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    selectizeInput(
+                      ns("contact_comm_contact_id"),
+                      "Select Property Contact",
+                      choices = NULL,
+                      multiple = FALSE,
+                      width = "100%",
+                      options = list(
+                        create = FALSE,
+                        placeholder = "Select a property contact"
+                      )
+                    ),
+                    layout_columns(
+                      col_widths = c(6, 6),
+                      selectizeInput(
+                        ns("contact_comm_purpose_id"),
+                        "Communication Purpose",
+                        choices = NULL
+                      ),
+                      selectizeInput(
+                        ns("contact_comm_method_id"),
+                        "Communication Method",
+                        choices = NULL
+                      )
+                    ),
+                    layout_columns(
+                      col_widths = c(6, 6),
+                      dateInput(
+                        ns("contact_comm_date"),
+                        "Date Contacted",
+                        value = Sys.Date(),
+                        width = "100%"
+                      ),
+                      dateInput(
+                        ns("contact_comm_follow_up"),
+                        "Date Follow Up",
+                        value = as.Date(NA),
+                        width = "100%"
+                      )
+                    ),
+                    textAreaInput(
+                      ns("contact_comm_description"),
+                      "Communication Description",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("log_contact_comm"),
+                      label = "Log Communication",
                       class = "btn-success"
                     )
                   )
@@ -281,6 +348,81 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       }
     })
 
+    ## Lookup tables :: Property Contact Communication ----
+    communication_purpose_lookup <- dbGetQuery(
+      db_con,
+      "SELECT * FROM communication_purpose ORDER BY purpose_value"
+    )
+
+    communication_method_lookup <- dbGetQuery(
+      db_con,
+      "SELECT * FROM communication_method ORDER BY method_value"
+    )
+
+    updateSelectizeInput(
+      session,
+      "contact_comm_purpose_id",
+      choices = setNames(
+        communication_purpose_lookup$id,
+        communication_purpose_lookup$purpose_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    updateSelectizeInput(
+      session,
+      "contact_comm_method_id",
+      choices = setNames(
+        communication_method_lookup$id,
+        communication_method_lookup$method_value
+      ),
+      selected = character(0),
+      server = TRUE
+    )
+
+    ## Reactive :: Property contacts for selected property ----
+    property_contacts <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      req(
+        input$property,
+        input$property != "",
+        input$property != "No properties"
+      )
+      dbGetQuery(
+        db_con,
+        glue_sql(
+          "
+          SELECT pcd.id, pcd.name_first, pcd.name_last
+          FROM property_contact_details pcd
+          INNER JOIN properties_contact pc ON pc.property_contact_id = pcd.id
+          INNER JOIN properties pr ON pr.id = pc.property_id
+          WHERE pr.property_name = {input$property}
+          ",
+          .con = db_con
+        )
+      ) |>
+        mutate(display_label = glue("{name_first} {name_last} (ID:{id})")) |>
+        arrange(name_last, name_first)
+    })
+
+    ## Observer :: Update property contact choices ----
+    observe({
+      contacts <- property_contacts()
+      updateSelectizeInput(
+        session,
+        "contact_comm_contact_id",
+        choices = c(
+          "",
+          setNames(contacts$id, contacts$display_label)
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+    })
+
     ## Reactive :: Team lead choices ----
     team_lead_choices <- reactive({
       dbGetQuery(
@@ -306,13 +448,13 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         db_updated()
       }
 
-      team_leads <- team_lead_choices()
-      team_lead_list <- setNames(team_leads$id, team_leads$team_value)
-
       updateSelectizeInput(
         session,
         "team_lead",
-        choices = c("", team_lead_list),
+        choices = c(
+          "",
+          setNames(team_lead_choices()$id, team_lead_choices()$team_value)
+        ),
         selected = isolate(input$team_lead),
         server = TRUE
       )
@@ -375,7 +517,10 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         SELECT pr.property_name,                
                con.property_contact_description, 
                con.name_last, 
-               con.name_first
+               con.name_first,
+               con.email,
+               con.phone_home,
+               con.phone_cell
         FROM properties pr 
         LEFT JOIN properties_contact pc ON pr.id = pc.property_id
         LEFT JOIN property_contact_details con ON pc.property_contact_id = con.id  
@@ -404,7 +549,14 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         # One row per distinct contact, used for the Property Contact table
         contacts_df <- query_02_result |>
           filter(!is.na(name_first) | !is.na(name_last)) |>
-          distinct(name_first, name_last, property_contact_description) |>
+          distinct(
+            name_first,
+            name_last,
+            property_contact_description,
+            email,
+            phone_home,
+            phone_cell
+          ) |>
           arrange(name_last, name_first)
 
         query_03 <- glue_sql(
@@ -419,6 +571,20 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         )
 
         comms_df <- dbGetQuery(db_con, query_03)
+
+        query_03b <- glue_sql(
+          "   
+        SELECT pcc.id, pcc.date_contacted, cp.purpose_value AS communication_purpose, pcc.communication_description
+        FROM property_contact_communication pcc
+        LEFT JOIN communication_purpose cp ON pcc.communication_purpose_id = cp.id
+        LEFT JOIN properties prop ON pcc.property_id = prop.id
+        WHERE prop.property_name = {prop_name}
+        ORDER BY pcc.date_contacted DESC, pcc.id DESC;
+        ",
+          .con = db_con
+        )
+
+        contact_comms_df <- dbGetQuery(db_con, query_03b)
 
         query_04 <- glue_sql(
           "   
@@ -447,6 +613,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             pids = pids_string,
             contacts = contacts_df,
             comms = comms_df,
+            contact_comms = contact_comms_df,
             actions = actions_df
           ))
         } else {
@@ -483,6 +650,17 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         p(class = "record-row-title", title),
         if (!is.null(subtitle) && !is.na(subtitle) && subtitle != "") {
           p(class = "record-row-subtitle", subtitle)
+        }
+      )
+    }
+
+    ## Helper :: table-style row (bold date - purpose header, description below) ----
+    contact_comm_row <- function(date, purpose, description) {
+      div(
+        class = "record-row",
+        p(class = "record-row-title", date, " - ", em(purpose)),
+        if (!is.null(description) && !is.na(description) && description != "") {
+          p(class = "record-row-subtitle", description)
         }
       )
     }
@@ -589,10 +767,40 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
                         property_contact_description != "",
                       paste0(contact_name, " - ", property_contact_description),
                       contact_name
+                    ),
+                    # Combine whichever contact details are available
+                    contact_details = pmap_chr(
+                      list(email, phone_home, phone_cell),
+                      function(email, phone_home, phone_cell) {
+                        parts <- c(
+                          if (!is.na(email) && email != "") email else NA,
+                          if (!is.na(phone_home) && phone_home != "") {
+                            paste0("Home: ", phone_home)
+                          } else {
+                            NA
+                          },
+                          if (!is.na(phone_cell) && phone_cell != "") {
+                            paste0("Cell: ", phone_cell)
+                          } else {
+                            NA
+                          }
+                        )
+                        parts <- parts[!is.na(parts)]
+                        if (length(parts) == 0) {
+                          NA_character_
+                        } else {
+                          paste(parts, collapse = " | ")
+                        }
+                      }
+                    ),
+                    contact_line = if_else(
+                      !is.na(contact_details),
+                      paste0(contact_line, "<br>", contact_details),
+                      contact_line
                     )
                   ) |>
                   pull(contact_line) |>
-                  paste(collapse = "<br>") |>
+                  paste(collapse = "<br><br>") |>
                   HTML()
               }
             )
@@ -641,6 +849,31 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               record_row(
                 title = format(as.Date(comm$date), "%B %d, %Y"),
                 subtitle = comm$communication_description
+              )
+            })
+          }
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 4b: table (Property Contact Communications)
+        div(
+          strong("Property Contact Communications"),
+          if (nrow(rec$contact_comms) == 0) {
+            p(
+              class = "text-muted",
+              "No property contact communications logged."
+            )
+          } else {
+            lapply(seq_len(nrow(rec$contact_comms)), function(i) {
+              contact_comm <- rec$contact_comms[i, ]
+              contact_comm_row(
+                date = format(
+                  as.Date(contact_comm$date_contacted),
+                  "%B %d, %Y"
+                ),
+                purpose = contact_comm$communication_purpose,
+                description = contact_comm$communication_description
               )
             })
           }
@@ -705,6 +938,27 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Download :: Generate property report ----
+    output$generate_report <- downloadHandler(
+      filename = function() {
+        paste0(input$property, "_report_", Sys.Date(), ".docx")
+      },
+      content = function(file) {
+        req(selected_record())
+
+        shinyalert(
+          title = "Generating Report",
+          text = "Report generation in progress. The download will begin shortly.",
+          type = "info",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE,
+          timer = 5000
+        )
+
+        render_property_report(selected_record(), input$property, file)
+      }
+    )
+
     ## Event :: Log internal communication ----
     observeEvent(input$log_internal, {
       if (!isTruthy(input$property)) {
@@ -756,6 +1010,95 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         closeOnClickOutside = TRUE,
         timer = 10000
       )
+
+      updateTextAreaInput(session, "communication_description", value = "")
+      updateDateInput(session, "comm_date", value = Sys.Date())
+    })
+
+    ## Event :: Log property contact communication ----
+    observeEvent(input$log_contact_comm, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before logging a communication.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(
+        input$contact_comm_contact_id,
+        input$contact_comm_purpose_id,
+        input$contact_comm_method_id,
+        input$contact_comm_date,
+        input$contact_comm_description
+      )
+
+      property_id <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT id FROM properties WHERE property_name = {input$property};",
+          .con = db_con
+        )
+      ) |>
+        pull(id)
+
+      df <- tibble(
+        property_contact_id = input$contact_comm_contact_id,
+        property_id = property_id,
+        communication_purpose_id = input$contact_comm_purpose_id,
+        communication_method_id = input$contact_comm_method_id,
+        date_contacted = input$contact_comm_date,
+        communication_description = input$contact_comm_description,
+        date_follow_up = if (isTruthy(input$contact_comm_follow_up)) {
+          input$contact_comm_follow_up
+        } else {
+          as.Date(NA)
+        }
+      )
+
+      append_db_data(
+        db_table_name = "property_contact_communication",
+        data = df,
+        con = db_con,
+        silent = TRUE
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Property contact communication logged successfully for {input$property}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+
+      updateSelectizeInput(
+        session,
+        "contact_comm_contact_id",
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        "contact_comm_purpose_id",
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        "contact_comm_method_id",
+        selected = character(0)
+      )
+      updateTextAreaInput(session, "contact_comm_description", value = "")
+      updateDateInput(session, "contact_comm_date", value = Sys.Date())
+      updateDateInput(session, "contact_comm_follow_up", value = as.Date(NA))
     })
 
     ## Event :: Log action item ----
@@ -814,6 +1157,20 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         closeOnClickOutside = TRUE,
         timer = 10000
       )
+
+      updateSelectizeInput(
+        session,
+        inputId = "team_lead",
+        choices = c(
+          "",
+          setNames(team_lead_choices()$id, team_lead_choices()$team_value)
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateTextAreaInput(session, "action_item_description", value = "")
+      updateDateInput(session, "due_date", value = NA)
     })
 
     ## Event :: Clear inputs ----
@@ -826,13 +1183,13 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         server = TRUE
       )
 
-      team_leads <- team_lead_choices()
-      team_lead_list <- setNames(team_leads$id, team_leads$team_value)
-
       updateSelectizeInput(
         session,
         inputId = "team_lead",
-        choices = c("", team_lead_list),
+        choices = c(
+          "",
+          setNames(team_lead_choices()$id, team_lead_choices()$team_value)
+        ),
         selected = character(0),
         server = TRUE
       )
