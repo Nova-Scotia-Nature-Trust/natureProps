@@ -552,3 +552,264 @@ sudo systemctl stop postgresql@18-main
 # Revert data_directory back to /var/lib/postgresql/18/main
 sudo systemctl start postgresql@18-main
 ```
+## Adding Database User Roles 
+
+To create a new user and grant permissions follow the steps below
+
+```sql
+CREATE ROLE newuser
+    LOGIN
+    NOSUPERUSER
+    NOCREATEDB
+    NOCREATEROLE
+    INHERIT;
+    
+ALTER ROLE newuser PASSWORD 'password';
+
+GRANT CONNECT ON DATABASE "nsnt-properties"
+TO newuser;
+
+GRANT USAGE ON SCHEMA public
+TO newuser;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA public
+TO newuser;
+```
+
+## Setting Constraints for DROP 
+
+The database schema was initially set up without `DROP CASCADE` constraints. In order to delete a property and all associated records the constraints can be set up after which the following can be run to remove a property. 
+
+```r
+pool::poolWithTransaction(db_con, function(con) {
+  
+  DBI::dbExecute(
+    con,
+    glue::glue_sql(
+      "DELETE FROM properties WHERE id = {property_id}",
+      .con = con
+    )
+  )
+  
+})
+```
+
+The constraints below take into account that a property contact can be associated with 1 or more proerties so it won't delete those contact details (but communications for the property will be lost).
+
+Overall cascade design would look like:
+
+```
+properties
+   │
+   ├── parcels
+   │     ├── parcel_info
+   │     ├── parcel_padd
+   │     ├── parcel_madd
+   │     ├── landowners
+   │     └── outreach
+   │
+   ├── property_theme
+   ├── securement_action_items
+   ├── team_lead_actions
+   ├── appraisals
+   ├── properties_contact
+   ├── property_fund
+   ├── property_fund_federal
+   ├── llt_projects
+   ├── internal_communications
+   └── property_contact_communication
+
+```
+
+Following SQL code creates that structure,
+
+
+```sql
+-- Cascade from properties into parcels, and children of parcels.
+DELETE properties
+       ↓
+    parcels
+       ↓
+ ┌─────┼──────┬────────┬──────────┐
+ ↓     ↓      ↓        ↓          ↓
+info  padd   madd   landowners  outreach
+
+
+ALTER TABLE parcels
+DROP CONSTRAINT parcels_property_id_foreign;
+
+ALTER TABLE parcels
+ADD CONSTRAINT parcels_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE outreach
+DROP CONSTRAINT outreach_parcel_id_foreign;
+
+ALTER TABLE outreach
+ADD CONSTRAINT outreach_parcel_id_foreign
+FOREIGN KEY (parcel_id)
+REFERENCES parcels(id)
+ON DELETE CASCADE;
+
+ALTER TABLE landowners
+DROP CONSTRAINT landowners_parcel_id_foreign;
+
+ALTER TABLE landowners
+ADD CONSTRAINT landowners_parcel_id_foreign
+FOREIGN KEY (parcel_id)
+REFERENCES parcels(id)
+ON DELETE CASCADE;
+
+ALTER TABLE parcel_padd
+DROP CONSTRAINT parcel_padd_parcel_id_foreign;
+
+ALTER TABLE parcel_padd
+ADD CONSTRAINT parcel_padd_parcel_id_foreign
+FOREIGN KEY (parcel_id)
+REFERENCES parcels(id)
+ON DELETE CASCADE;
+
+ALTER TABLE parcel_madd
+DROP CONSTRAINT parcel_madd_parcel_id_foreign;
+
+ALTER TABLE parcel_madd
+ADD CONSTRAINT parcel_madd_parcel_id_foreign
+FOREIGN KEY (parcel_id)
+REFERENCES parcels(id)
+ON DELETE CASCADE;
+
+ALTER TABLE parcel_info
+DROP CONSTRAINT parcel_info_parcel_id_foreign;
+
+ALTER TABLE parcel_info
+ADD CONSTRAINT parcel_info_parcel_id_foreign
+FOREIGN KEY (parcel_id)
+REFERENCES parcels(id)
+ON DELETE CASCADE;
+
+-- Cascade the property-level tables
+
+ALTER TABLE property_theme
+DROP CONSTRAINT property_theme_property_id_foreign;
+
+ALTER TABLE property_theme
+ADD CONSTRAINT property_theme_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE securement_action_items
+DROP CONSTRAINT securement_action_items_property_id_foreign;
+
+ALTER TABLE securement_action_items
+ADD CONSTRAINT securement_action_items_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE team_lead_actions
+DROP CONSTRAINT team_lead_actions_property_id_foreign;
+
+ALTER TABLE team_lead_actions
+ADD CONSTRAINT team_lead_actions_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE appraisals
+DROP CONSTRAINT appraisals_property_id_foreign;
+
+ALTER TABLE appraisals
+ADD CONSTRAINT appraisals_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+ALTER TABLE properties_contact
+DROP CONSTRAINT properties_contact_property_id_foreign;
+
+ALTER TABLE properties_contact
+ADD CONSTRAINT properties_contact_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE property_fund_federal
+DROP CONSTRAINT property_fund_federal_property_id_foreign;
+
+ALTER TABLE property_fund_federal
+ADD CONSTRAINT property_fund_federal_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE property_fund
+DROP CONSTRAINT property_fund_property_id_foreign;
+
+ALTER TABLE property_fund
+ADD CONSTRAINT property_fund_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE llt_projects
+DROP CONSTRAINT llt_projects_property_id_foreign;
+
+ALTER TABLE llt_projects
+ADD CONSTRAINT llt_projects_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE internal_communications
+DROP CONSTRAINT internal_communications_property_id_foreign;
+
+ALTER TABLE internal_communications
+ADD CONSTRAINT internal_communications_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE property_contact_communication
+DROP CONSTRAINT property_contact_communication_property_id_foreign;
+
+ALTER TABLE property_contact_communication
+ADD CONSTRAINT property_contact_communication_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+-- Cascade for property contacts and communications
+
+properties
+   │
+   ├── CASCADE → properties_contact
+   │                    │
+   │                    └── NO ACTION → property_contact_details
+   │
+   └── CASCADE → property_contact_communication
+                          │
+                          └── NO ACTION → property_contact_details
+
+
+ALTER TABLE properties_contact
+DROP CONSTRAINT properties_contact_property_id_foreign;
+
+ALTER TABLE properties_contact
+ADD CONSTRAINT properties_contact_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+ALTER TABLE property_contact_communication
+DROP CONSTRAINT property_contact_communication_property_id_foreign;
+
+ALTER TABLE property_contact_communication
+ADD CONSTRAINT property_contact_communication_property_id_foreign
+FOREIGN KEY (property_id)
+REFERENCES properties(id)
+ON DELETE CASCADE;
+
+```
+
