@@ -43,8 +43,7 @@ module_property_contact_securement_communication_ui <- function(id) {
             ),
             dateInput(
               inputId = ns("date_contacted"),
-              label = "Date Contacted",
-              value = today()
+              label = "Date Contacted"
             ),
             dateInput(
               inputId = ns("date_follow_up"),
@@ -98,6 +97,8 @@ module_property_contact_securement_communication_server <- function(
     iv$add_rule("communication_description", sv_required())
     iv$add_rule("date_contacted", sv_required())
     iv$enable()
+
+    updateDateInput(session, "date_contacted", value = Sys.Date())
 
     ## Reactive :: Properties List (only properties with linked contacts) ----
     properties_list <- reactive({

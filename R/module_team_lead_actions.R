@@ -75,6 +75,8 @@ module_team_lead_actions_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    updateDateInput(session, "complete_date", value = Sys.Date())
+
     # Reactive value to store action items data
     actions_data <- reactiveVal(NULL)
 

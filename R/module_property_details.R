@@ -26,8 +26,7 @@ module_property_details_ui <- function(id) {
             ),
             dateInput(
               inputId = ns("date_added"),
-              label = "Date Added",
-              value = today()
+              label = "Date Added"
             )
           ),
           layout_columns(
@@ -261,6 +260,8 @@ module_property_details_ui <- function(id) {
 # Server ----
 module_property_details_server <- function(id, db_con, prd_con, db_updated) {
   moduleServer(id, function(input, output, session) {
+    updateDateInput(session, "date_added", value = Sys.Date())
+
     ## Input validation ----
     valid_pids <- dbGetQuery(prd_con, "SELECT DISTINCT(pid) FROM parcels;") |>
       pull(pid)
