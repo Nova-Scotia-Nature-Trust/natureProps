@@ -39,13 +39,31 @@ phase_followup <- if (is.na(info$phase_id_change)) {
 }
 
 summary_tbl <- tibble::tibble(
-  Field = c("Date Added", "Team Lead", "Project Phase", "Phase Set", "PIDs"),
+  Field = c(
+    "Date Added",
+    "Team Lead",
+    "Project Phase",
+    "Phase Set",
+    "PIDs",
+    "Size (acres)",
+    "Size (ha)"
+  ),
   Value = c(
     format(as.Date(info$date_added), "%B %d, %Y"),
     ifelse(is.na(info$team_lead), "\u2014", info$team_lead),
     ifelse(is.na(info$phase), "\u2014", info$phase),
     phase_followup,
-    ifelse(record$pids == "", "\u2014", record$pids)
+    ifelse(record$pids == "", "\u2014", record$pids),
+    ifelse(
+      is.na(record$size_acres) || record$size_acres == 0,
+      "\u2014",
+      as.character(record$size_acres)
+    ),
+    ifelse(
+      is.na(record$size_ha) || record$size_ha == 0,
+      "\u2014",
+      as.character(round(record$size_ha, 2))
+    )
   )
 )
 
