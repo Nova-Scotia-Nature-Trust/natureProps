@@ -68,6 +68,18 @@ module_edit_property_contacts_server <- function(
     ## Input Validation ----
     iv <- InputValidator$new()
     iv$add_rule("edit_postal_code", ~ if (isTruthy(.)) validate_postal_code(.))
+    iv$add_rule(
+      "edit_state_province_code",
+      ~ if (isTruthy(.) && nchar(.) > 2) {
+        "Must be a 2-character code (e.g. NS, ON)"
+      }
+    )
+    iv$add_rule(
+      "edit_country_code",
+      ~ if (isTruthy(.) && nchar(.) > 2) {
+        "Must be a 2-character code (e.g. CA, US)"
+      }
+    )
     iv$enable()
 
     ## Reactive :: Contact choices ----
