@@ -4,6 +4,7 @@ choices_outreach <- list(
   "PIDs" = "pid_view",
   "Property Contact Details" = "property_contact_details_view",
   "Communication History" = "communication_data_view",
+  "Unresolved Inquiries" = "unresolved_inquiries",
   "Outreach" = "outreach_view",
   "Land & Securement History" = "land_secure_comms",
   "Property Descriptions" = "property_descriptions",
@@ -133,6 +134,13 @@ module_data_viewer_server <- function(
           dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
         },
         order_col = 6,
+        order_dir = "desc"
+      ),
+      unresolved_inquiries = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_unresolved_inquiries;")
+        },
+        order_col = 2,
         order_dir = "desc"
       ),
       outreach_view = list(

@@ -187,7 +187,6 @@ module_review_projects_ui <- function(id) {
                     dateInput(
                       ns("comm_date"),
                       "Date",
-                      value = Sys.Date(),
                       width = "100%"
                     ),
                     textAreaInput(
@@ -279,7 +278,6 @@ module_review_projects_ui <- function(id) {
                       dateInput(
                         ns("contact_comm_date"),
                         "Date Contacted",
-                        value = Sys.Date(),
                         width = "100%"
                       ),
                       dateInput(
@@ -317,6 +315,9 @@ module_review_projects_ui <- function(id) {
 module_review_projects_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    updateDateInput(session, "comm_date", value = Sys.Date())
+    updateDateInput(session, "contact_comm_date", value = Sys.Date())
 
     ## Reactive :: Record ID choices ----
     property_choices <- reactive({
@@ -546,6 +547,22 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           unique() |>
           paste(collapse = ", ")
 
+        size_df <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "
+            SELECT info.area_ha
+            FROM properties pr
+            INNER JOIN parcels pa ON pa.property_id = pr.id
+            LEFT JOIN parcel_info info ON pa.id = info.parcel_id
+            WHERE pr.property_name = {prop_name}",
+            .con = db_con
+          )
+        )
+
+        total_area_ha <- round(sum(size_df$area_ha, na.rm = TRUE), 0)
+        total_area_acres <- round(total_area_ha * 2.47105, 0)
+
         # One row per distinct contact, used for the Property Contact table
         contacts_df <- query_02_result |>
           filter(!is.na(name_first) | !is.na(name_last)) |>
@@ -611,6 +628,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           selected_record(list(
             info = record_01,
             pids = pids_string,
+            size_ha = total_area_ha,
+            size_acres = total_area_acres,
             contacts = contacts_df,
             comms = comms_df,
             contact_comms = contact_comms_df,
@@ -625,10 +644,14 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
     ## Helper :: row-1 value box ----
     info_value_box <- function(title, value, icon, theme = "primary") {
-      display_value <- if (
-        is.null(value) || length(value) == 0 || is.na(value) || value == ""
-      ) {
+      is_empty <- is.null(value) ||
+        length(value) == 0 ||
+        (!inherits(value, "html") && (is.na(value) || value == ""))
+
+      display_value <- if (is_empty) {
         "\u2014"
+      } else if (inherits(value, "html")) {
+        value
       } else {
         as.character(value)
       }
@@ -684,6 +707,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           class = "indicator-grid",
           info_value_box("Project Name", input$property, "signpost", "primary"),
           info_value_box("PIDs", rec$pids, "geo-alt", "primary"),
+          info_value_box(
+            "Property Size",
+            if (is.na(rec$size_ha) || rec$size_ha == 0) {
+              NA
+            } else {
+              HTML(glue(
+                "{rec$size_acres} acres<br>{round(rec$size_ha, 2)} hectares"
+              ))
+            },
+            "bounding-box-circles",
+            "success"
+          ),
           info_value_box(
             "Date Added",
             format(as.Date(info$date_added), "%B %d, %Y"),
@@ -1197,8 +1232,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       updateTextAreaInput(session, "communication_description", value = "")
       updateTextAreaInput(session, "action_item_description", value = "")
       updateDateInput(session, "comm_date", value = Sys.Date())
+      updateDateInput(session, "contact_comm_date", value = Sys.Date())
       updateDateInput(session, "due_date", value = NA)
-
       selected_record(NULL)
     })
 

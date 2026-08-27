@@ -69,8 +69,8 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
               pr.property_name,
               pr.property_name_public
         FROM properties pr 
-        JOIN ownership ow ON pr.ownership_id = ow.id
-        WHERE ownership_value IS NOT NULL
+        JOIN phase ph ON pr.phase_id = ph.id
+        WHERE phase_value = 'Secured'
         ORDER BY property_name_public;"
       )
 

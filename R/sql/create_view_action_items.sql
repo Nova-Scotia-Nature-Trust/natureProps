@@ -26,7 +26,7 @@ FROM
     LEFT JOIN phase ph
         ON pr.phase_id = ph.id
 WHERE
-    pr.securement_probability_id IS NOT NULL
+    pr.securement_probability_id IS NOT NULL OR ph.phase_value = 'Secured'
 GROUP BY
     pr.property_name,
     pr.property_name_public,
