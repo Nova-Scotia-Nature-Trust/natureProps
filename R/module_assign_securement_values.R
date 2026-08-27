@@ -686,8 +686,20 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
 
       df <- tibble(
         pid = input$pid,
-        priority_ecological_ranking_id = input$ecological_priority,
-        priority_securement_ranking_id = input$securement_priority,
+        priority_ecological_ranking_id = if (
+          isTruthy(input$ecological_priority)
+        ) {
+          as.integer(input$ecological_priority)
+        } else {
+          NA_integer_
+        },
+        priority_securement_ranking_id = if (
+          isTruthy(input$securement_priority)
+        ) {
+          as.integer(input$securement_priority)
+        } else {
+          NA_integer_
+        },
         priority_securement_ranking_reason = input$securement_reason,
         priority_ecological_ranking_reason = input$ecological_reason
       )
