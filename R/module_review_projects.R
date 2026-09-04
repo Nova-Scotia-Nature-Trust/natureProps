@@ -873,50 +873,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         hr(class = "section-divider"),
 
-        # Row 4: table (Internal Communications)
-        div(
-          strong("Internal Communications"),
-          if (nrow(rec$comms) == 0) {
-            p(class = "text-muted", "No internal communications logged.")
-          } else {
-            lapply(seq_len(nrow(rec$comms)), function(i) {
-              comm <- rec$comms[i, ]
-              record_row(
-                title = format(as.Date(comm$date), "%B %d, %Y"),
-                subtitle = comm$communication_description
-              )
-            })
-          }
-        ),
-
-        hr(class = "section-divider"),
-
-        # Row 4b: table (Property Contact Communications)
-        div(
-          strong("Property Contact Communications"),
-          if (nrow(rec$contact_comms) == 0) {
-            p(
-              class = "text-muted",
-              "No property contact communications logged."
-            )
-          } else {
-            lapply(seq_len(nrow(rec$contact_comms)), function(i) {
-              contact_comm <- rec$contact_comms[i, ]
-              contact_comm_row(
-                date = format(
-                  as.Date(contact_comm$date_contacted),
-                  "%B %d, %Y"
-                ),
-                purpose = contact_comm$communication_purpose,
-                description = contact_comm$communication_description
-              )
-            })
-          }
-        ),
-
-        hr(class = "section-divider"),
-
-        # Row 5: nicer formatting (Action Items, no borders)
+        # Row 4: nicer formatting (Action Items, no borders)
         div(
           strong("Action Items"),
           if (nrow(rec$actions) == 0) {
@@ -955,7 +912,50 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         hr(class = "section-divider"),
 
-        # Row 6: nicer formatting (Stewardship Concerns)
+        # Row 5: table (Internal Communications)
+        div(
+          strong("Internal Communications"),
+          if (nrow(rec$comms) == 0) {
+            p(class = "text-muted", "No internal communications logged.")
+          } else {
+            lapply(seq_len(nrow(rec$comms)), function(i) {
+              comm <- rec$comms[i, ]
+              record_row(
+                title = format(as.Date(comm$date), "%B %d, %Y"),
+                subtitle = comm$communication_description
+              )
+            })
+          }
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 6: table (Property Contact Communications)
+        div(
+          strong("Property Contact Communications"),
+          if (nrow(rec$contact_comms) == 0) {
+            p(
+              class = "text-muted",
+              "No property contact communications logged."
+            )
+          } else {
+            lapply(seq_len(nrow(rec$contact_comms)), function(i) {
+              contact_comm <- rec$contact_comms[i, ]
+              contact_comm_row(
+                date = format(
+                  as.Date(contact_comm$date_contacted),
+                  "%B %d, %Y"
+                ),
+                purpose = contact_comm$communication_purpose,
+                description = contact_comm$communication_description
+              )
+            })
+          }
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 7: nicer formatting (Stewardship Concerns)
         div(
           strong("Stewardship Concerns"),
           div(
