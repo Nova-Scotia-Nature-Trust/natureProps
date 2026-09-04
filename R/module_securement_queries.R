@@ -236,7 +236,7 @@ module_securement_queries_server <- function(
           SELECT pr.property_name AS "Property Name", 
                  COALESCE(pr.anticipated_closing_year, \'Unassigned\') AS "Closing Year",
                  pr.anticipated_closing_date AS "Closing Date",
-                 pr.securement_action_description AS "Securement Status",
+                 pr.securement_status AS "Securement Status",
                  se.probability_value AS "Securement Probability",
                  ph.phase_value AS "Phase"
           FROM properties pr

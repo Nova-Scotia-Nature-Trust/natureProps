@@ -492,8 +492,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         SELECT p.property_description, 
                p.phase_id_description, 
                p.phase_id_change,
-               p.securement_action_description,
-               p.date_securement_description,
+               p.securement_status,
+               p.date_securement_status,
                p.date_added,
                tl.team_value as team_lead, 
                ph.phase_value as phase, 
@@ -853,18 +853,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             ),
             div(
               class = "info-box",
-              if (is.na(info$securement_action_description)) {
+              if (is.na(info$securement_status)) {
                 "No securement status description available."
-              } else if (is.na(info$date_securement_description)) {
-                info$securement_action_description
+              } else if (is.na(info$date_securement_status)) {
+                info$securement_status
               } else {
                 paste0(
                   format(
-                    as.Date(info$date_securement_description),
+                    as.Date(info$date_securement_status),
                     "%B %d, %Y"
                   ),
                   ": ",
-                  info$securement_action_description
+                  info$securement_status
                 )
               }
             )

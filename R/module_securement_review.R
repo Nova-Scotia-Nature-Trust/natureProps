@@ -292,7 +292,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
                  pr.property_name_public AS "Property Name Public",
                 pr.anticipated_closing_year AS "Closing Year",
                 pr.anticipated_closing_date AS "Closing Date",
-                pr.securement_action_description AS "Securement Status",
+                pr.securement_status AS "Securement Status",
                 pr.aps_conditions_date AS "APS Date",
                 se.probability_value AS "Securement Probability",
                 ph.phase_value AS "Phase"
