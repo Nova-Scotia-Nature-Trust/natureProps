@@ -101,6 +101,39 @@ module_securement_review_ui <- function(id) {
                 class = "btn-secondary mt-2",
                 width = "100%"
               )
+            ),
+            accordion_panel(
+              title = "Securement Status",
+              value = "sec_status_panel",
+              selectizeInput(
+                ns("sec_stat_property"),
+                "Select Property",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%",
+                options = list(
+                  placeholder = "Select a property"
+                )
+              ),
+              textAreaInput(
+                ns("securement_status"),
+                label = "Securement Status",
+                "",
+                height = "200px",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("submit_sec_status_edit"),
+                label = "Submit Edit",
+                class = "btn-success",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("clear_inputs_sec_stat"),
+                label = "Clear Inputs",
+                class = "btn-secondary mt-2",
+                width = "100%"
+              )
             )
           )
         ),
@@ -170,6 +203,17 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
           properties_reactive()$property_name_public
         ),
         selected = isolate(input$selected_properties),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "sec_stat_property",
+        choices = setNames(
+          properties_reactive()$id,
+          properties_reactive()$property_name_public
+        ),
+        selected = isolate(input$sec_stat_property),
         server = TRUE
       )
     })
@@ -424,6 +468,72 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Populate securement status textarea ----
+    observeEvent(input$sec_stat_property, {
+      req(input$sec_stat_property)
+
+      status <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT securement_status 
+          FROM properties
+          WHERE id = {input$sec_stat_property}",
+          .con = db_con
+        )
+      ) |>
+        pull(securement_status)
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_status",
+        value = if (length(status) && !is.na(status)) status else ""
+      )
+    })
+
+    ## Submit Securement Status  ----
+    observeEvent(input$submit_sec_status_edit, {
+      req(input$sec_stat_property)
+      req(isTruthy(input$submit_sec_status_edit))
+
+      # Create records for each property and action item type combination
+      update_sec_status <- tibble(
+        id = input$sec_stat_property,
+        securement_status = input$securement_status
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "properties",
+        records = update_sec_status,
+        where_cols = "id"
+      )
+
+      dbExecute(
+        db_con,
+        glue_sql(
+          "UPDATE properties SET date_securement_status = {Sys.Date()} 
+            WHERE id = {input$sec_stat_property}",
+          .con = db_con
+        )
+      )
+
+      db_updated(db_updated() + 1)
+
+      # Get property names for confirmation message
+      selected_props <- properties_reactive() |>
+        filter(id %in% input$sec_stat_property) |>
+        pull(property_name)
+
+      shinyalert(
+        title = "Success",
+        text = glue::glue(
+          "Updated securement status for {selected_props}"
+        ),
+        type = "success",
+        timer = 5000
+      )
+    })
+
     ## Clear properties inputs ----
     observeEvent(input$clear_inputs_properties, {
       updateSelectizeInput(
@@ -463,6 +573,21 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "action_item_status",
         selected = character(0)
+      )
+    })
+
+    ## Clear securement status fields ----
+    observeEvent(input$clear_inputs_sec_stat, {
+      updateSelectizeInput(
+        session,
+        inputId = "sec_stat_property",
+        selected = character(0)
+      )
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_status",
+        value = ""
       )
     })
 
