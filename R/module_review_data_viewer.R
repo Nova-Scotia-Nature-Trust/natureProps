@@ -70,10 +70,12 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
           db_con,
           "SELECT 
             p.property_name,
+            p.securement_status,
             tl.team_value,
             sp.probability_value,
             p.anticipated_closing_year,
-            ph.phase_value
+            ph.phase_value,
+            p.phase_id_description
           FROM properties p
           LEFT JOIN securement_probability sp ON p.securement_probability_id = sp.id
           LEFT JOIN phase ph ON p.phase_id = ph.id
@@ -83,10 +85,12 @@ module_review_data_viewer_server <- function(id, db_con, db_updated = NULL) {
         ) |>
           rename(
             `Property Name` = property_name,
+            `Securement Status` = securement_status,
             `Team Lead` = team_value,
             `Securement Probability` = probability_value,
             `Anticipated Closing Year` = anticipated_closing_year,
-            Phase = phase_value
+            Phase = phase_value,
+            `Phase Description` = phase_id_description
           )
       } else if (input$table_choice == "Parcels") {
         # Query parcels table with ecological priority lookup
