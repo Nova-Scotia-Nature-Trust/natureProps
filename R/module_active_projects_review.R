@@ -1,6 +1,6 @@
 # UI ----
 # NAV PANEL :: ACTIVE PROJECTS REVIEW
-module_securement_review_ui <- function(id) {
+module_active_projects_review_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -161,7 +161,11 @@ module_securement_review_ui <- function(id) {
 }
 
 # Server ----
-module_securement_review_server <- function(id, db_con, db_updated = NULL) {
+module_active_projects_review_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
     iv <- InputValidator$new()

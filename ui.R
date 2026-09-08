@@ -124,11 +124,11 @@ ui <- page_navbar(
       height = "100%",
       nav_panel(
         title = "Project Overview",
-        module_review_projects_ui("project_review")
+        module_project_overview_ui("project_review")
       ),
       nav_panel(
         title = "Active Projects Review",
-        module_securement_review_ui("securement_review")
+        module_active_projects_review_ui("securement_review")
       ),
       nav_panel(
         title = "Assign Securement Values",

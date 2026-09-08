@@ -139,7 +139,7 @@ server <- function(input, output, session) {
     db_updated,
     focal_pid_rv
   )
-  module_review_projects_server("project_review", db_con, db_updated)
+  module_project_overview_server("project_review", db_con, db_updated)
 
   module_property_mapbox_server(
     "property_mapbox",
@@ -201,7 +201,7 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_securement_review_server("securement_review", db_con, db_updated)
+  module_active_projects_review_server("securement_review", db_con, db_updated)
 
   module_edit_llt_projects_server(
     "edit_llt_projects",

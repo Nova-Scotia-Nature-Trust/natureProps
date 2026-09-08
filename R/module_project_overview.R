@@ -1,6 +1,6 @@
 # UI ----
 # NAV PANEL :: PROJECT OVERVIEW
-module_review_projects_ui <- function(id) {
+module_project_overview_ui <- function(id) {
   ns <- NS(id)
   tagList(
     tags$style(
@@ -312,7 +312,7 @@ module_review_projects_ui <- function(id) {
 }
 
 # Server ----
-module_review_projects_server <- function(id, db_con, db_updated = NULL) {
+module_project_overview_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
