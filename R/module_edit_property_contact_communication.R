@@ -96,15 +96,17 @@ module_edit_property_contact_communication_server <- function(
     )
 
     ## Reactive :: Properties list (only properties with communications) ----
-    properties_list <- reactive({
+    property_choices <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
         "
-        SELECT DISTINCT p.id, p.property_name
+        SELECT DISTINCT 
+          p.id, 
+          CONCAT_WS(' || ', p.property_name, p.property_name_public) AS property_name
         FROM properties p
         JOIN property_contact_communication pcc ON pcc.property_id = p.id
-        ORDER BY p.property_name;
+        ORDER BY property_name;
         "
       )
     })
@@ -116,7 +118,10 @@ module_edit_property_contact_communication_server <- function(
         inputId = "property_name",
         choices = c(
           "",
-          setNames(properties_list()$id, properties_list()$property_name)
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
         ),
         selected = isolate(input$property_name),
         server = TRUE
@@ -376,11 +381,13 @@ module_edit_property_contact_communication_server <- function(
         selected = character(0),
         choices = c(
           "",
-          setNames(properties_list()$id, properties_list()$property_name)
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
         ),
         server = TRUE
       )
-
       updateSelectizeInput(session, "edit_contact", selected = character(0))
       updateSelectInput(
         session,

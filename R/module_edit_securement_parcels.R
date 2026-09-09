@@ -98,10 +98,11 @@ module_edit_securement_parcels_server <- function(
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT property_name FROM properties ORDER BY property_name;"
-      ) |>
-        pull(property_name) |>
-        sort()
+        "SELECT id, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
+        FROM properties 
+        ORDER BY property_name;"
+      )
     })
 
     ## Reactive :: PIDs for selected property ----
@@ -113,7 +114,7 @@ module_edit_securement_parcels_server <- function(
         "SELECT p.pid 
         FROM parcels p
         JOIN properties prop ON p.property_id = prop.id
-        WHERE prop.property_name = {input$property_name}
+        WHERE prop.id = {input$property_name}
         ORDER BY p.pid;",
         .con = db_con
       )
@@ -144,7 +145,13 @@ module_edit_securement_parcels_server <- function(
       updateSelectizeInput(
         session,
         inputId = "property_name",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         selected = isolate(input$property_name),
         server = TRUE
       )
@@ -193,7 +200,6 @@ module_edit_securement_parcels_server <- function(
           size_confirmed_acres,
           size_confirmed_notes,
           af_transaction,
-          landowner_interest_ranking_id,
           tax_exempt,
           tax_exempt_year
         FROM parcels 
@@ -270,29 +276,6 @@ module_edit_securement_parcels_server <- function(
             } else {
               FALSE
             }
-          ),
-          selectizeInput(
-            inputId = ns("edit_landowner_interest_ranking_id"),
-            label = "Landowner Interest Ranking",
-            choices = c(
-              "",
-              setNames(
-                priority_ranking_choices()$id,
-                priority_ranking_choices()$ranking_value
-              )
-            ),
-            selected = if (
-              !is.null(record) && !is.na(record$landowner_interest_ranking_id)
-            ) {
-              record$landowner_interest_ranking_id
-            } else {
-              ""
-            },
-            multiple = FALSE,
-            options = list(
-              create = FALSE,
-              placeholder = "Select landowner interest ranking"
-            )
           )
         ),
         layout_columns(
@@ -443,13 +426,6 @@ module_edit_securement_parcels_server <- function(
         } else {
           NA
         },
-        landowner_interest_ranking_id = if (
-          isTruthy(input$edit_landowner_interest_ranking_id)
-        ) {
-          as.integer(input$edit_landowner_interest_ranking_id)
-        } else {
-          NA_integer_
-        },
         tax_exempt = if (isTruthy(input$edit_tax_exempt)) {
           as.logical(input$edit_tax_exempt)
         } else {
@@ -495,7 +471,13 @@ module_edit_securement_parcels_server <- function(
         session,
         inputId = "property_name",
         selected = character(0),
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$id,
+            property_choices()$property_name
+          )
+        ),
         server = TRUE
       )
 

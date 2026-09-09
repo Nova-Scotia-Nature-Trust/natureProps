@@ -204,8 +204,10 @@ module_property_contact_server <- function(id, db_con, db_updated) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties 
-         ORDER BY property_name;"
+        "SELECT id, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
+        FROM properties 
+        ORDER BY property_name;"
       )
     })
 
@@ -461,7 +463,8 @@ module_property_contact_server <- function(id, db_con, db_updated) {
           properties_list()$id,
           properties_list()$property_name
         ),
-        selected = character(0)
+        selected = character(0),
+        server = TRUE
       )
       updateTextInput(session, "name_last", value = "")
       updateTextInput(session, "name_first", value = "")

@@ -117,11 +117,12 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
       dbGetQuery(
         db_con,
         "SELECT DISTINCT sai.property_id AS id,
+                pr.property_name,
                 pr.property_name_public,
-                pr.property_name
+                CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name
         FROM securement_action_items AS sai
         LEFT JOIN properties AS pr ON sai.property_id = pr.id        
-        ORDER BY pr.property_name_public;"
+        ORDER BY pr.property_name;"
       )
     })
 
@@ -131,7 +132,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
         "property",
         choices = setNames(
           property_list()$id,
-          property_list()$property_name_public
+          property_list()$display_name
         ),
         selected = isolate(input$property),
         server = TRUE

@@ -291,7 +291,10 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT id, property_name FROM properties 
+        "SELECT DISTINCT id, 
+                property_name,
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name
+         FROM properties 
          ORDER BY property_name;"
       )
     })
@@ -302,7 +305,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         "property",
         choices = setNames(
           property_list()$id,
-          property_list()$property_name
+          property_list()$display_name
         ),
         selected = isolate(input$property),
         server = TRUE
@@ -378,7 +381,8 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         db_con,
         "SELECT
           pr.id,
-          pr.property_name
+          pr.property_name,
+          CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name
         FROM
           properties pr
         WHERE NOT EXISTS (
@@ -398,7 +402,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         "property_iat",
         choices = setNames(
           property_list_iat()$id,
-          property_list_iat()$property_name
+          property_list_iat()$display_name
         ),
         selected = isolate(input$property_iat),
         server = TRUE
@@ -802,7 +806,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         inputId = "property",
         choices = setNames(
           property_list()$id,
-          property_list()$property_name
+          property_list()$display_name
         ),
         selected = character(0)
       )

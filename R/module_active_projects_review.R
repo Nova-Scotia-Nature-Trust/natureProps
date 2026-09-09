@@ -189,6 +189,7 @@ module_active_projects_review_server <- function(
         "SELECT DISTINCT sai.property_id AS id, 
                          pr.property_name,
                          pr.property_name_public,
+                         CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name,
                          ph.phase_value 
         FROM securement_action_items AS sai
         JOIN properties pr ON sai.property_id = pr.id
@@ -204,7 +205,7 @@ module_active_projects_review_server <- function(
         inputId = "selected_properties",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name_public
+          properties_reactive()$display_name
         ),
         selected = isolate(input$selected_properties),
         server = TRUE
@@ -215,7 +216,7 @@ module_active_projects_review_server <- function(
         inputId = "sec_stat_property",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name_public
+          properties_reactive()$display_name
         ),
         selected = isolate(input$sec_stat_property),
         server = TRUE
@@ -357,8 +358,8 @@ module_active_projects_review_server <- function(
 
       data <- data |>
         left_join(additional_data, join_by("Property Name")) |>
-        select(-"Property Name") |>
         relocate(
+          "Property Name",
           "Property Name Public",
           "Closing Year",
           "Closing Date",
@@ -367,8 +368,9 @@ module_active_projects_review_server <- function(
           "Securement Status",
           "APS Date"
         ) |>
-        arrange(`Property Name Public`) |>
-        filter(Phase == "Active - Securement")
+        arrange(`Property Name`) |>
+        filter(Phase == "Active - Securement") |>
+        select(-Phase)
 
       table_data(data)
     })

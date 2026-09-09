@@ -353,7 +353,10 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
       all_properties <- dbGetQuery(
         db_con,
-        "SELECT property_name, date_added FROM properties;"
+        "SELECT property_name, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name,
+                date_added 
+         FROM properties;"
       )
 
       date_filter <- input$date_filter
@@ -364,15 +367,8 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
           filter(date_added >= cutoff)
       }
 
-      choices <- all_properties |>
-        pull(property_name) |>
-        sort()
-
-      if (length(choices) == 0) {
-        "No properties"
-      } else {
-        choices
-      }
+      all_properties |>
+        arrange(property_name)
     })
 
     ## Lookup tables :: Property Contact Communication ----
@@ -460,10 +456,18 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
     ## Update select input with record IDs based on table
     observe({
+      props <- property_choices()
+
+      choices <- if (nrow(props) == 0) {
+        c("", "No properties")
+      } else {
+        c("", setNames(props$property_name, props$display_name))
+      }
+
       updateSelectizeInput(
         session,
         inputId = "property",
-        choices = c("", property_choices()),
+        choices = choices,
         selected = isolate(input$property),
         server = TRUE
       )
@@ -1362,10 +1366,15 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
+      props <- property_choices()
       updateSelectizeInput(
         session,
         "property",
-        choices = property_choices(),
+        choices = if (nrow(props) == 0) {
+          c("", "No properties")
+        } else {
+          c("", setNames(props$property_name, props$display_name))
+        },
         selected = character(0),
         server = TRUE
       )
@@ -1391,10 +1400,15 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
     ## Clear property selection when date filter changes ----
     observeEvent(input$date_filter, {
+      props <- property_choices()
       updateSelectizeInput(
         session,
         "property",
-        choices = c("", property_choices()),
+        choices = if (nrow(props) == 0) {
+          c("", "No properties")
+        } else {
+          c("", setNames(props$property_name, props$display_name))
+        },
         selected = character(0),
         server = TRUE
       )

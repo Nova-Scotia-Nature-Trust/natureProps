@@ -147,7 +147,9 @@ module_all_projects_review_server <- function(
 
       dbGetQuery(
         db_con,
-        "SELECT pr.id, pr.property_name 
+        "SELECT pr.id, 
+                pr.property_name,
+                CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name
          FROM properties pr
         LEFT JOIN securement_probability sp ON pr.securement_probability_id = sp.id
         LEFT JOIN phase ph ON pr.phase_id = ph.id
@@ -162,7 +164,7 @@ module_all_projects_review_server <- function(
         inputId = "selected_properties",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name
+          properties_reactive()$display_name
         ),
         selected = isolate(input$selected_properties),
         server = TRUE
@@ -173,7 +175,7 @@ module_all_projects_review_server <- function(
         inputId = "sec_stat_property",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name
+          properties_reactive()$display_name
         ),
         selected = isolate(input$sec_stat_property),
         server = TRUE

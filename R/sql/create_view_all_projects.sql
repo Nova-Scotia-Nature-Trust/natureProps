@@ -2,6 +2,7 @@ DROP VIEW IF EXISTS view_all_projects;
 
 CREATE VIEW view_all_projects AS
 SELECT p.property_name AS "Property Name",
+       p.property_name_public AS "Property Name Public",
        p.securement_status AS "Securement Status",
        tl.team_value AS "Team Lead",
        sp.probability_value AS "Securement Probability",

@@ -112,7 +112,9 @@ module_property_contact_communication_server <- function(
       dbGetQuery(
         db_con,
         "
-        SELECT p.id, p.property_name
+        SELECT p.id,
+               p.property_name,
+               CONCAT_WS(' || ', p.property_name, p.property_name_public) AS display_name
         FROM properties p
         WHERE EXISTS (
           SELECT 1 FROM properties_contact pc WHERE pc.property_id = p.id
@@ -221,7 +223,7 @@ module_property_contact_communication_server <- function(
             "",
             setNames(
               properties_list()$id,
-              properties_list()$property_name
+              properties_list()$display_name
             )
           ),
           selected = character(0),

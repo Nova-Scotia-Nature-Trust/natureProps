@@ -99,8 +99,10 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT id, property_name FROM properties 
-         ORDER BY property_name;"
+        "SELECT DISTINCT id, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
+        FROM properties 
+        ORDER BY property_name;"
       )
     })
 
@@ -132,7 +134,8 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT ap.property_id as id, pr.property_name
+        "SELECT DISTINCT ap.property_id as id, 
+                CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS property_name
         FROM appraisals ap
         LEFT JOIN properties pr ON ap.property_id = pr.id
         ORDER BY property_name;"

@@ -404,14 +404,12 @@ module_team_lead_actions_server <- function(id, db_con, db_updated = NULL) {
     output$ipa_panel <- renderUI({
       req(isTruthy(input$team_lead_choice), is_dominic())
 
-      props <- all_properties()
-
       tagList(
         hr(),
         selectizeInput(
           ns("ipa_properties"),
           "Select Property",
-          choices = setNames(props$id, props$property_name),
+          choices = NULL,
           selected = NULL,
           multiple = TRUE,
           options = list(
@@ -432,6 +430,19 @@ module_team_lead_actions_server <- function(id, db_con, db_updated = NULL) {
           class = "btn-primary",
           width = "100%"
         )
+      )
+    })
+
+    # Populate ipa_properties server-side ----
+    observe({
+      req(isTruthy(input$team_lead_choice), is_dominic())
+      props <- all_properties()
+      updateSelectizeInput(
+        session,
+        "ipa_properties",
+        choices = setNames(props$id, props$property_name),
+        selected = NULL,
+        server = TRUE
       )
     })
 

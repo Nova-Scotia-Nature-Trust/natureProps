@@ -138,6 +138,10 @@ module_edit_closing_details_server <- function(
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
       choices <- dbGetQuery(
         db_con,
         "SELECT pr.id, 
