@@ -136,7 +136,8 @@ module_assign_securement_values_ui <- function(id) {
                   actionButton(
                     inputId = ns("submit_edit_properties"),
                     label = "Submit Changes",
-                    class = "btn-success"
+                    class = "btn-success",
+                    width = "25%"
                   ),
                   div(style = "flex-grow: 1;")
                 )
@@ -202,7 +203,8 @@ module_assign_securement_values_ui <- function(id) {
                   actionButton(
                     inputId = ns("submit_edit_parcels"),
                     label = "Submit Changes",
-                    class = "btn-success"
+                    class = "btn-success",
+                    width = "25%"
                   ),
                   div(style = "flex-grow: 1;")
                 )
