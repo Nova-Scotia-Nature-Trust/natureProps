@@ -46,6 +46,12 @@ module_team_lead_actions_UI <- function(id) {
         class = "btn-success",
         width = "100%"
       ),
+      actionButton(
+        inputId = ns("refresh_data"),
+        label = "Refresh Data",
+        icon = icon("arrows-rotate"),
+        class = "btn-primary"
+      ),
       uiOutput(ns("ipa_panel"))
     ),
 
@@ -277,6 +283,11 @@ module_team_lead_actions_server <- function(id, db_con, db_updated = NULL) {
         closeOnClickOutside = TRUE,
         timer = 8000
       )
+    })
+
+    # Event :: Manual refresh ----
+    observeEvent(input$refresh_data, {
+      db_updated(db_updated() + 1L)
     })
 
     # Event :: Clear inputs ----
