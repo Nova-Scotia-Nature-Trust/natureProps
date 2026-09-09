@@ -301,6 +301,32 @@ module_project_overview_ui <- function(id) {
                       class = "btn-success"
                     )
                   )
+                ),
+                # Panel :: Project Feasibility ----
+                accordion_panel(
+                  "Assign Project Feasibility Ranking",
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    selectizeInput(
+                      inputId = ns("project_feasibility_ranking"),
+                      label = "Project Feasibility Ranking",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    textAreaInput(
+                      ns("project_feasibility_reasoning"),
+                      "Feasibility Ranking Reasoning",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("submit_project_feasibility"),
+                      label = "Submit Changes",
+                      class = "btn-success"
+                    )
+                  )
                 )
               )
             )
@@ -461,6 +487,25 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Reactive :: Ranking choices ----
+    ranking <- reactive({
+      dbGetQuery(db_con, "SELECT id, ranking_value FROM ranking")
+    })
+
+    ## Observer :: Update ranking choice input ----
+    observe({
+      updateSelectizeInput(
+        session,
+        "project_feasibility_ranking",
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+    })
+
     ## Event :: Manual refresh ----
     observeEvent(input$refresh_data, {
       db_updated(db_updated() + 1L)
@@ -497,10 +542,13 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
                p.date_added,
                tl.team_value as team_lead, 
                ph.phase_value as phase, 
-               p.stewardship_concerns
+               p.stewardship_concerns,
+               r.ranking_value as project_feasibility_ranking,
+               p.project_feasibility_ranking_reason
         FROM properties p
         LEFT JOIN team_lead tl ON p.team_lead_id = tl.id 
         LEFT JOIN phase ph ON p.phase_id = ph.id
+        LEFT JOIN ranking r ON p.project_feasibility_ranking_id = r.id
         WHERE p.property_name = {prop_name};
         ",
           .con = db_con
@@ -959,7 +1007,7 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
         div(
           strong("Stewardship Concerns"),
           div(
-            class = "info-box",
+            class = "text-muted",
             if (
               is.na(info$stewardship_concerns) ||
                 info$stewardship_concerns == ""
@@ -967,6 +1015,44 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
               "None identified at this time."
             } else {
               info$stewardship_concerns
+            }
+          )
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 8: Project Feasibility
+        div(
+          strong("Project Feasibility"),
+          div(
+            class = "text-muted",
+            if (
+              is.na(info$project_feasibility_ranking) ||
+                info$project_feasibility_ranking == ""
+            ) {
+              "No feasibility ranking assigned."
+            } else {
+              tagList(
+                br(),
+                p(
+                  strong("Ranking: "),
+                  info$project_feasibility_ranking
+                ),
+                p(
+                  if (
+                    is.na(info$project_feasibility_ranking_reason) ||
+                      info$project_feasibility_ranking_reason == ""
+                  ) {
+                    em("No reasoning provided.")
+                  } else {
+                    p(
+                      "\n",
+                      strong("Reasoning: "),
+                      info$project_feasibility_ranking_reason
+                    )
+                  }
+                )
+              )
             }
           )
         )
@@ -1206,6 +1292,72 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
       updateTextAreaInput(session, "action_item_description", value = "")
       updateDateInput(session, "due_date", value = NA)
+    })
+
+    ## Event :: Submit Feasibility Ranking ----
+    observeEvent(input$submit_project_feasibility, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before assigning feasibility.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(
+        input$project_feasibility_reasoning,
+        input$project_feasibility_ranking
+      )
+
+      property_id <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT id FROM properties WHERE property_name = {input$property};",
+          .con = db_con
+        )
+      ) |>
+        pull(id)
+
+      df <- tibble(
+        id = property_id,
+        project_feasibility_ranking_id = as.integer(
+          input$project_feasibility_ranking
+        ),
+        project_feasibility_ranking_reason = input$project_feasibility_reasoning
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "properties",
+        records = df,
+        where_cols = "id"
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Project feasibility added for {input$property}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+
+      updateSelectizeInput(
+        session,
+        "project_feasibility_ranking",
+        selected = character(0)
+      )
+
+      updateTextAreaInput(session, "project_feasibility_reasoning", value = "")
     })
 
     ## Event :: Clear inputs ----

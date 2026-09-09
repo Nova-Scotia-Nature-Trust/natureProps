@@ -224,3 +224,21 @@ if (is.na(info$stewardship_concerns) || info$stewardship_concerns == "") {
   cat(info$stewardship_concerns, "\n")
 }
 ```
+
+## Project Feasibility
+
+```{r}
+#| echo: false
+#| results: asis
+
+if (
+  is.na(info$project_feasibility_ranking) ||
+    info$project_feasibility_ranking == ""
+) {
+  cat("No feasibility ranking assigned.\n")
+} else {
+  cat("Ranking: ", info$project_feasibility_ranking, "\n\n")
+
+  cat("Reasoning: ", info$project_feasibility_ranking_reason)
+}
+```
