@@ -188,9 +188,9 @@ module_property_contact_communication_server <- function(
           ),
           selectizeInput(
             ns("contact"),
-            "Select Property Contact",
+            "Select Property Contact(s)",
             choices = NULL,
-            multiple = FALSE,
+            multiple = TRUE,
             options = list(
               create = FALSE,
               placeholder = "Select a property first"

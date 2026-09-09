@@ -25,9 +25,9 @@ module_property_contact_securement_communication_ui <- function(id) {
             ),
             selectizeInput(
               ns("contact"),
-              "Select Property Contact",
+              "Select Property Contact(s)",
               choices = NULL,
-              multiple = FALSE,
+              multiple = TRUE,
               options = list(
                 create = FALSE,
                 placeholder = "Select a property first"
@@ -203,7 +203,7 @@ module_property_contact_securement_communication_server <- function(
     observeEvent(input$submit_communication, {
       req(iv$is_valid())
 
-      # Create the new communication record
+      # Create one communication record per selected contact
       new_communication <- tibble(
         property_contact_id = input$contact,
         property_id = input$contact_property_id,
