@@ -131,13 +131,17 @@ ui <- page_navbar(
         module_active_projects_review_ui("securement_review")
       ),
       nav_panel(
+        title = "All Projects Review",
+        module_all_projects_review_ui("all_projects")
+      ),
+      nav_panel(
         title = "Assign Securement Values",
         module_assign_securement_values_ui("assign_priorities")
       ),
-      nav_panel(
-        title = "Data Viewer",
-        module_review_data_viewer_ui("review_data")
-      ),
+      # nav_panel(
+      #   title = "Data Viewer",
+      #   module_review_data_viewer_ui("review_data")
+      # ),
       nav_panel(
         title = "Queries",
         module_review_queries_ui("review_queries")

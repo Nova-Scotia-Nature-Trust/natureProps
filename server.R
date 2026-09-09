@@ -91,11 +91,11 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_review_data_viewer_server(
-    "review_data",
-    db_con,
-    db_updated
-  )
+  # module_review_data_viewer_server(
+  #   "review_data",
+  #   db_con,
+  #   db_updated
+  # )
 
   module_data_viewer_server(
     "records_view",
@@ -202,6 +202,8 @@ server <- function(input, output, session) {
   )
 
   module_active_projects_review_server("securement_review", db_con, db_updated)
+
+  module_all_projects_review_server("all_projects", db_con, db_updated)
 
   module_edit_llt_projects_server(
     "edit_llt_projects",

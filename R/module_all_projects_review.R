@@ -1,6 +1,6 @@
 # UI ----
-# NAV PANEL :: ACTIVE PROJECTS REVIEW
-module_active_projects_review_ui <- function(id) {
+# NAV PANEL :: ALL PROJECTS REVIEW
+module_all_projects_review_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -37,8 +37,8 @@ module_active_projects_review_ui <- function(id) {
               )
             ),
             accordion_panel(
-              title = "Securement Probability & Dates",
-              value = "edit_outreach_panel",
+              title = "Securement Probability & Closing Year",
+              value = "edit_probability_panel",
               selectizeInput(
                 ns("securement_probability"),
                 "Securement Probability",
@@ -53,12 +53,6 @@ module_active_projects_review_ui <- function(id) {
                 multiple = FALSE,
                 width = "100%"
               ),
-              dateInput(
-                ns("closing_date"),
-                "Closing Date",
-                value = as.Date(NA),
-                width = "100%"
-              ),
               actionButton(
                 inputId = ns("submit_edit"),
                 label = "Submit Edit",
@@ -66,37 +60,7 @@ module_active_projects_review_ui <- function(id) {
                 width = "100%"
               ),
               actionButton(
-                inputId = ns("clear_inputs_dates"),
-                label = "Clear Inputs",
-                class = "btn-secondary mt-2",
-                width = "100%"
-              )
-            ),
-            accordion_panel(
-              title = "Action Items",
-              value = "action_items_panel",
-              selectizeInput(
-                ns("action_item_type"),
-                "Select Action Item Type",
-                choices = NULL,
-                multiple = TRUE,
-                width = "100%"
-              ),
-              selectizeInput(
-                ns("action_item_status"),
-                "Select Action Status",
-                choices = NULL,
-                multiple = FALSE,
-                width = "100%"
-              ),
-              actionButton(
-                inputId = ns("submit_action_items"),
-                label = "Submit Edit",
-                class = "btn-success",
-                width = "100%"
-              ),
-              actionButton(
-                inputId = ns("clear_inputs_actions"),
+                inputId = ns("clear_inputs_probability"),
                 label = "Clear Inputs",
                 class = "btn-secondary mt-2",
                 width = "100%"
@@ -142,7 +106,7 @@ module_active_projects_review_ui <- function(id) {
           height = "100%",
           card_header(
             class = "d-flex justify-content-between align-items-center",
-            h5("Properties currently in the active securement phase"),
+            h5("Properties assigned a securement probability"),
             downloadButton(
               outputId = ns("download_data"),
               label = "Download",
@@ -161,7 +125,7 @@ module_active_projects_review_ui <- function(id) {
 }
 
 # Server ----
-module_active_projects_review_server <- function(
+module_all_projects_review_server <- function(
   id,
   db_con,
   db_updated = NULL
@@ -170,9 +134,6 @@ module_active_projects_review_server <- function(
     ## Input validation ----
     iv <- InputValidator$new()
     iv$add_rule("selected_properties", sv_required())
-    # iv$add_rule("closing_year", sv_required())
-    # iv$add_rule("closing_date", sv_required())
-    # iv$add_rule("securement_probability", sv_required())
     iv$enable()
 
     ## Reactive values ----
@@ -186,14 +147,11 @@ module_active_projects_review_server <- function(
 
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT sai.property_id AS id, 
-                         pr.property_name,
-                         pr.property_name_public,
-                         ph.phase_value 
-        FROM securement_action_items AS sai
-        JOIN properties pr ON sai.property_id = pr.id
-        JOIN phase ph ON pr.phase_id = ph.id 
-        WHERE ph.phase_value = 'Active - Securement'
+        "SELECT pr.id, pr.property_name 
+         FROM properties pr
+        LEFT JOIN securement_probability sp ON pr.securement_probability_id = sp.id
+        LEFT JOIN phase ph ON pr.phase_id = ph.id
+         WHERE sp.probability_value IS NOT NULL AND ph.phase_value != 'Secured'
         ORDER BY pr.property_name;"
       )
     })
@@ -204,7 +162,7 @@ module_active_projects_review_server <- function(
         inputId = "selected_properties",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name_public
+          properties_reactive()$property_name
         ),
         selected = isolate(input$selected_properties),
         server = TRUE
@@ -215,7 +173,7 @@ module_active_projects_review_server <- function(
         inputId = "sec_stat_property",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name_public
+          properties_reactive()$property_name
         ),
         selected = isolate(input$sec_stat_property),
         server = TRUE
@@ -275,122 +233,31 @@ module_active_projects_review_server <- function(
       )
     })
 
-    ## Action item types ----
-    action_item_types <- reactive({
-      dbGetQuery(
-        db_con,
-        "SELECT id, type_value FROM action_item_type ORDER BY id;"
-      )
-    })
-
-    observe({
-      updateSelectizeInput(
-        session,
-        "action_item_type",
-        choices = setNames(
-          action_item_types()$id,
-          action_item_types()$type_value
-        ),
-        selected = isolate(input$action_item_type),
-        server = TRUE
-      )
-    })
-
-    ## Action item statuses ----
-    action_item_statuses <- reactive({
-      db_updated()
-      dbGetQuery(
-        db_con,
-        "SELECT id, status_value FROM action_item_status ORDER BY status_value;"
-      )
-    })
-
-    observe({
-      updateSelectizeInput(
-        session,
-        "action_item_status",
-        choices = setNames(
-          action_item_statuses()$id,
-          action_item_statuses()$status_value
-        ),
-        selected = isolate(input$action_item_status),
-        server = TRUE
-      )
-    })
-
-    ## Load data ----
+    ## Load table data ----
     observe({
       if (!is.null(db_updated)) {
         db_updated()
       }
 
-      # Query securement action items
       data <- dbGetQuery(
         db_con,
-        "SELECT * FROM view_securement_action_items;"
+        "SELECT * FROM view_all_projects;"
       )
-
-      data <- data |>
-        select("Property Name", "Action Item", "Status") |>
-        pivot_wider(
-          id_cols = "Property Name",
-          names_from = "Action Item",
-          values_from = "Status"
-        )
-
-      # Query additional securement data
-      additional_data <- dbGetQuery(
-        conn = db_con,
-        statement = '
-          SELECT pr.property_name AS "Property Name", 
-                 pr.property_name_public AS "Property Name Public",
-                pr.anticipated_closing_year AS "Closing Year",
-                pr.anticipated_closing_date AS "Closing Date",
-                pr.securement_status AS "Securement Status",
-                pr.aps_conditions_date AS "APS Date",
-                se.probability_value AS "Securement Probability",
-                ph.phase_value AS "Phase"
-          FROM properties pr
-          LEFT JOIN securement_probability se ON pr.securement_probability_id = se.id
-          LEFT JOIN phase ph ON pr.phase_id = ph.id;'
-      )
-
-      data <- data |>
-        left_join(additional_data, join_by("Property Name")) |>
-        select(-"Property Name") |>
-        relocate(
-          "Property Name Public",
-          "Closing Year",
-          "Closing Date",
-          "Securement Probability",
-          "Phase",
-          "Securement Status",
-          "APS Date"
-        ) |>
-        arrange(`Property Name Public`) |>
-        filter(Phase == "Active - Securement")
 
       table_data(data)
     })
 
-    ## Submit edit ----
+    ## Submit batch edit ----
     observeEvent(input$submit_edit, {
       req(iv$is_valid())
 
-      # Start with base required fields
       update_records <- tibble(
         id = input$selected_properties
       )
 
-      # Add optional fields only if they have values
       if (isTruthy(input$closing_year)) {
         update_records <- update_records |>
           mutate(anticipated_closing_year = input$closing_year)
-      }
-
-      if (isTruthy(input$closing_date)) {
-        update_records <- update_records |>
-          mutate(anticipated_closing_date = input$closing_date)
       }
 
       if (isTruthy(input$securement_probability)) {
@@ -400,7 +267,6 @@ module_active_projects_review_server <- function(
           )
       }
 
-      # Only update if there are fields to update beyond just the id
       if (ncol(update_records) > 1) {
         dbx::dbxUpdate(
           db_con,
@@ -413,12 +279,10 @@ module_active_projects_review_server <- function(
           db_updated(db_updated() + 1)
         }
 
-        # Get property names for confirmation message
         selected_props <- properties_reactive() |>
           filter(id %in% input$selected_properties) |>
           pull(property_name)
 
-        # Count how many fields were updated
         fields_updated <- ncol(update_records) - 1
 
         shinyalert(
@@ -437,45 +301,6 @@ module_active_projects_review_server <- function(
           timer = 3000
         )
       }
-    })
-
-    ## Submit action items ----
-    observeEvent(input$submit_action_items, {
-      req(input$selected_properties)
-      req(isTruthy(input$action_item_type))
-      req(isTruthy(input$action_item_status))
-
-      # Create records for each property and action item type combination
-      upsert_records <- expand.grid(
-        property_id = input$selected_properties,
-        action_item_type_id = input$action_item_type,
-        stringsAsFactors = FALSE
-      ) |>
-        as_tibble() |>
-        mutate(action_item_status_id = as.integer(input$action_item_status))
-
-      dbx::dbxUpsert(
-        db_con,
-        table = "securement_action_items",
-        records = upsert_records,
-        where_cols = c("property_id", "action_item_type_id")
-      )
-
-      db_updated(db_updated() + 1)
-
-      # Get property names for confirmation message
-      selected_props <- properties_reactive() |>
-        filter(id %in% input$selected_properties) |>
-        pull(property_name)
-
-      shinyalert(
-        title = "Success",
-        text = glue::glue(
-          "Updated {nrow(upsert_records)} action item{ifelse(nrow(upsert_records) == 1, '', 's')} for {length(selected_props)} propert{ifelse(length(selected_props) == 1, 'y', 'ies')}"
-        ),
-        type = "success",
-        timer = 5000
-      )
     })
 
     ## Populate securement status textarea ----
@@ -500,12 +325,11 @@ module_active_projects_review_server <- function(
       )
     })
 
-    ## Submit Securement Status  ----
+    ## Submit securement status ----
     observeEvent(input$submit_sec_status_edit, {
       req(input$sec_stat_property)
       req(isTruthy(input$submit_sec_status_edit))
 
-      # Create records for each property and action item type combination
       update_sec_status <- tibble(
         id = input$sec_stat_property,
         securement_status = input$securement_status
@@ -527,17 +351,18 @@ module_active_projects_review_server <- function(
         )
       )
 
-      db_updated(db_updated() + 1)
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
 
-      # Get property names for confirmation message
-      selected_props <- properties_reactive() |>
+      selected_prop <- properties_reactive() |>
         filter(id %in% input$sec_stat_property) |>
         pull(property_name)
 
       shinyalert(
         title = "Success",
         text = glue::glue(
-          "Updated securement status for {selected_props}"
+          "Updated securement status for {selected_prop}"
         ),
         type = "success",
         timer = 5000
@@ -553,35 +378,16 @@ module_active_projects_review_server <- function(
       )
     })
 
-    ## Clear inputs ----
-    observeEvent(input$clear_inputs_dates, {
+    ## Clear probability inputs ----
+    observeEvent(input$clear_inputs_probability, {
       updateSelectizeInput(
         session,
         inputId = "closing_year",
         selected = character(0)
       )
-      updateDateInput(
-        session,
-        inputId = "closing_date",
-        value = NA
-      )
       updateSelectizeInput(
         session,
         inputId = "securement_probability",
-        selected = character(0)
-      )
-    })
-
-    ## Clear action inputs ----
-    observeEvent(input$clear_inputs_actions, {
-      updateSelectizeInput(
-        session,
-        inputId = "action_item_type",
-        selected = character(0)
-      )
-      updateSelectizeInput(
-        session,
-        inputId = "action_item_status",
         selected = character(0)
       )
     })
@@ -593,7 +399,6 @@ module_active_projects_review_server <- function(
         inputId = "sec_stat_property",
         selected = character(0)
       )
-
       updateTextAreaInput(
         session,
         inputId = "securement_status",
@@ -605,7 +410,6 @@ module_active_projects_review_server <- function(
     output$view_df <- renderDT({
       req(table_data())
 
-      # Convert character columns to factors for select inputs
       data_for_display <- table_data() |>
         mutate(across(where(is.character), as.factor))
 
@@ -620,21 +424,7 @@ module_active_projects_review_server <- function(
           scrollX = TRUE,
           fixedHeader = TRUE,
           stateSave = FALSE,
-          autoWidth = TRUE, # Need this to be set when using custom col widths
-          columnDefs = list(
-            list(
-              width = "400px",
-              targets = which(names(data_for_display) == "Securement Status") -
-                1
-            ),
-            list(
-              width = "200px",
-              targets = which(
-                names(data_for_display) == "Property Name Public"
-              ) -
-                1
-            )
-          )
+          autoWidth = TRUE
         ),
         filter = list(
           position = "top",
@@ -651,7 +441,7 @@ module_active_projects_review_server <- function(
     ## Download handler ----
     output$download_data <- downloadHandler(
       filename = function() {
-        glue("securement_review_{format(Sys.Date(), '%Y%m%d')}.csv")
+        glue("all_projects_review_{format(Sys.Date(), '%Y%m%d')}.csv")
       },
       content = function(file) {
         data_to_download <- table_data()

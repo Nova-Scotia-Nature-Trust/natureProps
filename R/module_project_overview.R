@@ -158,7 +158,7 @@ module_project_overview_ui <- function(id) {
                 height = "100%",
                 card_header(div(
                   style = "display: flex; align-items: center; gap: 8px;",
-                  h5("Projects")
+                  h5("Overview")
                 )),
                 card_body(
                   div(
