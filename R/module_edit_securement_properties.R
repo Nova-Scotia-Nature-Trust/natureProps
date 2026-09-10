@@ -70,7 +70,10 @@ module_edit_securement_properties_server <- function(
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties ORDER BY property_name;"
+        "SELECT id, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
+        FROM properties 
+        ORDER BY property_name;"
       )
     })
 
@@ -165,7 +168,9 @@ module_edit_securement_properties_server <- function(
           team_lead_id,
           project_region_id,
           source_id,
-          stewardship_concerns
+          stewardship_concerns,
+          structure,
+          structure_details
         FROM properties 
         WHERE id = {property_id}",
         .con = db_con
@@ -201,7 +206,9 @@ module_edit_securement_properties_server <- function(
           team_lead_id = NULL,
           project_region_id = NULL,
           source_id = NULL,
-          stewardship_concerns = NULL
+          stewardship_concerns = NULL,
+          structure = NULL,
+          structure_details = NULL
         )
         selected_themes <- NULL
         header_text <- "No property selected"
@@ -288,7 +295,11 @@ module_edit_securement_properties_server <- function(
           textAreaInput(
             ns("edit_phase_id_description"),
             "Phase Description",
-            value = record$phase_id_description,
+            value = if (isTruthy(record$phase_id_description)) {
+              record$phase_id_description
+            } else {
+              ""
+            },
             rows = 3
           ),
 
@@ -307,7 +318,11 @@ module_edit_securement_properties_server <- function(
           textAreaInput(
             ns("edit_property_description"),
             "Property & Opportunity Description",
-            value = record$property_description,
+            value = if (isTruthy(record$property_description)) {
+              record$property_description
+            } else {
+              ""
+            },
             rows = 3
           ),
 
@@ -353,7 +368,29 @@ module_edit_securement_properties_server <- function(
           textAreaInput(
             ns("edit_stewardship_concerns"),
             "Stewardship Concerns",
-            value = record$stewardship_concerns,
+            value = if (isTruthy(record$stewardship_concerns)) {
+              record$stewardship_concerns
+            } else {
+              ""
+            },
+            rows = 3
+          ),
+
+          selectInput(
+            ns("edit_structure"),
+            "Structure",
+            choices = c("", "Yes", "No", "N/A"),
+            selected = record$structure
+          ),
+
+          textAreaInput(
+            ns("edit_structure_details"),
+            "Structure Details",
+            value = if (isTruthy(record$structure_details)) {
+              record$structure_details
+            } else {
+              ""
+            },
             rows = 3
           )
         )
@@ -499,6 +536,18 @@ module_edit_securement_properties_server <- function(
 
         stewardship_concerns = if (isTruthy(input$edit_stewardship_concerns)) {
           input$edit_stewardship_concerns
+        } else {
+          NA_character_
+        },
+
+        structure = if (isTruthy(input$edit_structure)) {
+          input$edit_structure
+        } else {
+          NA_character_
+        },
+
+        structure_details = if (isTruthy(input$edit_structure_details)) {
+          input$edit_structure_details
         } else {
           NA_character_
         }

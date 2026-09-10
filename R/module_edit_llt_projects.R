@@ -70,7 +70,8 @@ module_edit_llt_projects_server <- function(id, db_con, db_updated = NULL) {
 
       dbGetQuery(
         db_con,
-        "SELECT p.id, p.property_name
+        "SELECT p.id, 
+                CONCAT_WS(' || ', p.property_name, p.property_name_public) AS property_name
          FROM properties p
          INNER JOIN llt_projects llt ON llt.property_id = p.id
          ORDER BY p.property_name;"

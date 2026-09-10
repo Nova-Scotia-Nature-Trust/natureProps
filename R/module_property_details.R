@@ -152,7 +152,7 @@ module_property_details_ui <- function(id) {
         class = "p-0",
         accordion(
           id = ns("pid_accordion"),
-          open = "Add PID to Existing Property",
+          open = FALSE,
           multiple = FALSE,
           ## Panel :: Add PID to Existing Property ----
           accordion_panel(
@@ -323,8 +323,10 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT id, property_name FROM properties 
-         ORDER BY property_name;"
+        "SELECT id, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
+        FROM properties 
+        ORDER BY property_name;"
       )
     })
 
@@ -995,7 +997,8 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
           property_list()$id,
           property_list()$property_name
         ),
-        selected = character(0)
+        selected = character(0),
+        server = TRUE
       )
 
       updateSelectizeInput(

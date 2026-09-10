@@ -138,6 +138,10 @@ module_edit_closing_details_server <- function(
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
       choices <- dbGetQuery(
         db_con,
         "SELECT pr.id, 
@@ -192,7 +196,7 @@ module_edit_closing_details_server <- function(
             property_choices()$property_name_view
           )
         ),
-        selected = "",
+        selected = isolate(input$property_name),
         server = TRUE
       )
     })
@@ -212,6 +216,7 @@ module_edit_closing_details_server <- function(
       date_closed_fiscal = NA_character_,
       ecogift_number = NA_character_,
       public_view = FALSE,
+      securement_actions_complete = FALSE,
       notes_sensitivity = NA_character_
     ))
 
@@ -235,6 +240,7 @@ module_edit_closing_details_server <- function(
           date_closed_fiscal,
           ecogift_number,
           public_view,
+          securement_actions_complete,
           notes_sensitivity          
         FROM properties 
         WHERE id = {property_id}",
@@ -385,14 +391,26 @@ module_edit_closing_details_server <- function(
             }
           )
         ),
-        checkboxInput(
-          inputId = ns("edit_public_view"),
-          label = "Public View",
-          value = if (!is.na(record$public_view)) {
-            record$public_view
-          } else {
-            FALSE
-          }
+        layout_columns(
+          col_widths = c(2, 10),
+          checkboxInput(
+            inputId = ns("edit_public_view"),
+            label = "Public View",
+            value = if (!is.na(record$public_view)) {
+              record$public_view
+            } else {
+              FALSE
+            }
+          ),
+          checkboxInput(
+            inputId = ns("edit_securement_actions_complete"),
+            label = "Securement Actions Complete",
+            value = if (!is.na(record$securement_actions_complete)) {
+              record$securement_actions_complete
+            } else {
+              FALSE
+            }
+          )
         ),
         layout_columns(
           col_widths = c(6, 6),
@@ -468,6 +486,9 @@ module_edit_closing_details_server <- function(
           NA_character_
         },
         public_view = as.logical(input$edit_public_view),
+        securement_actions_complete = as.logical(
+          input$edit_securement_actions_complete
+        ),
         notes_sensitivity = if (isTruthy(input$edit_notes_sensitivity)) {
           input$edit_notes_sensitivity
         } else {
@@ -535,6 +556,7 @@ module_edit_closing_details_server <- function(
         date_closed_fiscal = NA_character_,
         ecogift_number = NA_character_,
         public_view = FALSE,
+        securement_actions_complete = FALSE,
         notes_sensitivity = NA_character_
       ))
 

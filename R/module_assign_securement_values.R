@@ -113,7 +113,7 @@ module_assign_securement_values_ui <- function(id) {
                   ),
                   div(
                     style = "display: flex; align-items: center; gap: 8px; margin-bottom: 5px;",
-                    "Securement action notes",
+                    "Securement Status",
                     popover(
                       icon("question-circle"),
                       includeMarkdown("popups/securement_desc.md"),
@@ -136,7 +136,8 @@ module_assign_securement_values_ui <- function(id) {
                   actionButton(
                     inputId = ns("submit_edit_properties"),
                     label = "Submit Changes",
-                    class = "btn-success"
+                    class = "btn-success",
+                    width = "25%"
                   ),
                   div(style = "flex-grow: 1;")
                 )
@@ -202,7 +203,8 @@ module_assign_securement_values_ui <- function(id) {
                   actionButton(
                     inputId = ns("submit_edit_parcels"),
                     label = "Submit Changes",
-                    class = "btn-success"
+                    class = "btn-success",
+                    width = "25%"
                   ),
                   div(style = "flex-grow: 1;")
                 )
@@ -289,7 +291,10 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT id, property_name FROM properties 
+        "SELECT DISTINCT id, 
+                property_name,
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name
+         FROM properties 
          ORDER BY property_name;"
       )
     })
@@ -300,7 +305,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         "property",
         choices = setNames(
           property_list()$id,
-          property_list()$property_name
+          property_list()$display_name
         ),
         selected = isolate(input$property),
         server = TRUE
@@ -376,7 +381,8 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         db_con,
         "SELECT
           pr.id,
-          pr.property_name
+          pr.property_name,
+          CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name
         FROM
           properties pr
         WHERE NOT EXISTS (
@@ -396,7 +402,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         "property_iat",
         choices = setNames(
           property_list_iat()$id,
-          property_list_iat()$property_name
+          property_list_iat()$display_name
         ),
         selected = isolate(input$property_iat),
         server = TRUE
@@ -414,7 +420,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
           p.anticipated_closing_year,
           p.anticipated_closing_date,
           p.aps_conditions_date,
-          p.securement_action_description,
+          p.securement_status,
           pa.priority_ecological_ranking_id,
           pa.priority_securement_ranking_id,
           pa.priority_securement_ranking_reason,
@@ -467,7 +473,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
 
       if (nrow(record) >= 1) {
         selected_record(record)
-        original_securement_notes(unique(record$securement_action_description))
+        original_securement_notes(unique(record$securement_status))
 
         updateSelectizeInput(
           session,
@@ -496,7 +502,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         updateTextInput(
           session,
           inputId = "securement_notes",
-          value = unique(record$securement_action_description)
+          value = unique(record$securement_status)
         )
 
         updateSelectizeInput(
@@ -627,7 +633,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         } else {
           valid_or_na(input$conditions_date, as.Date(NA))
         },
-        securement_action_description = valid_or_na(
+        securement_status = valid_or_na(
           input$securement_notes,
           NA_character_
         )
@@ -640,7 +646,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         where_cols = "id"
       )
 
-      # Update date_securement_description if notes changed
+      # Update date_securement_status if notes changed
       new_notes <- valid_or_na(input$securement_notes, NA_character_)
       if (
         !identical(
@@ -651,7 +657,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         dbExecute(
           db_con,
           glue_sql(
-            "UPDATE properties SET date_securement_description = {Sys.Date()} WHERE id = {input$property}",
+            "UPDATE properties SET date_securement_status = {Sys.Date()} WHERE id = {input$property}",
             .con = db_con
           )
         )
@@ -800,7 +806,7 @@ module_assign_securement_values_server <- function(id, db_con, db_updated) {
         inputId = "property",
         choices = setNames(
           property_list()$id,
-          property_list()$property_name
+          property_list()$display_name
         ),
         selected = character(0)
       )

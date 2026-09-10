@@ -1,0 +1,459 @@
+# UI ----
+# NAV PANEL :: ALL PROJECTS REVIEW
+module_all_projects_review_ui <- function(id) {
+  ns <- NS(id)
+
+  div(
+    style = "height: 100%; display: flex; flex-direction: column;",
+    card(
+      full_screen = TRUE,
+      height = "100%",
+      layout_sidebar(
+        sidebar = sidebar(
+          title = "Edit Property Attributes",
+          open = TRUE,
+          width = 300,
+          accordion(
+            open = FALSE,
+            multiple = FALSE,
+            accordion_panel(
+              title = "Select Properties",
+              value = "properties_panel",
+              selectizeInput(
+                ns("selected_properties"),
+                "Select Properties",
+                choices = NULL,
+                multiple = TRUE,
+                width = "100%",
+                options = list(
+                  placeholder = "Select one or more properties"
+                )
+              ),
+              actionButton(
+                inputId = ns("clear_inputs_properties"),
+                label = "Clear Inputs",
+                class = "btn-secondary",
+                width = "100%"
+              )
+            ),
+            accordion_panel(
+              title = "Securement Probability & Closing Year",
+              value = "edit_probability_panel",
+              selectizeInput(
+                ns("securement_probability"),
+                "Securement Probability",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%"
+              ),
+              selectizeInput(
+                ns("closing_year"),
+                "Anticipated Closing Year",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("submit_edit"),
+                label = "Submit Edit",
+                class = "btn-success",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("clear_inputs_probability"),
+                label = "Clear Inputs",
+                class = "btn-secondary mt-2",
+                width = "100%"
+              )
+            ),
+            accordion_panel(
+              title = "Securement Status",
+              value = "sec_status_panel",
+              selectizeInput(
+                ns("sec_stat_property"),
+                "Select Property",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%",
+                options = list(
+                  placeholder = "Select a property"
+                )
+              ),
+              textAreaInput(
+                ns("securement_status"),
+                label = "Securement Status",
+                "",
+                height = "200px",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("submit_sec_status_edit"),
+                label = "Submit Edit",
+                class = "btn-success",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("clear_inputs_sec_stat"),
+                label = "Clear Inputs",
+                class = "btn-secondary mt-2",
+                width = "100%"
+              )
+            )
+          )
+        ),
+        # Main layout - results card
+        card(
+          height = "100%",
+          card_header(
+            class = "d-flex justify-content-between align-items-center",
+            h5("Properties assigned a securement probability"),
+            downloadButton(
+              outputId = ns("download_data"),
+              label = "Download",
+              class = "btn-sm"
+            )
+          ),
+          card_body(
+            style = "padding: 0.5rem 1rem;",
+            min_height = "300px",
+            DTOutput(outputId = ns("view_df"), height = "100%")
+          )
+        )
+      )
+    )
+  )
+}
+
+# Server ----
+module_all_projects_review_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
+  moduleServer(id, function(input, output, session) {
+    ## Input validation ----
+    iv <- InputValidator$new()
+    iv$add_rule("selected_properties", sv_required())
+    iv$enable()
+
+    ## Reactive values ----
+    table_data <- reactiveVal(NULL)
+
+    ## Properties reactive ----
+    properties_reactive <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      dbGetQuery(
+        db_con,
+        "SELECT pr.id, 
+                pr.property_name,
+                CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name
+         FROM properties pr
+        LEFT JOIN securement_probability sp ON pr.securement_probability_id = sp.id
+        LEFT JOIN phase ph ON pr.phase_id = ph.id
+         WHERE sp.probability_value IS NOT NULL AND ph.phase_value != 'Secured'
+        ORDER BY pr.property_name;"
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        inputId = "selected_properties",
+        choices = setNames(
+          properties_reactive()$id,
+          properties_reactive()$display_name
+        ),
+        selected = isolate(input$selected_properties),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "sec_stat_property",
+        choices = setNames(
+          properties_reactive()$id,
+          properties_reactive()$display_name
+        ),
+        selected = isolate(input$sec_stat_property),
+        server = TRUE
+      )
+    })
+
+    ## Closing year reactive ----
+    closing_year_reactive <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      prior_fiscal <- str_remove(
+        quarter(Sys.Date() - 365, type = "year_start/end", fiscal_start = 4),
+        " Q[0-9]"
+      )
+
+      dbGetQuery(
+        conn = db_con,
+        statement = "SELECT DISTINCT anticipated_closing_year FROM properties;"
+      ) |>
+        filter(anticipated_closing_year > prior_fiscal) |>
+        pull(anticipated_closing_year) |>
+        sort()
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        inputId = "closing_year",
+        choices = closing_year_reactive(),
+        selected = isolate(input$closing_year),
+        server = TRUE
+      )
+    })
+
+    ## Securement probability reactive ----
+    securement_probability_reactive <- reactive({
+      dbGetQuery(
+        conn = db_con,
+        statement = "SELECT id, probability_value 
+                     FROM securement_probability 
+                     ORDER BY probability_value;"
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        inputId = "securement_probability",
+        choices = setNames(
+          securement_probability_reactive()$id,
+          securement_probability_reactive()$probability_value
+        ),
+        selected = isolate(input$securement_probability),
+        server = TRUE
+      )
+    })
+
+    ## Load table data ----
+    observe({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      data <- dbGetQuery(
+        db_con,
+        "SELECT * FROM view_all_projects;"
+      )
+
+      table_data(data)
+    })
+
+    ## Submit batch edit ----
+    observeEvent(input$submit_edit, {
+      req(iv$is_valid())
+
+      update_records <- tibble(
+        id = input$selected_properties
+      )
+
+      if (isTruthy(input$closing_year)) {
+        update_records <- update_records |>
+          mutate(anticipated_closing_year = input$closing_year)
+      }
+
+      if (isTruthy(input$securement_probability)) {
+        update_records <- update_records |>
+          mutate(
+            securement_probability_id = as.integer(input$securement_probability)
+          )
+      }
+
+      if (ncol(update_records) > 1) {
+        dbx::dbxUpdate(
+          db_con,
+          table = "properties",
+          records = update_records,
+          where_cols = "id"
+        )
+
+        if (!is.null(db_updated)) {
+          db_updated(db_updated() + 1)
+        }
+
+        selected_props <- properties_reactive() |>
+          filter(id %in% input$selected_properties) |>
+          pull(property_name)
+
+        fields_updated <- ncol(update_records) - 1
+
+        shinyalert(
+          title = "Success",
+          text = glue::glue(
+            "Updated {fields_updated} field{ifelse(fields_updated == 1, '', 's')} for {length(selected_props)} propert{ifelse(length(selected_props) == 1, 'y', 'ies')}"
+          ),
+          type = "success",
+          timer = 5000
+        )
+      } else {
+        shinyalert(
+          title = "No Changes",
+          text = "Please select at least one field to update",
+          type = "warning",
+          timer = 3000
+        )
+      }
+    })
+
+    ## Populate securement status textarea ----
+    observeEvent(input$sec_stat_property, {
+      req(input$sec_stat_property)
+
+      status <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT securement_status 
+          FROM properties
+          WHERE id = {input$sec_stat_property}",
+          .con = db_con
+        )
+      ) |>
+        pull(securement_status)
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_status",
+        value = if (length(status) && !is.na(status)) status else ""
+      )
+    })
+
+    ## Submit securement status ----
+    observeEvent(input$submit_sec_status_edit, {
+      req(input$sec_stat_property)
+      req(isTruthy(input$submit_sec_status_edit))
+
+      update_sec_status <- tibble(
+        id = input$sec_stat_property,
+        securement_status = input$securement_status
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "properties",
+        records = update_sec_status,
+        where_cols = "id"
+      )
+
+      dbExecute(
+        db_con,
+        glue_sql(
+          "UPDATE properties SET date_securement_status = {Sys.Date()} 
+            WHERE id = {input$sec_stat_property}",
+          .con = db_con
+        )
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      selected_prop <- properties_reactive() |>
+        filter(id %in% input$sec_stat_property) |>
+        pull(property_name)
+
+      shinyalert(
+        title = "Success",
+        text = glue::glue(
+          "Updated securement status for {selected_prop}"
+        ),
+        type = "success",
+        timer = 5000
+      )
+    })
+
+    ## Clear properties inputs ----
+    observeEvent(input$clear_inputs_properties, {
+      updateSelectizeInput(
+        session,
+        inputId = "selected_properties",
+        selected = character(0)
+      )
+    })
+
+    ## Clear probability inputs ----
+    observeEvent(input$clear_inputs_probability, {
+      updateSelectizeInput(
+        session,
+        inputId = "closing_year",
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        inputId = "securement_probability",
+        selected = character(0)
+      )
+    })
+
+    ## Clear securement status fields ----
+    observeEvent(input$clear_inputs_sec_stat, {
+      updateSelectizeInput(
+        session,
+        inputId = "sec_stat_property",
+        selected = character(0)
+      )
+      updateTextAreaInput(
+        session,
+        inputId = "securement_status",
+        value = ""
+      )
+    })
+
+    ## Render data table ----
+    output$view_df <- renderDT({
+      req(table_data())
+
+      data_for_display <- table_data() |>
+        mutate(across(where(is.character), as.factor))
+
+      DT::datatable(
+        data_for_display,
+        options = list(
+          pageLength = 50,
+          lengthMenu = list(
+            c(10, 25, 50, 100, -1),
+            c("10", "25", "50", "100", "All")
+          ),
+          scrollX = TRUE,
+          fixedHeader = TRUE,
+          stateSave = FALSE,
+          autoWidth = TRUE
+        ),
+        filter = list(
+          position = "top",
+          clear = TRUE,
+          plain = TRUE
+        ),
+        rownames = FALSE,
+        selection = "single",
+        extensions = c("Buttons"),
+        fillContainer = TRUE
+      )
+    })
+
+    ## Download handler ----
+    output$download_data <- downloadHandler(
+      filename = function() {
+        glue("all_projects_review_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- table_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          write_csv(data.frame(), file)
+        }
+      }
+    )
+  })
+}

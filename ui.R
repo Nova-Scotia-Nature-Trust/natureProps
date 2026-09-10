@@ -124,20 +124,24 @@ ui <- page_navbar(
       height = "100%",
       nav_panel(
         title = "Project Overview",
-        module_review_projects_ui("project_review")
+        module_project_overview_ui("project_review")
       ),
       nav_panel(
         title = "Active Projects Review",
-        module_securement_review_ui("securement_review")
+        module_active_projects_review_ui("securement_review")
+      ),
+      nav_panel(
+        title = "All Projects Review",
+        module_all_projects_review_ui("all_projects")
       ),
       nav_panel(
         title = "Assign Securement Values",
         module_assign_securement_values_ui("assign_priorities")
       ),
-      nav_panel(
-        title = "Data Viewer",
-        module_review_data_viewer_ui("review_data")
-      ),
+      # nav_panel(
+      #   title = "Data Viewer",
+      #   module_review_data_viewer_ui("review_data")
+      # ),
       nav_panel(
         title = "Queries",
         module_review_queries_ui("review_queries")
@@ -186,6 +190,10 @@ ui <- page_navbar(
       nav_panel(
         title = "Appraisals",
         module_edit_appraisals_ui("edit_appraisals")
+      ),
+      nav_panel(
+        title = "Surveys",
+        module_edit_surveys_ui("edit_surveys")
       ),
       nav_panel(
         title = "LLT",

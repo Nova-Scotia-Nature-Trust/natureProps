@@ -1,6 +1,6 @@
 # UI ----
 # NAV PANEL :: ACTIVE PROJECTS REVIEW
-module_securement_review_ui <- function(id) {
+module_active_projects_review_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -10,7 +10,7 @@ module_securement_review_ui <- function(id) {
       height = "100%",
       layout_sidebar(
         sidebar = sidebar(
-          title = "Edit Securement Details",
+          title = "Edit Property Attributes",
           open = TRUE,
           width = 300,
           accordion(
@@ -37,11 +37,18 @@ module_securement_review_ui <- function(id) {
               )
             ),
             accordion_panel(
-              title = "Dates & Securement Probability",
+              title = "Securement Probability & Dates",
               value = "edit_outreach_panel",
               selectizeInput(
+                ns("securement_probability"),
+                "Securement Probability",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%"
+              ),
+              selectizeInput(
                 ns("closing_year"),
-                "Closing Year",
+                "Anticipated Closing Year",
                 choices = NULL,
                 multiple = FALSE,
                 width = "100%"
@@ -50,13 +57,6 @@ module_securement_review_ui <- function(id) {
                 ns("closing_date"),
                 "Closing Date",
                 value = as.Date(NA),
-                width = "100%"
-              ),
-              selectizeInput(
-                ns("securement_probability"),
-                "Securement Probability",
-                choices = NULL,
-                multiple = FALSE,
                 width = "100%"
               ),
               actionButton(
@@ -101,6 +101,39 @@ module_securement_review_ui <- function(id) {
                 class = "btn-secondary mt-2",
                 width = "100%"
               )
+            ),
+            accordion_panel(
+              title = "Securement Status",
+              value = "sec_status_panel",
+              selectizeInput(
+                ns("sec_stat_property"),
+                "Select Property",
+                choices = NULL,
+                multiple = FALSE,
+                width = "100%",
+                options = list(
+                  placeholder = "Select a property"
+                )
+              ),
+              textAreaInput(
+                ns("securement_status"),
+                label = "Securement Status",
+                "",
+                height = "200px",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("submit_sec_status_edit"),
+                label = "Submit Edit",
+                class = "btn-success",
+                width = "100%"
+              ),
+              actionButton(
+                inputId = ns("clear_inputs_sec_stat"),
+                label = "Clear Inputs",
+                class = "btn-secondary mt-2",
+                width = "100%"
+              )
             )
           )
         ),
@@ -109,7 +142,7 @@ module_securement_review_ui <- function(id) {
           height = "100%",
           card_header(
             class = "d-flex justify-content-between align-items-center",
-            h5("Securement Review"),
+            h5("Properties currently in the active securement phase"),
             downloadButton(
               outputId = ns("download_data"),
               label = "Download",
@@ -128,7 +161,11 @@ module_securement_review_ui <- function(id) {
 }
 
 # Server ----
-module_securement_review_server <- function(id, db_con, db_updated = NULL) {
+module_active_projects_review_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
     iv <- InputValidator$new()
@@ -152,6 +189,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         "SELECT DISTINCT sai.property_id AS id, 
                          pr.property_name,
                          pr.property_name_public,
+                         CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name,
                          ph.phase_value 
         FROM securement_action_items AS sai
         JOIN properties pr ON sai.property_id = pr.id
@@ -167,9 +205,20 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         inputId = "selected_properties",
         choices = setNames(
           properties_reactive()$id,
-          properties_reactive()$property_name_public
+          properties_reactive()$display_name
         ),
         selected = isolate(input$selected_properties),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "sec_stat_property",
+        choices = setNames(
+          properties_reactive()$id,
+          properties_reactive()$display_name
+        ),
+        selected = isolate(input$sec_stat_property),
         server = TRUE
       )
     })
@@ -180,11 +229,17 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         db_updated()
       }
 
+      prior_fiscal <- str_remove(
+        quarter(Sys.Date() - 365, type = "year_start/end", fiscal_start = 4),
+        " Q[0-9]"
+      )
+
       dbGetQuery(
         conn = db_con,
         statement = "SELECT DISTINCT anticipated_closing_year FROM properties;"
       ) |>
-        pull() |>
+        filter(anticipated_closing_year > prior_fiscal) |>
+        pull(anticipated_closing_year) |>
         sort()
     })
 
@@ -292,7 +347,7 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
                  pr.property_name_public AS "Property Name Public",
                 pr.anticipated_closing_year AS "Closing Year",
                 pr.anticipated_closing_date AS "Closing Date",
-                pr.securement_action_description AS "Securement Status",
+                pr.securement_status AS "Securement Status",
                 pr.aps_conditions_date AS "APS Date",
                 se.probability_value AS "Securement Probability",
                 ph.phase_value AS "Phase"
@@ -303,8 +358,8 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
 
       data <- data |>
         left_join(additional_data, join_by("Property Name")) |>
-        select(-"Property Name") |>
         relocate(
+          "Property Name",
           "Property Name Public",
           "Closing Year",
           "Closing Date",
@@ -313,8 +368,9 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
           "Securement Status",
           "APS Date"
         ) |>
-        arrange(`Property Name Public`) |>
-        filter(Phase == "Active - Securement")
+        arrange(`Property Name`) |>
+        filter(Phase == "Active - Securement") |>
+        select(-Phase)
 
       table_data(data)
     })
@@ -424,6 +480,72 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Populate securement status textarea ----
+    observeEvent(input$sec_stat_property, {
+      req(input$sec_stat_property)
+
+      status <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT securement_status 
+          FROM properties
+          WHERE id = {input$sec_stat_property}",
+          .con = db_con
+        )
+      ) |>
+        pull(securement_status)
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_status",
+        value = if (length(status) && !is.na(status)) status else ""
+      )
+    })
+
+    ## Submit Securement Status  ----
+    observeEvent(input$submit_sec_status_edit, {
+      req(input$sec_stat_property)
+      req(isTruthy(input$submit_sec_status_edit))
+
+      # Create records for each property and action item type combination
+      update_sec_status <- tibble(
+        id = input$sec_stat_property,
+        securement_status = input$securement_status
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "properties",
+        records = update_sec_status,
+        where_cols = "id"
+      )
+
+      dbExecute(
+        db_con,
+        glue_sql(
+          "UPDATE properties SET date_securement_status = {Sys.Date()} 
+            WHERE id = {input$sec_stat_property}",
+          .con = db_con
+        )
+      )
+
+      db_updated(db_updated() + 1)
+
+      # Get property names for confirmation message
+      selected_props <- properties_reactive() |>
+        filter(id %in% input$sec_stat_property) |>
+        pull(property_name)
+
+      shinyalert(
+        title = "Success",
+        text = glue::glue(
+          "Updated securement status for {selected_props}"
+        ),
+        type = "success",
+        timer = 5000
+      )
+    })
+
     ## Clear properties inputs ----
     observeEvent(input$clear_inputs_properties, {
       updateSelectizeInput(
@@ -463,6 +585,21 @@ module_securement_review_server <- function(id, db_con, db_updated = NULL) {
         session,
         inputId = "action_item_status",
         selected = character(0)
+      )
+    })
+
+    ## Clear securement status fields ----
+    observeEvent(input$clear_inputs_sec_stat, {
+      updateSelectizeInput(
+        session,
+        inputId = "sec_stat_property",
+        selected = character(0)
+      )
+
+      updateTextAreaInput(
+        session,
+        inputId = "securement_status",
+        value = ""
       )
     })
 

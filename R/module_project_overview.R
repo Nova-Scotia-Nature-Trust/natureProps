@@ -1,6 +1,6 @@
 # UI ----
 # NAV PANEL :: PROJECT OVERVIEW
-module_review_projects_ui <- function(id) {
+module_project_overview_ui <- function(id) {
   ns <- NS(id)
   tagList(
     tags$style(
@@ -158,7 +158,7 @@ module_review_projects_ui <- function(id) {
                 height = "100%",
                 card_header(div(
                   style = "display: flex; align-items: center; gap: 8px;",
-                  h5("Projects")
+                  h5("Overview")
                 )),
                 card_body(
                   div(
@@ -301,6 +301,32 @@ module_review_projects_ui <- function(id) {
                       class = "btn-success"
                     )
                   )
+                ),
+                # Panel :: Project Feasibility ----
+                accordion_panel(
+                  "Assign Project Feasibility Ranking",
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    selectizeInput(
+                      inputId = ns("project_feasibility_ranking"),
+                      label = "Project Feasibility Ranking",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    textAreaInput(
+                      ns("project_feasibility_reasoning"),
+                      "Feasibility Ranking Reasoning",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("submit_project_feasibility"),
+                      label = "Submit Changes",
+                      class = "btn-success"
+                    )
+                  )
                 )
               )
             )
@@ -312,7 +338,7 @@ module_review_projects_ui <- function(id) {
 }
 
 # Server ----
-module_review_projects_server <- function(id, db_con, db_updated = NULL) {
+module_project_overview_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -327,7 +353,10 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
       all_properties <- dbGetQuery(
         db_con,
-        "SELECT property_name, date_added FROM properties;"
+        "SELECT property_name, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name,
+                date_added 
+         FROM properties;"
       )
 
       date_filter <- input$date_filter
@@ -338,15 +367,8 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           filter(date_added >= cutoff)
       }
 
-      choices <- all_properties |>
-        pull(property_name) |>
-        sort()
-
-      if (length(choices) == 0) {
-        "No properties"
-      } else {
-        choices
-      }
+      all_properties |>
+        arrange(property_name)
     })
 
     ## Lookup tables :: Property Contact Communication ----
@@ -434,10 +456,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
     ## Update select input with record IDs based on table
     observe({
+      props <- property_choices()
+
+      choices <- if (nrow(props) == 0) {
+        c("", "No properties")
+      } else {
+        c("", setNames(props$property_name, props$display_name))
+      }
+
       updateSelectizeInput(
         session,
         inputId = "property",
-        choices = c("", property_choices()),
+        choices = choices,
         selected = isolate(input$property),
         server = TRUE
       )
@@ -457,6 +487,25 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
           setNames(team_lead_choices()$id, team_lead_choices()$team_value)
         ),
         selected = isolate(input$team_lead),
+        server = TRUE
+      )
+    })
+
+    ## Reactive :: Ranking choices ----
+    ranking <- reactive({
+      dbGetQuery(db_con, "SELECT id, ranking_value FROM ranking")
+    })
+
+    ## Observer :: Update ranking choice input ----
+    observe({
+      updateSelectizeInput(
+        session,
+        "project_feasibility_ranking",
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = character(0),
         server = TRUE
       )
     })
@@ -492,15 +541,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
         SELECT p.property_description, 
                p.phase_id_description, 
                p.phase_id_change,
-               p.securement_action_description,
-               p.date_securement_description,
+               p.securement_status,
+               p.date_securement_status,
                p.date_added,
                tl.team_value as team_lead, 
                ph.phase_value as phase, 
-               p.stewardship_concerns
+               p.stewardship_concerns,
+               r.ranking_value as project_feasibility_ranking,
+               p.project_feasibility_ranking_reason
         FROM properties p
         LEFT JOIN team_lead tl ON p.team_lead_id = tl.id 
         LEFT JOIN phase ph ON p.phase_id = ph.id
+        LEFT JOIN ranking r ON p.project_feasibility_ranking_id = r.id
         WHERE p.property_name = {prop_name};
         ",
           .con = db_con
@@ -853,18 +905,18 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
             ),
             div(
               class = "info-box",
-              if (is.na(info$securement_action_description)) {
+              if (is.na(info$securement_status)) {
                 "No securement status description available."
-              } else if (is.na(info$date_securement_description)) {
-                info$securement_action_description
+              } else if (is.na(info$date_securement_status)) {
+                info$securement_status
               } else {
                 paste0(
                   format(
-                    as.Date(info$date_securement_description),
+                    as.Date(info$date_securement_status),
                     "%B %d, %Y"
                   ),
                   ": ",
-                  info$securement_action_description
+                  info$securement_status
                 )
               }
             )
@@ -873,50 +925,7 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         hr(class = "section-divider"),
 
-        # Row 4: table (Internal Communications)
-        div(
-          strong("Internal Communications"),
-          if (nrow(rec$comms) == 0) {
-            p(class = "text-muted", "No internal communications logged.")
-          } else {
-            lapply(seq_len(nrow(rec$comms)), function(i) {
-              comm <- rec$comms[i, ]
-              record_row(
-                title = format(as.Date(comm$date), "%B %d, %Y"),
-                subtitle = comm$communication_description
-              )
-            })
-          }
-        ),
-
-        hr(class = "section-divider"),
-
-        # Row 4b: table (Property Contact Communications)
-        div(
-          strong("Property Contact Communications"),
-          if (nrow(rec$contact_comms) == 0) {
-            p(
-              class = "text-muted",
-              "No property contact communications logged."
-            )
-          } else {
-            lapply(seq_len(nrow(rec$contact_comms)), function(i) {
-              contact_comm <- rec$contact_comms[i, ]
-              contact_comm_row(
-                date = format(
-                  as.Date(contact_comm$date_contacted),
-                  "%B %d, %Y"
-                ),
-                purpose = contact_comm$communication_purpose,
-                description = contact_comm$communication_description
-              )
-            })
-          }
-        ),
-
-        hr(class = "section-divider"),
-
-        # Row 5: nicer formatting (Action Items, no borders)
+        # Row 4: nicer formatting (Action Items, no borders)
         div(
           strong("Action Items"),
           if (nrow(rec$actions) == 0) {
@@ -955,11 +964,54 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
         hr(class = "section-divider"),
 
-        # Row 6: nicer formatting (Stewardship Concerns)
+        # Row 5: table (Internal Communications)
+        div(
+          strong("Internal Communications"),
+          if (nrow(rec$comms) == 0) {
+            p(class = "text-muted", "No internal communications logged.")
+          } else {
+            lapply(seq_len(nrow(rec$comms)), function(i) {
+              comm <- rec$comms[i, ]
+              record_row(
+                title = format(as.Date(comm$date), "%B %d, %Y"),
+                subtitle = comm$communication_description
+              )
+            })
+          }
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 6: table (Property Contact Communications)
+        div(
+          strong("Property Contact Communications"),
+          if (nrow(rec$contact_comms) == 0) {
+            p(
+              class = "text-muted",
+              "No property contact communications logged."
+            )
+          } else {
+            lapply(seq_len(nrow(rec$contact_comms)), function(i) {
+              contact_comm <- rec$contact_comms[i, ]
+              contact_comm_row(
+                date = format(
+                  as.Date(contact_comm$date_contacted),
+                  "%B %d, %Y"
+                ),
+                purpose = contact_comm$communication_purpose,
+                description = contact_comm$communication_description
+              )
+            })
+          }
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 7: nicer formatting (Stewardship Concerns)
         div(
           strong("Stewardship Concerns"),
           div(
-            class = "info-box",
+            class = "text-muted",
             if (
               is.na(info$stewardship_concerns) ||
                 info$stewardship_concerns == ""
@@ -967,6 +1019,44 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
               "None identified at this time."
             } else {
               info$stewardship_concerns
+            }
+          )
+        ),
+
+        hr(class = "section-divider"),
+
+        # Row 8: Project Feasibility
+        div(
+          strong("Project Feasibility"),
+          div(
+            class = "text-muted",
+            if (
+              is.na(info$project_feasibility_ranking) ||
+                info$project_feasibility_ranking == ""
+            ) {
+              "No feasibility ranking assigned."
+            } else {
+              tagList(
+                br(),
+                p(
+                  strong("Ranking: "),
+                  info$project_feasibility_ranking
+                ),
+                p(
+                  if (
+                    is.na(info$project_feasibility_ranking_reason) ||
+                      info$project_feasibility_ranking_reason == ""
+                  ) {
+                    em("No reasoning provided.")
+                  } else {
+                    p(
+                      "\n",
+                      strong("Reasoning: "),
+                      info$project_feasibility_ranking_reason
+                    )
+                  }
+                )
+              )
             }
           )
         )
@@ -1208,12 +1298,83 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
       updateDateInput(session, "due_date", value = NA)
     })
 
+    ## Event :: Submit Feasibility Ranking ----
+    observeEvent(input$submit_project_feasibility, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before assigning feasibility.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(
+        input$project_feasibility_reasoning,
+        input$project_feasibility_ranking
+      )
+
+      property_id <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT id FROM properties WHERE property_name = {input$property};",
+          .con = db_con
+        )
+      ) |>
+        pull(id)
+
+      df <- tibble(
+        id = property_id,
+        project_feasibility_ranking_id = as.integer(
+          input$project_feasibility_ranking
+        ),
+        project_feasibility_ranking_reason = input$project_feasibility_reasoning
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "properties",
+        records = df,
+        where_cols = "id"
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Project feasibility added for {input$property}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+
+      updateSelectizeInput(
+        session,
+        "project_feasibility_ranking",
+        selected = character(0)
+      )
+
+      updateTextAreaInput(session, "project_feasibility_reasoning", value = "")
+    })
+
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
+      props <- property_choices()
       updateSelectizeInput(
         session,
         "property",
-        choices = property_choices(),
+        choices = if (nrow(props) == 0) {
+          c("", "No properties")
+        } else {
+          c("", setNames(props$property_name, props$display_name))
+        },
         selected = character(0),
         server = TRUE
       )
@@ -1239,10 +1400,15 @@ module_review_projects_server <- function(id, db_con, db_updated = NULL) {
 
     ## Clear property selection when date filter changes ----
     observeEvent(input$date_filter, {
+      props <- property_choices()
       updateSelectizeInput(
         session,
         "property",
-        choices = c("", property_choices()),
+        choices = if (nrow(props) == 0) {
+          c("", "No properties")
+        } else {
+          c("", setNames(props$property_name, props$display_name))
+        },
         selected = character(0),
         server = TRUE
       )

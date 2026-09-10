@@ -1,6 +1,6 @@
 # UI ----
-# NAV PANEL :: APPRAISALS
-module_edit_appraisals_ui <- function(id) {
+# NAV PANEL :: SURVEYS
+module_edit_surveys_ui <- function(id) {
   ns <- NS(id)
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
@@ -17,7 +17,7 @@ module_edit_appraisals_ui <- function(id) {
             open = FALSE,
             multiple = FALSE,
             accordion_panel(
-              title = "Add New Appraisal",
+              title = "Add New Survey",
               value = "add_values",
               selectizeInput(
                 inputId = ns("property_new"),
@@ -27,12 +27,12 @@ module_edit_appraisals_ui <- function(id) {
               ),
               actionButton(
                 inputId = ns("add_record"),
-                label = "Submit Appraisal",
+                label = "Submit Survey",
                 class = "btn-success"
               )
             ),
             accordion_panel(
-              title = "Edit Exisiting Appraisal",
+              title = "Edit Existing Survey",
               value = "edit_values",
               selectizeInput(
                 inputId = ns("property_exists"),
@@ -41,8 +41,8 @@ module_edit_appraisals_ui <- function(id) {
                 selected = NULL
               ),
               selectizeInput(
-                inputId = ns("appraisal"),
-                label = "Select Appraisal",
+                inputId = ns("survey"),
+                label = "Select Survey",
                 choices = NULL,
                 selected = NULL
               ),
@@ -66,7 +66,7 @@ module_edit_appraisals_ui <- function(id) {
           card(
             height = "100%",
             card_header(
-              h5("Edit Appraisal")
+              h5("Edit Survey")
             ),
             card_body(
               div(
@@ -83,15 +83,13 @@ module_edit_appraisals_ui <- function(id) {
 }
 
 # Server ----
-module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
+module_edit_surveys_server <- function(id, db_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     ## Input validation ----
     iv <- InputValidator$new()
-    iv$add_rule("edit_appraisal_effective_date", sv_required())
-    iv$add_rule("edit_fmv", sv_required())
-    iv$add_rule("edit_appraiser_name", sv_required())
+    iv$add_rule("edit_company", sv_required())
     iv$enable()
 
     ## Reactive :: Property List New ----
@@ -129,15 +127,15 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       property_name_new(name)
     })
 
-    ## Reactive :: Property List Exisiting ----
+    ## Reactive :: Property List Existing ----
     property_list_exists <- reactive({
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT DISTINCT ap.property_id as id, 
+        "SELECT DISTINCT sv.property_id as id, 
                 CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS property_name
-        FROM appraisals ap
-        LEFT JOIN properties pr ON ap.property_id = pr.id
+        FROM surveys sv
+        LEFT JOIN properties pr ON sv.property_id = pr.id
         ORDER BY property_name;"
       )
     })
@@ -165,14 +163,14 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       property_name_exists(name)
     })
 
-    ## Reactive Value :: Property Appraisal ----
-    property_appraisal <- reactiveVal(NULL)
+    ## Reactive Value :: Property Survey ----
+    property_survey <- reactiveVal(NULL)
 
     ## Observe :: Clear edit fields when switching to Add New ----
     observeEvent(
       input$property_new,
       {
-        property_appraisal(NULL)
+        property_survey(NULL)
 
         updateSelectizeInput(
           session,
@@ -187,7 +185,7 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
         updateSelectizeInput(
           session,
-          inputId = "appraisal",
+          inputId = "survey",
           choices = character(0),
           selected = character(0)
         )
@@ -213,39 +211,38 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       ignoreInit = TRUE
     )
 
-    ## Reactive :: Exisiting Appraisal ----
-    appraisal_list <- reactive({
+    ## Reactive :: Existing Survey List ----
+    survey_list <- reactive({
       db_updated()
 
-      appraisal_ids <- dbGetQuery(
+      survey_ids <- dbGetQuery(
         db_con,
         "SELECT 
-          a.id,
-          a.property_id,
-          a.appraisal_effective_date,
-          a.appraiser_name
-        FROM appraisals a
-        ORDER BY a.appraisal_effective_date DESC;"
+          id,
+          property_id,
+          company,
+          paid_date
+        FROM surveys
+        ORDER BY paid_date DESC;"
       )
 
       req(input$property_exists)
 
-      appraisal_data <- appraisal_ids |>
+      survey_data <- survey_ids |>
         filter(property_id == input$property_exists)
 
-      app_list <- setNames(
-        appraisal_data$id,
+      setNames(
+        survey_data$id,
         paste0(
-          appraisal_data$appraiser_name,
+          survey_data$company,
           " (",
-          format(as.Date(appraisal_data$appraisal_effective_date), "%Y-%m-%d"),
+          format(as.Date(survey_data$paid_date), "%Y-%m-%d"),
           ")"
         )
       )
-      return(app_list)
     })
 
-    ## Observe :: Current Apprasial ID ----
+    ## Observe :: Update Survey selectize when property changes ----
     observeEvent(
       input$property_exists,
       {
@@ -253,73 +250,72 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
         updateSelectizeInput(
           session,
-          inputId = "appraisal",
-          choices = appraisal_list(),
-          selected = isolate(input$appraisal),
+          inputId = "survey",
+          choices = survey_list(),
+          selected = isolate(input$survey),
           server = TRUE
         )
       },
       ignoreInit = FALSE
     )
 
-    ## Event :: Load appraisals for property ----
-    observeEvent(input$appraisal, {
+    ## Event :: Load survey for selected record ----
+    observeEvent(input$survey, {
       req(input$property_exists)
-      req(input$appraisal)
+      req(input$survey)
 
       query <- glue_sql(
         "SELECT 
-          a.id,
-          a.property_id,
-          a.appraisal_effective_date,
-          a.appraiser_name,
-          a.fmv,
-          a.appraisal_notes,
+          sv.id,
+          sv.property_id,
+          sv.company,
+          sv.timeline,
+          sv.amount_quote,
+          sv.amount_paid,
+          sv.paid_date,
+          sv.survey_notes,
           p.property_name
-        FROM appraisals a
-        JOIN properties p ON a.property_id = p.id
-        WHERE a.property_id = {input$property_exists} AND a.id = {input$appraisal}",
+        FROM surveys sv
+        JOIN properties p ON sv.property_id = p.id
+        WHERE sv.property_id = {input$property_exists} AND sv.id = {input$survey}",
         .con = db_con
       )
 
-      appraisal <- dbGetQuery(db_con, query)
-      property_appraisal(appraisal)
+      survey <- dbGetQuery(db_con, query)
+      property_survey(survey)
     })
 
     ## Create UI for database fields ----
     output$edit_fields_ui <- renderUI({
-      record <- property_appraisal()
+      record <- property_survey()
 
       property_name_text <- if (isTruthy(record$property_name)) {
-        paste0("Editing appraisal for: ", record$property_name)
+        paste0("Editing survey for: ", record$property_name)
       } else if (isTruthy(input$property_new)) {
-        paste0("Adding new appraisal for: ", property_name_new())
+        paste0("Adding new survey for: ", property_name_new())
       } else {
-        "No appraisal selected"
+        "No survey selected"
       }
 
-      appraisal_effective_date_val <- if (
-        isTruthy(record$appraisal_effective_date)
-      ) {
-        as.Date(record$appraisal_effective_date)
-      } else {
-        NA
-      }
-
-      appraiser_name_val <- if (isTruthy(record$appraiser_name)) {
-        record$appraiser_name
-      } else {
-        ""
-      }
-
-      fmv_val <- if (isTruthy(record$fmv)) {
-        record$fmv
+      company_val <- if (isTruthy(record$company)) record$company else ""
+      timeline_val <- if (isTruthy(record$timeline)) record$timeline else ""
+      amount_quote_val <- if (isTruthy(record$amount_quote)) {
+        record$amount_quote
       } else {
         NULL
       }
-
-      appraisal_notes_val <- if (isTruthy(record$appraisal_notes)) {
-        record$appraisal_notes
+      amount_paid_val <- if (isTruthy(record$amount_paid)) {
+        record$amount_paid
+      } else {
+        NULL
+      }
+      paid_date_val <- if (isTruthy(record$paid_date)) {
+        as.Date(record$paid_date)
+      } else {
+        NA
+      }
+      survey_notes_val <- if (isTruthy(record$survey_notes)) {
+        record$survey_notes
       } else {
         ""
       }
@@ -332,31 +328,46 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         hr(),
         layout_columns(
           col_widths = c(6, 6),
-          dateInput(
-            inputId = ns("edit_appraisal_effective_date"),
-            label = "Appraisal Effective Date",
-            value = appraisal_effective_date_val,
-            format = "yyyy-mm-dd"
+          textInput(
+            inputId = ns("edit_company"),
+            label = "Company",
+            value = company_val
           ),
-          numericInput(
-            inputId = ns("edit_fmv"),
-            label = "Fair Market Value",
-            value = fmv_val,
-            min = 0,
-            step = 1000
+          textInput(
+            inputId = ns("edit_timeline"),
+            label = "Timeline",
+            value = timeline_val
           )
         ),
         layout_columns(
           col_widths = c(6, 6),
-          textInput(
-            inputId = ns("edit_appraiser_name"),
-            label = "Appraiser Name",
-            value = appraiser_name_val
+          numericInput(
+            inputId = ns("edit_amount_quote"),
+            label = "Amount Quoted",
+            value = amount_quote_val,
+            min = 0,
+            step = 100
+          ),
+          numericInput(
+            inputId = ns("edit_amount_paid"),
+            label = "Amount Paid",
+            value = amount_paid_val,
+            min = 0,
+            step = 100
+          )
+        ),
+        layout_columns(
+          col_widths = c(6, 6),
+          dateInput(
+            inputId = ns("edit_paid_date"),
+            label = "Paid Date",
+            value = paid_date_val,
+            format = "yyyy-mm-dd"
           ),
           textAreaInput(
-            inputId = ns("edit_appraisal_notes"),
-            label = "Appraisal Notes",
-            value = appraisal_notes_val,
+            inputId = ns("edit_survey_notes"),
+            label = "Survey Notes",
+            value = survey_notes_val,
             rows = 4
           )
         )
@@ -365,38 +376,32 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
     ## Event :: Submit Edits ----
     observeEvent(input$submit_edit, {
-      req(!is.null(property_appraisal()))
-      req(input$appraisal)
-
-      appraisal_id <- input$appraisal
+      req(!is.null(property_survey()))
+      req(input$survey)
 
       valid_or_na <- function(x, na) {
         if (isTruthy(x)) x else na
       }
 
       update_df <- tibble(
-        id = input$appraisal,
-        appraisal_effective_date = valid_or_na(
-          as.Date(input$edit_appraisal_effective_date),
-          NA_Date_
-        ),
-        appraiser_name = valid_or_na(
-          input$edit_appraiser_name,
-          NA_character_
-        ),
-        fmv = valid_or_na(
-          as.numeric(input$edit_fmv),
+        id = input$survey,
+        company = valid_or_na(input$edit_company, NA_character_),
+        timeline = valid_or_na(input$edit_timeline, NA_character_),
+        amount_quote = valid_or_na(
+          as.numeric(input$edit_amount_quote),
           NA_real_
         ),
-        appraisal_notes = valid_or_na(
-          input$edit_appraisal_notes,
-          NA_character_
-        )
+        amount_paid = valid_or_na(
+          as.integer(input$edit_amount_paid),
+          NA_integer_
+        ),
+        paid_date = valid_or_na(as.Date(input$edit_paid_date), NA_Date_),
+        survey_notes = valid_or_na(input$edit_survey_notes, NA_character_)
       )
 
       dbx::dbxUpdate(
         db_con,
-        table = "appraisals",
+        table = "surveys",
         records = update_df,
         where_cols = "id"
       )
@@ -408,7 +413,7 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       shinyalert(
         title = "Success",
         text = str_glue(
-          "Appraisal for {property_name_exists()} has been successfully updated"
+          "Survey for {property_name_exists()} has been successfully updated"
         ),
         type = "success",
         closeOnEsc = TRUE,
@@ -428,21 +433,23 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
       new_record <- tibble(
         property_id = input$property_new,
-        appraisal_effective_date = valid_or_na(
-          as.Date(input$edit_appraisal_effective_date),
-          NA_Date_
-        ),
-        appraiser_name = valid_or_na(input$edit_appraiser_name, NA_character_),
-        fmv = valid_or_na(
-          as.numeric(input$edit_fmv),
+        company = valid_or_na(input$edit_company, NA_character_),
+        timeline = valid_or_na(input$edit_timeline, NA_character_),
+        amount_quote = valid_or_na(
+          as.numeric(input$edit_amount_quote),
           NA_real_
         ),
-        appraisal_notes = valid_or_na(input$edit_appraisal_notes, NA_character_)
+        amount_paid = valid_or_na(
+          as.integer(input$edit_amount_paid),
+          NA_integer_
+        ),
+        paid_date = valid_or_na(as.Date(input$edit_paid_date), NA_Date_),
+        survey_notes = valid_or_na(input$edit_survey_notes, NA_character_)
       )
 
       dbx::dbxInsert(
         db_con,
-        table = "appraisals",
+        table = "surveys",
         records = new_record
       )
 
@@ -450,12 +457,12 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         db_updated(db_updated() + 1)
       }
 
-      property_appraisal(new_record)
+      property_survey(new_record)
 
       shinyalert(
         title = "Success",
         text = str_glue(
-          "New appraisal for {property_name_new()} has been successfully created"
+          "New survey for {property_name_new()} has been successfully created"
         ),
         type = "success",
         closeOnEsc = TRUE,
@@ -466,11 +473,11 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
 
     ## Event :: Clear inputs ----
     observeEvent(input$clear_edit, {
-      property_appraisal(NULL)
+      property_survey(NULL)
 
       updateSelectizeInput(
         session,
-        inputId = "appraisal",
+        inputId = "survey",
         choices = character(0),
         selected = character(0)
       )
@@ -495,14 +502,12 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         selected = character(0)
       )
 
-      updateDateInput(
-        session,
-        "edit_appraisal_effective_date",
-        value = as.Date(NA)
-      )
-      updateTextInput(session, "edit_appraiser_name", value = "")
-      updateNumericInput(session, "edit_fmv", value = NA)
-      updateTextAreaInput(session, "edit_appraisal_notes", value = "")
+      updateTextInput(session, "edit_company", value = "")
+      updateTextInput(session, "edit_timeline", value = "")
+      updateNumericInput(session, "edit_amount_quote", value = NA)
+      updateNumericInput(session, "edit_amount_paid", value = NA)
+      updateDateInput(session, "edit_paid_date", value = as.Date(NA))
+      updateTextAreaInput(session, "edit_survey_notes", value = "")
     })
   })
 }

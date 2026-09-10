@@ -134,15 +134,15 @@ if (nrow(record$contacts) == 0) {
 #| echo: false
 #| results: asis
 
-if (is.na(info$securement_action_description)) {
+if (is.na(info$securement_status)) {
   cat("No securement status description available.\n")
-} else if (is.na(info$date_securement_description)) {
-  cat(info$securement_action_description, "\n")
+} else if (is.na(info$date_securement_status)) {
+  cat(info$securement_status, "\n")
 } else {
   cat(
-    format(as.Date(info$date_securement_description), "%B %d, %Y"),
+    format(as.Date(info$date_securement_status), "%B %d, %Y"),
     ": ",
-    info$securement_action_description,
+    info$securement_status,
     "\n",
     sep = ""
   )
@@ -222,5 +222,23 @@ if (is.na(info$stewardship_concerns) || info$stewardship_concerns == "") {
   cat("None identified at this time.\n")
 } else {
   cat(info$stewardship_concerns, "\n")
+}
+```
+
+## Project Feasibility
+
+```{r}
+#| echo: false
+#| results: asis
+
+if (
+  is.na(info$project_feasibility_ranking) ||
+    info$project_feasibility_ranking == ""
+) {
+  cat("No feasibility ranking assigned.\n")
+} else {
+  cat("Ranking: ", info$project_feasibility_ranking, "\n\n")
+
+  cat("Reasoning: ", info$project_feasibility_ranking_reason)
 }
 ```

@@ -25,9 +25,9 @@ module_property_contact_securement_communication_ui <- function(id) {
             ),
             selectizeInput(
               ns("contact"),
-              "Select Property Contact",
+              "Select Property Contact(s)",
               choices = NULL,
-              multiple = FALSE,
+              multiple = TRUE,
               options = list(
                 create = FALSE,
                 placeholder = "Select a property first"
@@ -106,7 +106,9 @@ module_property_contact_securement_communication_server <- function(
       dbGetQuery(
         db_con,
         "
-        SELECT p.id, p.property_name
+        SELECT p.id, 
+               p.property_name,
+               CONCAT_WS(' || ', p.property_name, p.property_name_public) AS display_name
         FROM properties p
         WHERE EXISTS (
           SELECT 1 FROM properties_contact pc WHERE pc.property_id = p.id
@@ -171,7 +173,7 @@ module_property_contact_securement_communication_server <- function(
           "",
           setNames(
             properties_list()$id,
-            properties_list()$property_name
+            properties_list()$display_name
           )
         ),
         selected = "",
@@ -201,7 +203,7 @@ module_property_contact_securement_communication_server <- function(
     observeEvent(input$submit_communication, {
       req(iv$is_valid())
 
-      # Create the new communication record
+      # Create one communication record per selected contact
       new_communication <- tibble(
         property_contact_id = input$contact,
         property_id = input$contact_property_id,
@@ -240,7 +242,7 @@ module_property_contact_securement_communication_server <- function(
           "",
           setNames(
             properties_list()$id,
-            properties_list()$property_name
+            properties_list()$display_name
           )
         ),
         selected = character(0)

@@ -66,7 +66,10 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
       db_updated()
       dbGetQuery(
         db_con,
-        "SELECT id, property_name FROM properties ORDER BY property_name;"
+        "SELECT id, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
+        FROM properties 
+        ORDER BY property_name;"
       )
     })
 
@@ -340,7 +343,6 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         ),
         server = TRUE
       )
-
       updateNumericInput(session, "edit_price_asking", value = NULL)
       updateNumericInput(session, "edit_price_offer", value = NULL)
       updateNumericInput(session, "edit_price_purchase", value = NULL)

@@ -442,6 +442,10 @@ module_property_mapbox_server <- function(
           ns_bounds,
           animate = FALSE
         ) |>
+        add_geocoder_control(
+          position = "top-left",
+          placeholder = "Search for a place..."
+        ) |>
 
         # ---- NSPRD ----
         add_vector_source(
