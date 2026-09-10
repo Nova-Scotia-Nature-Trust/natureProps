@@ -98,6 +98,7 @@ CREATE TABLE "properties"(
     "team_lead_id" INTEGER NULL,
     "securement_probability_id" INTEGER NULL,
     "securement_status" TEXT NULL,
+    "securement_actions_complete" BOOLEAN NULL,
     "date_securement_status" DATE NULL,
     "anticipated_closing_date" DATE NULL,
     "anticipated_closing_year" TEXT NULL,
@@ -126,7 +127,7 @@ CREATE TABLE "properties"(
     "structure" TEXT NULL,
     "structure_details" TEXT NULL,
     "project_feasibility_ranking_id" INTEGER NULL,
-    "project_feasibility_ranking_reason" INTEGER NOT NULL
+    "project_feasibility_ranking_reason" INTEGER NULL
 );
 ALTER TABLE
     "properties" ADD PRIMARY KEY("id");
@@ -523,8 +524,22 @@ CREATE TABLE "llt_projects"(
 );
 ALTER TABLE
     "llt_projects" ADD PRIMARY KEY("id");
+CREATE TABLE "surveys"(
+    "id" SERIAL NOT NULL,
+    "property_id" INTEGER NOT NULL,
+    "company" TEXT NULL,
+    "timeline" TEXT NULL,
+    "amount_quote" DECIMAL(8, 2) NULL,
+    "amount_paid" INTEGER NULL,
+    "paid_date" DATE NULL,
+    "survey_notes" TEXT NULL
+);
+ALTER TABLE
+    "surveys" ADD PRIMARY KEY("id");
 ALTER TABLE
     "property_fund_federal" ADD CONSTRAINT "property_fund_federal_property_id_foreign" FOREIGN KEY("property_id") REFERENCES "properties"("id");
+ALTER TABLE
+    "surveys" ADD CONSTRAINT "surveys_property_id_foreign" FOREIGN KEY("property_id") REFERENCES "properties"("id");
 ALTER TABLE
     "properties" ADD CONSTRAINT "properties_ownership_id_foreign" FOREIGN KEY("ownership_id") REFERENCES "ownership"("id");
 ALTER TABLE
