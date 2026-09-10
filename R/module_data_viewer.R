@@ -23,7 +23,8 @@ choices_securement <- list(
   "LLT Projects" = "llt_projects",
   "Securement Communication" = "securement_communication",
   "Property Contact Details" = "property_contact_details_view",
-  "Property Pricing" = "property_pricing"
+  "Property Pricing" = "property_pricing",
+  "Surveys" = "surveys"
 )
 
 choices_action_item <- list(
@@ -243,6 +244,13 @@ module_data_viewer_server <- function(
       property_pricing = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_property_pricing;")
+        },
+        order_col = 0,
+        order_dir = "asc"
+      ),
+      surveys = list(
+        fetch = function(db_con) {
+          dbGetQuery(db_con, "SELECT * FROM view_surveys;")
         },
         order_col = 0,
         order_dir = "asc"

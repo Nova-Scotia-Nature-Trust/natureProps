@@ -192,6 +192,10 @@ ui <- page_navbar(
         module_edit_appraisals_ui("edit_appraisals")
       ),
       nav_panel(
+        title = "Surveys",
+        module_edit_surveys_ui("edit_surveys")
+      ),
+      nav_panel(
         title = "LLT",
         module_edit_llt_projects_ui("edit_llt_projects")
       )

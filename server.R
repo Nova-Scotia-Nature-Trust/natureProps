@@ -195,6 +195,8 @@ server <- function(input, output, session) {
 
   module_edit_appraisals_server("edit_appraisals", db_con, db_updated)
 
+  module_edit_surveys_server("edit_surveys", db_con, db_updated)
+
   module_edit_property_contacts_server(
     "edit_property_contact_details",
     db_con,
