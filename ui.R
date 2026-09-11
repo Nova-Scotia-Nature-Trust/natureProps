@@ -101,6 +101,14 @@ ui <- page_navbar(
         module_securement_action_items_ui("action_items")
       ),
       nav_panel(
+        title = "Assign Securement Values",
+        module_assign_securement_values_ui("assign_priorities")
+      ),
+      nav_panel(
+        title = "Add Securement Communication",
+        module_add_securement_communication_ui("securement_comms")
+      ),
+      nav_panel(
         title = "Data Viewer",
         module_data_viewer_ui(
           "securement_records_view",
@@ -110,10 +118,6 @@ ui <- page_navbar(
       nav_panel(
         title = "Queries",
         module_securement_queries_ui("securement_query")
-      ),
-      nav_panel(
-        title = "Add Securement Communication",
-        module_add_securement_communication_ui("securement_comms")
       )
     )
   ),
@@ -133,10 +137,6 @@ ui <- page_navbar(
       nav_panel(
         title = "All Projects Review",
         module_all_projects_review_ui("all_projects")
-      ),
-      nav_panel(
-        title = "Assign Securement Values",
-        module_assign_securement_values_ui("assign_priorities")
       ),
       # nav_panel(
       #   title = "Data Viewer",
