@@ -72,7 +72,7 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_property_details_server(
+  module_add_property_record_server(
     "property_details_form",
     db_con,
     prd_con,

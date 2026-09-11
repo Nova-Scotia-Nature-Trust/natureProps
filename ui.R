@@ -69,7 +69,7 @@ ui <- page_navbar(
       height = "100%",
       nav_panel(
         title = "Add Property Record",
-        module_property_details_ui("property_details_form")
+        module_add_property_record_ui("property_details_form")
       ),
       nav_panel(
         title = "Add Property Contact",

@@ -1,5 +1,5 @@
 # UI ----
-module_property_details_ui <- function(id) {
+module_add_property_record_ui <- function(id) {
   ns <- NS(id)
 
   layout_columns(
@@ -258,7 +258,7 @@ module_property_details_ui <- function(id) {
 }
 
 # Server ----
-module_property_details_server <- function(id, db_con, prd_con, db_updated) {
+module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
   moduleServer(id, function(input, output, session) {
     updateDateInput(session, "date_added", value = Sys.Date())
 
