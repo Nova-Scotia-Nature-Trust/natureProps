@@ -1,5 +1,5 @@
 # UI ----
-module_action_item_tracking_ui <- function(id) {
+module_securement_action_items_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -103,7 +103,11 @@ module_action_item_tracking_ui <- function(id) {
 }
 
 # Server ----
-module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
+module_securement_action_items_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
     iv <- InputValidator$new()

@@ -98,7 +98,7 @@ ui <- page_navbar(
       height = "100%",
       nav_panel(
         title = "Securement Action Items",
-        module_action_item_tracking_ui("action_items")
+        module_securement_action_items_ui("action_items")
       ),
       nav_panel(
         title = "Data Viewer",
@@ -113,7 +113,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Add Securement Communication",
-        module_property_contact_securement_communication_ui("securement_comms")
+        module_add_securement_communication_ui("securement_comms")
       )
     )
   ),

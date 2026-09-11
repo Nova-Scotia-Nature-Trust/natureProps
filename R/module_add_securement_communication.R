@@ -1,5 +1,5 @@
 # UI ----
-module_property_contact_securement_communication_ui <- function(id) {
+module_add_securement_communication_ui <- function(id) {
   ns <- NS(id)
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
@@ -83,7 +83,7 @@ module_property_contact_securement_communication_ui <- function(id) {
 }
 
 # Server ----
-module_property_contact_securement_communication_server <- function(
+module_add_securement_communication_server <- function(
   id,
   db_con,
   db_updated = NULL

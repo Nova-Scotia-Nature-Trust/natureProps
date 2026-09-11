@@ -105,7 +105,7 @@ server <- function(input, output, session) {
     focal_pid_rv,
     panel_id = "outreach_panel"
   )
-  module_action_item_tracking_server("action_items", db_con, db_updated)
+  module_securement_action_items_server("action_items", db_con, db_updated)
 
   module_data_viewer_server(
     "securement_records_view",
@@ -213,7 +213,7 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_property_contact_securement_communication_server(
+  module_add_securement_communication_server(
     "securement_comms",
     db_con,
     db_updated
