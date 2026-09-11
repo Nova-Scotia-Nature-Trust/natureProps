@@ -122,7 +122,7 @@ server <- function(input, output, session) {
     cons_lands_data = cons_lands_data_rv,
   )
 
-  module_property_contact_communication_server(
+  module_add_property_contact_communication_server(
     "property_contact_communication",
     db_con,
     db_updated

@@ -77,7 +77,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Add Outreach & Communication",
-        module_property_contact_communication_ui(
+        module_add_property_contact_communication_ui(
           "property_contact_communication"
         )
       ),
