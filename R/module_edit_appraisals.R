@@ -114,7 +114,7 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
           property_list_new()$id,
           property_list_new()$property_name
         ),
-        selected = isolate(input$property_new),
+        selected = character(0),
         server = TRUE
       )
     })
@@ -274,11 +274,28 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
           a.appraisal_effective_date,
           a.appraiser_name,
           a.fmv,
+          SUM(pi.area_ha * 2.471) AS acres,
+          a.fmv / NULLIF(SUM(pi.area_ha * 2.471), 0) AS fmv_per_acre,
           a.appraisal_notes,
-          p.property_name
+          a.authoritative,
+          a.paid_date,
+          pr.property_name
         FROM appraisals a
-        JOIN properties p ON a.property_id = p.id
-        WHERE a.property_id = {input$property_exists} AND a.id = {input$appraisal}",
+        JOIN properties pr ON a.property_id = pr.id
+        JOIN parcels pa ON pr.id = pa.property_id
+        JOIN parcel_info pi ON pa.id = pi.parcel_id
+        WHERE a.property_id = {input$property_exists}
+          AND a.id = {input$appraisal}
+        GROUP BY
+          a.id,
+          a.property_id,
+          a.appraisal_effective_date,
+          a.appraiser_name,
+          a.fmv,
+          a.appraisal_notes,
+          a.authoritative,
+          a.paid_date,
+          pr.property_name",
         .con = db_con
       )
 
@@ -291,7 +308,31 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       record <- property_appraisal()
 
       property_name_text <- if (isTruthy(record$property_name)) {
-        paste0("Editing appraisal for: ", record$property_name)
+        auth <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "SELECT a.fmv / NULLIF(SUM(pi.area_ha * 2.471), 0) AS fmv_per_acre
+             FROM appraisals a
+              JOIN properties pr ON a.property_id = pr.id
+              JOIN parcels pa ON pr.id = pa.property_id
+              JOIN parcel_info pi ON pa.id = pi.parcel_id
+            WHERE a.property_id = {record$property_id} AND a.authoritative = TRUE
+            GROUP BY          
+            a.property_id,
+            a.fmv
+            LIMIT 1",
+            .con = db_con
+          )
+        )
+
+        base_text <- paste0("Editing appraisal for: ", record$property_name)
+
+        if (nrow(auth) > 0 && !is.na(auth$fmv_per_acre)) {
+          fmv_fmt <- scales::dollar(round(auth$fmv_per_acre, 2), big.mark = ",")
+          paste0(base_text, ". Authoritative FMV/acre: ", fmv_fmt)
+        } else {
+          base_text
+        }
       } else if (isTruthy(input$property_new)) {
         paste0("Adding new appraisal for: ", property_name_new())
       } else {
@@ -324,6 +365,19 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         ""
       }
 
+      paid_date_val <- if (isTruthy(record$paid_date)) {
+        as.Date(record$paid_date)
+      } else {
+        NA
+      }
+
+      # Default TRUE for new records; use stored value when editing
+      authoritative_val <- if (!is.null(record$authoritative)) {
+        isTRUE(record$authoritative)
+      } else {
+        TRUE
+      }
+
       tagList(
         h6(
           class = "text-muted",
@@ -338,12 +392,12 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
             value = appraisal_effective_date_val,
             format = "yyyy-mm-dd"
           ),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_fmv"),
             label = "Fair Market Value",
             value = fmv_val,
-            min = 0,
-            step = 1000
+            currencySymbol = "$",
+            align = "left"
           )
         ),
         layout_columns(
@@ -353,12 +407,24 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
             label = "Appraiser Name",
             value = appraiser_name_val
           ),
-          textAreaInput(
-            inputId = ns("edit_appraisal_notes"),
-            label = "Appraisal Notes",
-            value = appraisal_notes_val,
-            rows = 4
+          dateInput(
+            inputId = ns("edit_paid_date"),
+            label = "Invoice Paid Date",
+            value = paid_date_val,
+            format = "yyyy-mm-dd"
           )
+        ),
+        textAreaInput(
+          inputId = ns("edit_appraisal_notes"),
+          label = "Appraisal Notes",
+          value = appraisal_notes_val,
+          rows = 4,
+          width = "50%"
+        ),
+        checkboxInput(
+          inputId = ns("edit_authoritative"),
+          label = "Authoritative Appraisal",
+          value = authoritative_val
         )
       )
     })
@@ -369,6 +435,30 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       req(input$appraisal)
 
       appraisal_id <- input$appraisal
+
+      # Conflict check: block if another appraisal for this property is already authoritative
+      if (isTRUE(input$edit_authoritative)) {
+        conflict <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "SELECT COUNT(*) AS n FROM appraisals
+             WHERE property_id = {input$property_exists}
+               AND authoritative = TRUE
+               AND id != {input$appraisal}",
+            .con = db_con
+          )
+        )
+        if (conflict$n > 0) {
+          shinyalert(
+            title = "Error",
+            text = "An authoritative appraisal already exists for this property. Please unmark it before adding a new authoritative appraisal.",
+            type = "error",
+            closeOnEsc = TRUE,
+            closeOnClickOutside = TRUE
+          )
+          return()
+        }
+      }
 
       valid_or_na <- function(x, na) {
         if (isTruthy(x)) x else na
@@ -391,7 +481,12 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         appraisal_notes = valid_or_na(
           input$edit_appraisal_notes,
           NA_character_
-        )
+        ),
+        paid_date = valid_or_na(
+          as.Date(input$edit_paid_date),
+          NA_Date_
+        ),
+        authoritative = isTRUE(input$edit_authoritative)
       )
 
       dbx::dbxUpdate(
@@ -422,6 +517,29 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
       req(input$property_new)
       req(iv$is_valid())
 
+      # Conflict check: block if an authoritative appraisal already exists for this property
+      if (isTRUE(input$edit_authoritative)) {
+        conflict <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "SELECT COUNT(*) AS n FROM appraisals
+             WHERE property_id = {input$property_new}
+               AND authoritative = TRUE",
+            .con = db_con
+          )
+        )
+        if (conflict$n > 0) {
+          shinyalert(
+            title = "Error",
+            text = "An authoritative appraisal already exists for this property. Please unmark it before adding a new authoritative appraisal.",
+            type = "error",
+            closeOnEsc = TRUE,
+            closeOnClickOutside = TRUE
+          )
+          return()
+        }
+      }
+
       valid_or_na <- function(x, na) {
         if (isTruthy(x)) x else na
       }
@@ -437,7 +555,15 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
           as.numeric(input$edit_fmv),
           NA_real_
         ),
-        appraisal_notes = valid_or_na(input$edit_appraisal_notes, NA_character_)
+        appraisal_notes = valid_or_na(
+          input$edit_appraisal_notes,
+          NA_character_
+        ),
+        paid_date = valid_or_na(
+          as.Date(input$edit_paid_date),
+          NA_Date_
+        ),
+        authoritative = isTRUE(input$edit_authoritative)
       )
 
       dbx::dbxInsert(
@@ -500,9 +626,15 @@ module_edit_appraisals_server <- function(id, db_con, db_updated = NULL) {
         "edit_appraisal_effective_date",
         value = as.Date(NA)
       )
+      updateDateInput(
+        session,
+        "edit_paid_date",
+        value = as.Date(NA)
+      )
       updateTextInput(session, "edit_appraiser_name", value = "")
-      updateNumericInput(session, "edit_fmv", value = NA)
+      updateAutonumericInput(session, "edit_fmv", value = NULL)
       updateTextAreaInput(session, "edit_appraisal_notes", value = "")
+      updateCheckboxInput(session, "edit_authoritative", value = TRUE)
     })
   })
 }

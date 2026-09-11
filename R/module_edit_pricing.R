@@ -180,27 +180,120 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         ""
       }
 
+      # Per-acre calculations
+      per_acre_ui <- if (isTruthy(record$id)) {
+        acres_row <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "SELECT SUM(pi.area_ha * 2.471) AS total_acres
+             FROM parcels pa
+             JOIN parcel_info pi ON pa.id = pi.parcel_id
+             WHERE pa.property_id = {record$id}",
+            .con = db_con
+          )
+        )
+
+        total_acres <- acres_row$total_acres
+
+        if (!isTruthy(total_acres) || total_acres == 0) {
+          NULL
+        } else {
+          per_acre <- function(val) {
+            if (!isTruthy(val)) {
+              return(NULL)
+            }
+            scales::dollar(round(val / total_acres, 2), big.mark = ",")
+          }
+
+          auth <- dbGetQuery(
+            db_con,
+            glue_sql(
+              "SELECT a.fmv, a.fmv / NULLIF(SUM(pi.area_ha * 2.471), 0) AS fmv_per_acre
+               FROM appraisals a
+               JOIN parcels pa ON a.property_id = pa.property_id
+               JOIN parcel_info pi ON pa.id = pi.parcel_id
+               WHERE a.property_id = {record$id} AND a.authoritative = TRUE
+               GROUP BY a.property_id, a.fmv
+               LIMIT 1",
+              .con = db_con
+            )
+          )
+
+          fmv_line <- if (nrow(auth) > 0 && isTruthy(auth$fmv)) {
+            fmv_fmt <- scales::dollar(auth$fmv, big.mark = ",")
+            fmv_per_acre_fmt <- if (isTruthy(auth$fmv_per_acre)) {
+              scales::dollar(round(auth$fmv_per_acre, 2), big.mark = ",")
+            } else {
+              "N/A"
+            }
+            paste0(
+              "FMV (Authoritative): ",
+              fmv_fmt,
+              " | FMV/acre: ",
+              fmv_per_acre_fmt
+            )
+          } else {
+            NULL
+          }
+
+          lines <- list(
+            fmv_line,
+            if (!is.null(per_acre(price_asking_val))) {
+              paste0("Asking Price/acre: ", per_acre(price_asking_val))
+            },
+            if (!is.null(per_acre(price_offer_val))) {
+              paste0("Offer Price/acre: ", per_acre(price_offer_val))
+            },
+            if (!is.null(per_acre(price_purchase_val))) {
+              paste0("Purchase Price/acre: ", per_acre(price_purchase_val))
+            },
+            if (!is.null(per_acre(donated_value_val))) {
+              paste0("Donated Value/acre: ", per_acre(donated_value_val))
+            },
+            if (!is.null(per_acre(unpaid_land_value_val))) {
+              paste0(
+                "Unpaid Land Value/acre: ",
+                per_acre(unpaid_land_value_val)
+              )
+            }
+          )
+
+          lines <- Filter(Negate(is.null), lines)
+
+          if (length(lines) == 0) {
+            NULL
+          } else {
+            div(
+              class = "text-muted",
+              style = "font-size: 0.85em;",
+              tagList(lapply(lines, \(l) div(l)))
+            )
+          }
+        }
+      }
+
       tagList(
         h6(
           class = "text-muted",
           property_name_text
         ),
+        per_acre_ui,
         hr(),
         layout_columns(
           col_widths = c(6, 6),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_price_asking"),
             label = "Asking Price",
             value = price_asking_val,
-            min = 0,
-            step = 1000
+            currencySymbol = "$",
+            align = "left"
           ),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_price_offer"),
             label = "Offer Price",
             value = price_offer_val,
-            min = 0,
-            step = 1000
+            currencySymbol = "$",
+            align = "left"
           )
         ),
         layout_columns(
@@ -216,20 +309,20 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
                 placement = "top"
               )
             ),
-            numericInput(
+            autonumericInput(
               inputId = ns("edit_price_purchase"),
               label = NULL,
               value = price_purchase_val,
-              min = 0,
-              step = 1000
+              currencySymbol = "$",
+              align = "left"
             )
           ),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_donated_value"),
             label = "Donated Value",
             value = donated_value_val,
-            min = 0,
-            step = 1000
+            currencySymbol = "$",
+            align = "left"
           )
         ),
         layout_columns(
@@ -239,12 +332,12 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
             label = "HST",
             value = hst_val
           ),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_unpaid_land_value"),
             label = "Unpaid Land Value",
             value = unpaid_land_value_val,
-            min = 0,
-            step = 1000
+            currencySymbol = "$",
+            align = "left"
           )
         ),
         textAreaInput(
@@ -343,12 +436,12 @@ module_edit_pricing_server <- function(id, db_con, db_updated = NULL) {
         ),
         server = TRUE
       )
-      updateNumericInput(session, "edit_price_asking", value = NULL)
-      updateNumericInput(session, "edit_price_offer", value = NULL)
-      updateNumericInput(session, "edit_price_purchase", value = NULL)
-      updateNumericInput(session, "edit_donated_value", value = NULL)
+      updateAutonumericInput(session, "edit_price_asking", value = NULL)
+      updateAutonumericInput(session, "edit_price_offer", value = NULL)
+      updateAutonumericInput(session, "edit_price_purchase", value = NULL)
+      updateAutonumericInput(session, "edit_donated_value", value = NULL)
       updateCheckboxInput(session, "edit_hst", value = FALSE)
-      updateNumericInput(session, "edit_unpaid_land_value", value = NULL)
+      updateAutonumericInput(session, "edit_unpaid_land_value", value = NULL)
       updateTextAreaInput(session, "edit_price_offer_history", value = "")
     })
   })
