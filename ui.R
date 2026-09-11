@@ -73,7 +73,7 @@ ui <- page_navbar(
       ),
       nav_panel(
         title = "Add Property Contact",
-        module_property_contact_ui("property_contact_form")
+        module_add_property_contact_ui("property_contact_form")
       ),
       nav_panel(
         title = "Add Outreach & Communication",

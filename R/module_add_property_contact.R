@@ -1,5 +1,5 @@
 # UI ----
-module_property_contact_ui <- function(id) {
+module_add_property_contact_ui <- function(id) {
   ns <- NS(id)
 
   layout_columns(
@@ -175,7 +175,7 @@ module_property_contact_ui <- function(id) {
 }
 
 # Server ----
-module_property_contact_server <- function(id, db_con, db_updated) {
+module_add_property_contact_server <- function(id, db_con, db_updated) {
   moduleServer(id, function(input, output, session) {
     ## Input Validation :: Add New Contact ----
     iv_create <- InputValidator$new()

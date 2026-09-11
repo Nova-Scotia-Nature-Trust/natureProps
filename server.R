@@ -79,7 +79,7 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_property_contact_server(
+  module_add_property_contact_server(
     "property_contact_form",
     db_con,
     db_updated
