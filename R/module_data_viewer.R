@@ -121,61 +121,70 @@ module_data_viewer_server <- function(
       pid_view = list(
         fetch = function(db_con) dbGetQuery(db_con, "SELECT * FROM view_pid;"),
         order_col = 1,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       property_contact_details_view = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_property_contacts;")
         },
         order_col = 3,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       communication_data_view = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_communication_history;")
         },
         order_col = 6,
-        order_dir = "desc"
+        order_dir = "desc",
+        currency_cols = NULL
       ),
       unresolved_inquiries = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_unresolved_inquiries;")
         },
         order_col = 2,
-        order_dir = "desc"
+        order_dir = "desc",
+        currency_cols = NULL
       ),
       outreach_view = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_outreach;")
         },
         order_col = 4,
-        order_dir = "desc"
+        order_dir = "desc",
+        currency_cols = NULL
       ),
       land_secure_comms = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_historical_communications;")
         },
         order_col = 1,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       property_descriptions = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_property_descriptions;")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       landowner_address = list(
         fetch = function(db_con) prep_view_landowner_address(db_con),
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       landowner_changes = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_landowner_changes;")
         },
         order_col = 1,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       action_items_view = list(
         fetch = function(db_con) {
@@ -183,7 +192,8 @@ module_data_viewer_server <- function(
             select(-"Property Name")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       action_items_view_wide = list(
         fetch = function(db_con) {
@@ -196,40 +206,46 @@ module_data_viewer_server <- function(
             )
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       secured_props_view = list(
         fetch = function(db_con) prep_view_secured_properties(db_con, gis_con),
         order_col = 9,
-        order_dir = "desc"
+        order_dir = "desc",
+        currency_cols = NULL
       ),
       appraisals = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_appraisals;")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = c("Fair Market Value (CAD)", "FMV/acre")
       ),
       property_sizes = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_property_sizes;")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       insurance = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_insurance;")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       llt_projects = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_llt_projects;")
         },
         order_col = 3,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = c("Endowement Funding Amount")
       ),
       securement_communication = list(
         fetch = function(db_con) {
@@ -239,35 +255,53 @@ module_data_viewer_server <- function(
           )
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       property_pricing = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_property_pricing;")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = c(
+          "Asking",
+          "Asking/acre",
+          "FMV",
+          "FMV/acre",
+          "Offer",
+          "Offer/acre",
+          "Purchase",
+          "Purchase/acre",
+          "Donated Value",
+          "Donated/acre",
+          "Unpaid Land Value",
+          "Unpaid/acre"
+        )
       ),
       surveys = list(
         fetch = function(db_con) {
           dbGetQuery(db_con, "SELECT * FROM view_surveys;")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = c("Amount Paid", "Quoted Amount")
       ),
       cons_lands_view_grouped = list(
         fetch = function(db_con) {
           prep_view_cons_lands(cons_lands_data(), "grouped")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       ),
       cons_lands_view = list(
         fetch = function(db_con) {
           prep_view_cons_lands(cons_lands_data(), "ungrouped")
         },
         order_col = 0,
-        order_dir = "asc"
+        order_dir = "asc",
+        currency_cols = NULL
       )
     )
 
@@ -369,7 +403,9 @@ module_data_viewer_server <- function(
       data_for_display <- rv$data |>
         mutate(across(where(is.character), as.factor))
 
-      datatable(
+      cfg <- view_config[[input$data_view]]
+
+      dt <- datatable(
         data_for_display,
         escape = FALSE,
         options = list(
@@ -393,6 +429,19 @@ module_data_viewer_server <- function(
         extensions = c("Buttons"),
         fillContainer = TRUE
       )
+
+      if (!is.null(cfg$currency_cols)) {
+        dt <- dt |>
+          formatCurrency(
+            columns = cfg$currency_cols,
+            currency = "$",
+            interval = 3,
+            mark = ",",
+            digits = 2
+          )
+      }
+
+      dt
     })
 
     ## Download Data View ----

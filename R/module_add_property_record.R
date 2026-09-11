@@ -80,11 +80,12 @@ module_add_property_record_ui <- function(id) {
               label = "Acquisition Type",
               choices = NULL
             ),
-            numericInput(
+            autonumericInput(
               inputId = ns("price_asking"),
               label = "Property Asking Price",
-              value = NA,
-              step = 1000
+              value = NULL,
+              currencySymbol = "$",
+              align = "left"
             )
           ),
           div(
@@ -975,6 +976,8 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
         ),
         selected = character(0)
       )
+
+      updateAutonumericInput(session, "price_asking", value = "")
     })
 
     ## Event :: Clear Update Property Inputs ----

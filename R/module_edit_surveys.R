@@ -341,19 +341,19 @@ module_edit_surveys_server <- function(id, db_con, db_updated = NULL) {
         ),
         layout_columns(
           col_widths = c(6, 6),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_amount_quote"),
             label = "Amount Quoted",
             value = amount_quote_val,
-            min = 0,
-            step = 100
+            currencySymbol = "$",
+            align = "left"
           ),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_amount_paid"),
             label = "Amount Paid",
             value = amount_paid_val,
-            min = 0,
-            step = 100
+            currencySymbol = "$",
+            align = "left"
           )
         ),
         layout_columns(
@@ -504,8 +504,8 @@ module_edit_surveys_server <- function(id, db_con, db_updated = NULL) {
 
       updateTextInput(session, "edit_company", value = "")
       updateTextInput(session, "edit_timeline", value = "")
-      updateNumericInput(session, "edit_amount_quote", value = NA)
-      updateNumericInput(session, "edit_amount_paid", value = NA)
+      updateAutonumericInput(session, "edit_amount_quote", value = NULL)
+      updateAutonumericInput(session, "edit_amount_paid", value = NULL)
       updateDateInput(session, "edit_paid_date", value = as.Date(NA))
       updateTextAreaInput(session, "edit_survey_notes", value = "")
     })

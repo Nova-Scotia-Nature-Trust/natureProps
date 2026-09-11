@@ -179,15 +179,16 @@ module_edit_llt_projects_server <- function(id, db_con, db_updated = NULL) {
 
         layout_columns(
           col_widths = c(6, 6),
-          numericInput(
+          autonumericInput(
             inputId = ns("edit_funding_value"),
-            label = "Endowment Funding Amount ($)",
+            label = "Endowment Funding Amount",
             value = if (!is.na(record$funding_value)) {
               record$funding_value
             } else {
               NA
             },
-            min = 0
+            currencySymbol = "$",
+            align = "left"
           ),
           checkboxInput(
             inputId = ns("edit_stewardship_plan_complete"),
