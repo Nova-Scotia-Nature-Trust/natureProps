@@ -127,7 +127,7 @@ CREATE TABLE "properties"(
     "structure" TEXT NULL,
     "structure_details" TEXT NULL,
     "project_feasibility_ranking_id" INTEGER NULL,
-    "project_feasibility_ranking_reason" INTEGER NULL
+    "project_feasibility_ranking_reason" TEXT NULL
 );
 ALTER TABLE
     "properties" ADD PRIMARY KEY("id");
@@ -456,7 +456,9 @@ CREATE TABLE "appraisals"(
     "appraisal_effective_date" DATE NOT NULL,
     "appraiser_name" TEXT NOT NULL,
     "fmv" DECIMAL(12, 2) NOT NULL,
-    "appraisal_notes" TEXT NULL
+    "appraisal_notes" TEXT NULL,
+    "authoritative" BOOLEAN NULL,
+    "paid_date" DATE NULL
 );
 ALTER TABLE
     "appraisals" ADD PRIMARY KEY("id");
