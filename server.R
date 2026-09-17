@@ -224,4 +224,6 @@ server <- function(input, output, session) {
     db_con,
     cons_lands_data = cons_lands_data_rv
   )
+
+  module_secured_properties_mapbox_server("secured_props_map", db_con, gis_con)
 }

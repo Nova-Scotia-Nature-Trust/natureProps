@@ -211,6 +211,10 @@ ui <- page_navbar(
         module_property_mapbox_ui("property_mapbox")
       ),
       nav_panel(
+        title = "Conservation Lands",
+        module_secured_properties_mapbox_ui("secured_props_map")
+      ),
+      nav_panel(
         title = "ArcGIS Online Map",
         card(
           full_screen = TRUE,
