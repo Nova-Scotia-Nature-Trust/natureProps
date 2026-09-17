@@ -1,7 +1,7 @@
 # R/module_property_mapbox.R
 
 # UI ----
-module_property_mapbox_ui <- function(id) {
+module_properties_mapbox_ui <- function(id) {
   ns <- NS(id)
 
   layout_sidebar(

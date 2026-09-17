@@ -97,7 +97,8 @@ module_secured_properties_mapbox_ui <- function(id) {
 module_secured_properties_mapbox_server <- function(
   id,
   db_con,
-  gis_con
+  gis_con,
+  db_updated = NULL
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -114,199 +115,215 @@ module_secured_properties_mapbox_server <- function(
     )
 
     # Tabular: property attributes from properties database
-    cons_lands_tab <- dbGetQuery(
-      db_con,
-      "SELECT * FROM view_conservation_lands"
-    ) |>
-      as_tibble() |>
-      janitor::clean_names() |>
-      rename(
-        property_name_public = public_property_name,
-        property_name = securement_property_name,
-        ownership_value = ownership,
-        date_closed_fiscal = fiscal_year_closed,
-        size_ha = size_hectares,
-        size_confirmed_acres = size_acres
-      )
+    cons_lands_tab <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
+      dbGetQuery(
+        db_con,
+        "SELECT * FROM view_conservation_lands"
+      ) |>
+        as_tibble() |>
+        janitor::clean_names() |>
+        rename(
+          property_name_public = public_property_name,
+          property_name = securement_property_name,
+          ownership_value = ownership,
+          date_closed_fiscal = fiscal_year_closed,
+          size_ha = size_hectares,
+          size_confirmed_acres = size_acres
+        )
+    })
 
     # -------------------------------------------------------------------------
     # Aggregate to one row per property
     # -------------------------------------------------------------------------
 
-    cons_lands_props <- cons_lands_tab |>
-      summarise(
-        property_name_public = first(
-          na.omit(property_name_public)
-        ),
+    cons_lands_props <- reactive({
+      req(cons_lands_tab())
 
-        internal_record_id = first(
-          na.omit(internal_record_id)
-        ),
+      cons_lands_tab() |>
+        summarise(
+          property_name_public = first(
+            na.omit(property_name_public)
+          ),
 
-        acquisition_securement_type = first(
-          na.omit(acquisition_securement_type)
-        ),
+          internal_record_id = first(
+            na.omit(internal_record_id)
+          ),
 
-        ownership_value = first(
-          na.omit(ownership_value)
-        ),
+          acquisition_securement_type = first(
+            na.omit(acquisition_securement_type)
+          ),
 
-        date_closed_fiscal = as.character(
-          first(
-            na.omit(date_closed_fiscal)
+          ownership_value = first(
+            na.omit(ownership_value)
+          ),
+
+          date_closed_fiscal = as.character(
+            first(
+              na.omit(date_closed_fiscal)
+            )
+          ),
+
+          size_ha = sum(
+            size_ha,
+            na.rm = TRUE
+          ),
+
+          size_confirmed_acres = sum(
+            size_confirmed_acres,
+            na.rm = TRUE
+          ),
+
+          .by = property_name
+        ) |>
+        mutate(
+          acquisition_securement_type = coalesce(
+            acquisition_securement_type,
+            "Unknown"
+          ),
+
+          ownership_value = coalesce(
+            ownership_value,
+            "Unknown"
+          ),
+
+          date_closed_fiscal = coalesce(
+            date_closed_fiscal,
+            "Unknown"
           )
-        ),
+        ) |>
+        mutate(
+          ownership_value = case_when(
+            ownership_value %in%
+              c(
+                "Easement",
+                "Easement - Assigned AF Easement",
+                "Transfer to Crown - NSNT Easement"
+              ) ~ "Easement",
 
-        size_ha = sum(
-          size_ha,
-          na.rm = TRUE
-        ),
+            ownership_value %in%
+              c(
+                "Interest in Property",
+                "NSNT Owned",
+                "NSNT Owned & NSNT Easement",
+                "NSNT Owned & NSNT Easement - Assigned AF Easement",
+                "NSNT Owned - Transferred AF Donation"
+              ) ~ "NSNT Owned",
 
-        size_confirmed_acres = sum(
-          size_confirmed_acres,
-          na.rm = TRUE
-        ),
+            ownership_value == "AF Owned" ~ "AF Owned",
 
-        .by = property_name
-      ) |>
-      mutate(
-        acquisition_securement_type = coalesce(
-          acquisition_securement_type,
-          "Unknown"
-        ),
+            ownership_value == "Easement - Held by AF" ~
+              "AF Held Easement",
 
-        ownership_value = coalesce(
-          ownership_value,
-          "Unknown"
-        ),
-
-        date_closed_fiscal = coalesce(
-          date_closed_fiscal,
-          "Unknown"
+            .default = ownership_value
+          )
         )
-      ) |>
-      mutate(
-        ownership_value = case_when(
-          ownership_value %in%
-            c(
-              "Easement",
-              "Easement - Assigned AF Easement",
-              "Transfer to Crown - NSNT Easement"
-            ) ~ "Easement",
-
-          ownership_value %in%
-            c(
-              "Interest in Property",
-              "NSNT Owned",
-              "NSNT Owned & NSNT Easement",
-              "NSNT Owned & NSNT Easement - Assigned AF Easement",
-              "NSNT Owned - Transferred AF Donation"
-            ) ~ "NSNT Owned",
-
-          ownership_value == "AF Owned" ~ "AF Owned",
-
-          ownership_value == "Easement - Held by AF" ~
-            "AF Held Easement",
-
-          .default = ownership_value
-        )
-      )
+    })
 
     # -------------------------------------------------------------------------
     # Union parcel geometries by property
     # -------------------------------------------------------------------------
 
-    cons_lands_union <- cons_lands_sf |>
-      group_by(property_name) |>
-      summarise(
-        .groups = "drop"
-      ) |>
-      left_join(
-        cons_lands_props,
-        by = "property_name"
-      ) |>
-      mutate(
-        popup_html = glue(
-          "<div style='font-size: 14px;'>",
-          "<b>{coalesce(property_name_public, property_name)}</b><br>",
-          "<b>Securement Name:</b> {property_name}<br>",
-          "<b>Internal Record ID:</b> ",
-          "{coalesce(internal_record_id, 'N/A')}<br>",
-          "<b>Ownership:</b> {ownership_value}<br>",
-          "<b>Acquisition Type:</b> ",
-          "{acquisition_securement_type}<br>",
-          "<b>Fiscal Year Closed:</b> ",
-          "{date_closed_fiscal}<br>",
-          "<b>Size:</b> ",
-          "{round(size_ha, 1)} ha / ",
-          "{round(size_confirmed_acres, 1)} acres<br>",
-          "</div>"
-        ),
+    cons_lands_union <- reactive({
+      req(cons_lands_props())
 
-        tooltip_text = coalesce(
-          property_name_public,
-          property_name
+      cons_lands_sf |>
+        group_by(property_name) |>
+        summarise(
+          .groups = "drop"
+        ) |>
+        left_join(
+          cons_lands_props(),
+          by = "property_name"
+        ) |>
+        mutate(
+          popup_html = glue(
+            "<div style='font-size: 14px;'>",
+            "<b>{coalesce(property_name_public, property_name)}</b><br>",
+            "<b>Securement Name:</b> {property_name}<br>",
+            "<b>Internal Record ID:</b> ",
+            "{coalesce(internal_record_id, 'N/A')}<br>",
+            "<b>Ownership:</b> {ownership_value}<br>",
+            "<b>Acquisition Type:</b> ",
+            "{acquisition_securement_type}<br>",
+            "<b>Fiscal Year Closed:</b> ",
+            "{date_closed_fiscal}<br>",
+            "<b>Size:</b> ",
+            "{round(size_ha, 1)} ha / ",
+            "{round(size_confirmed_acres, 1)} acres<br>",
+            "</div>"
+          ),
+
+          tooltip_text = coalesce(
+            property_name_public,
+            property_name
+          )
         )
-      )
+    })
 
     # -------------------------------------------------------------------------
     # Centroids
     # -------------------------------------------------------------------------
 
-    cons_lands_centroid <- cons_lands_union |>
-      st_centroid()
-
-    # -------------------------------------------------------------------------
-    # Filter choices
-    # -------------------------------------------------------------------------
-
-    fiscal_year_values <- cons_lands_props |>
-      pull(date_closed_fiscal) |>
-      unique() |>
-      sort()
-
-    ownership_values <- cons_lands_props |>
-      pull(ownership_value) |>
-      unique() |>
-      sort()
-
-    # Explicit "all" choices.
-    #
-    # The values are internal sentinel values so they cannot conflict
-    # with actual database values.
-    fiscal_year_choices <- c(
-      "All years" = "__all_years__",
-      setNames(
-        fiscal_year_values,
-        fiscal_year_values
-      )
-    )
-
-    ownership_choices <- c(
-      "All ownership types" = "__all_ownership__",
-      setNames(
-        ownership_values,
-        ownership_values
-      )
-    )
+    cons_lands_centroid <- reactive({
+      cons_lands_union() |>
+        st_centroid()
+    })
 
     # -------------------------------------------------------------------------
     # Populate filter inputs
     # -------------------------------------------------------------------------
 
-    updateSelectizeInput(
-      session,
-      "fiscal_year",
-      choices = fiscal_year_choices,
-      selected = "__all_years__"
-    )
+    observe({
+      req(cons_lands_props())
 
-    updateSelectizeInput(
-      session,
-      "ownership_type",
-      choices = ownership_choices,
-      selected = "__all_ownership__"
-    )
+      fiscal_year_values <- cons_lands_props() |>
+        pull(date_closed_fiscal) |>
+        unique() |>
+        sort(decreasing = TRUE)
+
+      ownership_values <- cons_lands_props() |>
+        pull(ownership_value) |>
+        unique() |>
+        sort()
+
+      # Explicit "all" choices.
+      #
+      # The values are internal sentinel values so they cannot conflict
+      # with actual database values.
+      fiscal_year_choices <- c(
+        "All years" = "__all_years__",
+        setNames(
+          fiscal_year_values,
+          fiscal_year_values
+        )
+      )
+
+      ownership_choices <- c(
+        "All ownership types" = "__all_ownership__",
+        setNames(
+          ownership_values,
+          ownership_values
+        )
+      )
+
+      updateSelectizeInput(
+        session,
+        "fiscal_year",
+        choices = fiscal_year_choices,
+        selected = "__all_years__"
+      )
+
+      updateSelectizeInput(
+        session,
+        "ownership_type",
+        choices = ownership_choices,
+        selected = "__all_ownership__"
+      )
+    })
 
     # -------------------------------------------------------------------------
     # NS Bounds
@@ -324,7 +341,9 @@ module_secured_properties_mapbox_server <- function(
     # -------------------------------------------------------------------------
 
     filtered_properties <- reactive({
-      result <- cons_lands_union
+      req(cons_lands_union())
+
+      result <- cons_lands_union()
 
       # ---- Fiscal year -------------------------------------------------------
 
@@ -367,8 +386,17 @@ module_secured_properties_mapbox_server <- function(
     # -------------------------------------------------------------------------
 
     output$map <- renderMapboxgl({
+      req(cons_lands_union(), cons_lands_centroid())
+
       pal_nsnt <- "#1b3858"
       pal_hover <- "#2d5f9a"
+
+      ownership_colors <- c(
+        "NSNT Owned" = "#1b9e77",
+        "Easement" = "#d95f02",
+        "AF Owned" = "#7570b3",
+        "AF Held Easement" = "#e7298a"
+      )
 
       mapboxgl(
         mapbox_style("light")
@@ -390,7 +418,7 @@ module_secured_properties_mapbox_server <- function(
 
         add_fill_layer(
           id = "cons_lands_fill",
-          source = cons_lands_union,
+          source = cons_lands_union(),
           fill_color = pal_nsnt,
           fill_opacity = 0.75,
           popup = "popup_html",
@@ -403,7 +431,7 @@ module_secured_properties_mapbox_server <- function(
 
         add_line_layer(
           id = "cons_lands_outline",
-          source = cons_lands_union,
+          source = cons_lands_union(),
           line_color = "white",
           line_width = 1
         ) |>
@@ -414,10 +442,10 @@ module_secured_properties_mapbox_server <- function(
 
         add_circle_layer(
           id = "cons_lands_clusters",
-          source = cons_lands_centroid,
+          source = cons_lands_centroid(),
 
           cluster_options = cluster_options(
-            max_zoom = 10,
+            max_zoom = 6,
             cluster_radius = 50,
 
             color_stops = c(
@@ -439,11 +467,22 @@ module_secured_properties_mapbox_server <- function(
             ),
 
             circle_stroke_color = "white",
-            circle_stroke_width = 2,
+            circle_stroke_width = 3,
             text_color = "white"
           ),
 
           max_zoom = 11,
+
+          circle_color = match_expr(
+            column = "ownership_value",
+            values = names(ownership_colors),
+            stops = unname(ownership_colors),
+            default = "#999999"
+          ),
+
+          circle_stroke_color = "white",
+          circle_stroke_width = 2,
+          circle_radius = 8,
 
           tooltip = "tooltip_text"
         ) |>
@@ -478,11 +517,11 @@ module_secured_properties_mapbox_server <- function(
         # ---------------------------------------------------------------------
 
         add_categorical_legend(
-          unique_id = "cons_lands_legend",
-          legend_title = "Secured Properties",
-          values = "NSNT Conservation Land",
-          colors = pal_nsnt,
-          patch_shape = "square",
+          unique_id = "ownership_legend",
+          legend_title = "Ownership Type",
+          values = names(ownership_colors),
+          colors = unname(ownership_colors),
+          patch_shape = "circle",
           position = "bottom-left",
           width = "210px",
 

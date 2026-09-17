@@ -207,12 +207,12 @@ ui <- page_navbar(
     navset_card_tab(
       height = "100%",
       nav_panel(
-        title = "Property Map",
-        module_property_mapbox_ui("property_mapbox")
+        title = "Database Properties",
+        module_properties_mapbox_ui("properties_map")
       ),
       nav_panel(
-        title = "Conservation Lands",
-        module_secured_properties_mapbox_ui("secured_props_map")
+        title = "Secured Properties",
+        module_secured_properties_mapbox_ui("secured_properties_map")
       ),
       nav_panel(
         title = "ArcGIS Online Map",

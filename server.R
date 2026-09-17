@@ -142,7 +142,7 @@ server <- function(input, output, session) {
   module_project_overview_server("project_review", db_con, db_updated)
 
   module_property_mapbox_server(
-    "property_mapbox",
+    "properties_map",
     db_con = db_con,
     gis_con = gis_con,
     db_updated
@@ -225,5 +225,10 @@ server <- function(input, output, session) {
     cons_lands_data = cons_lands_data_rv
   )
 
-  module_secured_properties_mapbox_server("secured_props_map", db_con, gis_con)
+  module_secured_properties_mapbox_server(
+    "secured_properties_map",
+    db_con,
+    gis_con,
+    db_updated
+  )
 }
