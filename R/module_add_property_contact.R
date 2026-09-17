@@ -177,6 +177,10 @@ module_add_property_contact_ui <- function(id) {
 # Server ----
 module_add_property_contact_server <- function(id, db_con, db_updated) {
   moduleServer(id, function(input, output, session) {
+    ## Reactive values :: Pending contact confirmation ----
+    pending_contact <- reactiveVal(NULL)
+    pending_property_ids <- reactiveVal(NULL)
+
     ## Input Validation :: Add New Contact ----
     iv_create <- InputValidator$new()
     iv_create$add_rule("email", ~ if (isTruthy(.)) sv_email()(.))
@@ -202,15 +206,18 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
     ## Reactive :: Properties List ----
     properties_list <- reactive({
       db_updated()
+
       dbGetQuery(
         db_con,
-        "SELECT id, 
-                CONCAT_WS(' || ', property_name, property_name_public) AS property_name 
-        FROM properties 
-        ORDER BY property_name;"
+        "SELECT
+           id,
+           CONCAT_WS(' || ', property_name, property_name_public) AS property_name
+         FROM properties
+         ORDER BY property_name;"
       )
     })
 
+    ## Update :: Properties Select Input ----
     observe({
       updateSelectizeInput(
         session,
@@ -219,7 +226,7 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
           properties_list()$id,
           properties_list()$property_name
         ),
-        selected = isolate(input$property_id),
+        selected = character(0),
         server = TRUE
       )
     })
@@ -227,12 +234,12 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
     observe({
       updateSelectizeInput(
         session,
-        inputId = "property_id_update",
+        "property_id_update",
         choices = setNames(
           properties_list()$id,
           properties_list()$property_name
         ),
-        selected = isolate(input$property_id_update),
+        selected = character(0),
         server = TRUE
       )
     })
@@ -240,77 +247,92 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
     ## Reactive :: Property Contacts ----
     contacts <- reactive({
       db_updated()
-      contacts <- dbReadTable(db_con, "property_contact_details") |>
+
+      dbReadTable(
+        db_con,
+        "property_contact_details"
+      ) |>
         mutate(
           display_label = str_glue("{name_first} {name_last}  (ID:{id})")
         ) |>
         arrange(name_last, name_first)
     })
 
+    ## Update :: Contact Select Input ----
     observe({
       updateSelectizeInput(
         session,
-        inputId = "contact",
+        "contact",
         choices = setNames(
           contacts()$id,
           contacts()$display_label
         ),
-        selected = isolate(input$contact),
+        selected = character(0),
         server = TRUE
       )
     })
 
-    ## Event :: Submit property contact details ----
-    observeEvent(input$submit_property_contact, {
-      req(iv_create$is_valid())
-
-      # Require at least one contact method before proceeding
-      if (
-        !isTruthy(input$email) &&
-          !isTruthy(input$phone_home) &&
-          !isTruthy(input$phone_cell)
-      ) {
-        shinyalert(
-          title = "Missing Contact Method",
-          text = "Please provide at least one of Email, Home Phone, or Cell Phone.",
-          type = "warning",
-          closeOnClickOutside = FALSE,
-          timer = 10000
-        )
-        return()
-      }
-
-      new_property_contact <- tibble(
-        name_last = input$name_last,
-        name_first = input$name_first,
-        email = if_else(isTruthy(input$email), input$email, NA_character_),
-        phone_home = if_else(
-          isTruthy(input$phone_home),
-          input$phone_home,
-          NA_character_
+    ## Helper :: Clear Add Contact Inputs ----
+    clear_add_contact_inputs <- function() {
+      updateSelectizeInput(
+        session,
+        "property_id",
+        choices = setNames(
+          properties_list()$id,
+          properties_list()$property_name
         ),
-        phone_cell = if_else(
-          isTruthy(input$phone_cell),
-          input$phone_cell,
-          NA_character_
-        ),
-        dnc = as.logical(input$dnc_input),
-        property_contact_description = if_else(
-          isTruthy(input$property_contact_description),
-          input$property_contact_description,
-          NA_character_
-        )
+        selected = character(0),
+        server = TRUE
       )
 
+      updateTextInput(session, "name_last", value = "")
+      updateTextInput(session, "name_first", value = "")
+      updateTextInput(session, "email", value = "")
+      updateTextInput(session, "phone_home", value = "")
+      updateTextInput(session, "phone_cell", value = "")
+      updateSelectInput(session, "dnc_input", selected = "FALSE")
+      updateTextInput(session, "property_contact_description", value = "")
+    }
+
+    ## Helper :: Clear Update Contact Inputs ----
+    clear_update_contact_inputs <- function() {
+      updateSelectizeInput(
+        session,
+        "property_id_update",
+        choices = setNames(
+          properties_list()$id,
+          properties_list()$property_name
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "contact",
+        choices = setNames(
+          contacts()$id,
+          contacts()$display_label
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+    }
+
+    ## Helper :: Add Property Contact ----
+    add_property_contact <- function(
+      new_property_contact,
+      property_ids
+    ) {
+      ## Add contact details ----
       append_db_data(
         "property_contact_details",
         new_property_contact,
         db_con,
         silent = FALSE
       )
-      db_updated(db_updated() + 1)
 
-      # Is this robust enough to deal with potential duplicate contact info?
+      ## Find newly-created contact ID ----
       property_contact_id <- dbGetQuery(
         db_con,
         glue_sql(
@@ -319,11 +341,12 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
           FROM property_contact_details
           WHERE
             name_first = {new_property_contact$name_first}
-            AND name_last  = {new_property_contact$name_last}
+            AND name_last = {new_property_contact$name_last}
             AND email IS NOT DISTINCT FROM {new_property_contact$email}
             AND phone_home IS NOT DISTINCT FROM {new_property_contact$phone_home}
-            AND phone_cell IS NOT DISTINCT FROM {new_property_contact$phone_cell} 
-            AND property_contact_description IS NOT DISTINCT FROM {new_property_contact$property_contact_description} 
+            AND phone_cell IS NOT DISTINCT FROM {new_property_contact$phone_cell}
+            AND property_contact_description IS NOT DISTINCT FROM
+                {new_property_contact$property_contact_description}
           ORDER BY id DESC
           LIMIT 1
           ",
@@ -332,19 +355,27 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
       ) |>
         pull(id)
 
-      if (length(input$property_id) > 0) {
-        # Guard against re-linking a property already tied to this contact
-        # (violates the unique_properties_contact constraint)
+      req(length(property_contact_id) == 1)
+
+      ## Link contact to properties ----
+      if (length(property_ids) > 0) {
         existing_property_ids <- dbGetQuery(
           db_con,
           glue_sql(
-            "SELECT property_id FROM properties_contact WHERE property_contact_id = {property_contact_id}",
+            "
+            SELECT property_id
+            FROM properties_contact
+            WHERE property_contact_id = {property_contact_id}
+            ",
             .con = db_con
           )
         ) |>
           pull(property_id)
 
-        new_property_ids <- setdiff(input$property_id, existing_property_ids)
+        new_property_ids <- setdiff(
+          property_ids,
+          existing_property_ids
+        )
 
         if (length(new_property_ids) > 0) {
           dbx::dbxInsert(
@@ -353,18 +384,21 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
             records = tibble(
               property_id = new_property_ids,
               property_contact_id = rep(
-                x = property_contact_id,
-                times = length(new_property_ids)
+                property_contact_id,
+                length(new_property_ids)
               )
             )
           )
         }
 
-        if (length(new_property_ids) < length(input$property_id)) {
+        ## Alert if any properties were skipped ----
+        n_skipped <- length(property_ids) - length(new_property_ids)
+
+        if (n_skipped > 0) {
           shinyalert(
             title = "Some Properties Skipped",
             text = glue(
-              "Skipped {length(input$property_id) - length(new_property_ids)} propert(y/ies) already linked to this contact."
+              "Skipped {n_skipped} propert(y/ies) already linked to this contact."
             ),
             type = "info",
             closeOnClickOutside = FALSE,
@@ -372,129 +406,396 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
           )
         }
       } else {
-        message("NO PROPERTY ASSOCIATED WITH PROPERTY CONTACT")
-      }
-    })
-
-    ## Event :: Update property contact with new properties ----
-    observeEvent(input$update_property_contact, {
-      req(iv_update$is_valid())
-
-      # Guard against re-linking a property already tied to this contact
-      # (violates the unique_properties_contact constraint)
-      existing_property_ids <- dbGetQuery(
-        db_con,
-        glue_sql(
-          "SELECT property_id FROM properties_contact WHERE property_contact_id = {input$contact}",
-          .con = db_con
+        message(
+          "NO PROPERTY ASSOCIATED WITH PROPERTY CONTACT"
         )
-      ) |>
-        pull(property_id)
+      }
 
-      new_property_ids <- setdiff(
-        input$property_id_update,
-        existing_property_ids
-      )
-      n_skipped <- length(input$property_id_update) - length(new_property_ids)
+      ## Update database trigger ----
+      db_updated(db_updated() + 1)
+    }
 
-      if (length(new_property_ids) > 0) {
-        dbx::dbxInsert(
+    ## Event :: Submit property contact details ----
+    observeEvent(
+      input$submit_property_contact,
+      {
+        req(iv_create$is_valid())
+
+        ## Require at least one contact method ----
+        if (
+          !isTruthy(input$email) &&
+            !isTruthy(input$phone_home) &&
+            !isTruthy(input$phone_cell)
+        ) {
+          shinyalert(
+            title = "Missing Contact Method",
+            text = paste(
+              "Please provide at least one of Email, Home Phone,",
+              "or Cell Phone."
+            ),
+            type = "warning",
+            closeOnClickOutside = FALSE,
+            timer = 10000
+          )
+
+          return()
+        }
+
+        ## Create new contact record ----
+        new_property_contact <- tibble(
+          name_last = input$name_last,
+          name_first = input$name_first,
+
+          email = if (isTruthy(input$email)) {
+            input$email
+          } else {
+            NA_character_
+          },
+
+          phone_home = if (isTruthy(input$phone_home)) {
+            input$phone_home
+          } else {
+            NA_character_
+          },
+
+          phone_cell = if (isTruthy(input$phone_cell)) {
+            input$phone_cell
+          } else {
+            NA_character_
+          },
+
+          dnc = as.logical(input$dnc_input),
+
+          property_contact_description = if (
+            isTruthy(input$property_contact_description)
+          ) {
+            input$property_contact_description
+          } else {
+            NA_character_
+          }
+        )
+
+        ## Find existing contacts with same name ----
+        existing_contacts <- dbGetQuery(
           db_con,
-          table = "properties_contact",
-          records = tibble(
-            property_id = new_property_ids,
-            property_contact_id = input$contact
+          glue_sql(
+            "
+            SELECT
+              id,
+              name_first,
+              name_last,
+              email,
+              phone_home,
+              phone_cell
+            FROM property_contact_details
+            WHERE
+              LOWER(TRIM(name_first)) = LOWER(TRIM({new_property_contact$name_first}))
+              AND LOWER(TRIM(name_last)) = LOWER(TRIM({new_property_contact$name_last}))
+            ORDER BY id
+            ",
+            .con = db_con
           )
         )
 
-        db_updated(db_updated() + 1)
-      }
+        ## Check for definite duplicate ----
+        # Same first + last name AND at least one matching contact method.
 
-      success_text <- glue(
-        "Successfully linked {length(new_property_ids)} propert(y/ies) to the property contact."
-      )
-      if (n_skipped > 0) {
-        success_text <- glue(
-          "{success_text} Skipped {n_skipped} propert(y/ies) already linked to this contact."
+        if (nrow(existing_contacts) > 0) {
+          definite_duplicate <- vapply(
+            seq_len(nrow(existing_contacts)),
+            function(i) {
+              existing <- existing_contacts[i, ]
+
+              email_match <-
+                isTruthy(new_property_contact$email) &&
+                isTruthy(existing$email) &&
+                str_to_lower(str_trim(new_property_contact$email)) ==
+                  str_to_lower(str_trim(existing$email))
+
+              home_match <-
+                isTruthy(new_property_contact$phone_home) &&
+                isTruthy(existing$phone_home) &&
+                str_trim(new_property_contact$phone_home) ==
+                  str_trim(existing$phone_home)
+
+              cell_match <-
+                isTruthy(new_property_contact$phone_cell) &&
+                isTruthy(existing$phone_cell) &&
+                str_trim(new_property_contact$phone_cell) ==
+                  str_trim(existing$phone_cell)
+
+              email_match ||
+                home_match ||
+                cell_match
+            },
+            logical(1)
+          )
+
+          ## Definite duplicate found ----
+          if (any(definite_duplicate)) {
+            duplicate_ids <- existing_contacts$id[
+              definite_duplicate
+            ]
+
+            shinyalert(
+              title = "Duplicate Contact",
+              text = glue(
+                "A contact with the same name and matching ",
+                "contact information already exists ",
+                "(ID: {paste(duplicate_ids, collapse = ', ')}). ",
+                "The new contact was not added."
+              ),
+              type = "warning",
+              closeOnClickOutside = FALSE,
+              timer = 10000
+            )
+
+            return()
+          }
+
+          ## Same name but no matching contact information ----
+          # This is a possible duplicate, so ask the user.
+          existing_text <- paste(
+            vapply(
+              seq_len(nrow(existing_contacts)),
+              function(i) {
+                contact <- existing_contacts[i, ]
+
+                methods <- c(
+                  if (isTruthy(contact$email)) {
+                    paste0(
+                      "Email: ",
+                      contact$email
+                    )
+                  },
+
+                  if (isTruthy(contact$phone_home)) {
+                    paste0(
+                      "Home: ",
+                      contact$phone_home
+                    )
+                  },
+
+                  if (isTruthy(contact$phone_cell)) {
+                    paste0(
+                      "Cell: ",
+                      contact$phone_cell
+                    )
+                  }
+                )
+
+                paste0(
+                  "<strong>",
+                  contact$name_first,
+                  " ",
+                  contact$name_last,
+                  " (ID: ",
+                  contact$id,
+                  ")</strong><br>",
+
+                  if (length(methods) > 0) {
+                    paste(
+                      methods,
+                      collapse = "<br>"
+                    )
+                  } else {
+                    "No contact information"
+                  }
+                )
+              },
+              character(1)
+            ),
+            collapse = "<br><br>"
+          )
+
+          ## Store pending contact ----
+          pending_contact(
+            new_property_contact
+          )
+
+          pending_property_ids(
+            input$property_id
+          )
+
+          ## Show confirmation modal ----
+          showModal(
+            modalDialog(
+              title = "Possible Duplicate Contact",
+
+              HTML(
+                paste0(
+                  "<p>",
+                  "A contact with the same first and last name ",
+                  "already exists:",
+                  "</p>",
+
+                  existing_text,
+
+                  "<br>",
+
+                  "<p>",
+                  "Do you want to add the current inputs as a new contact?",
+                  "</p>"
+                )
+              ),
+
+              footer = tagList(
+                modalButton(
+                  "Cancel"
+                ),
+
+                actionButton(
+                  session$ns(
+                    "confirm_add_property_contact"
+                  ),
+                  "Add Contact",
+                  class = "btn-primary"
+                )
+              ),
+
+              easyClose = FALSE
+            )
+          )
+
+          return()
+        }
+
+        ## No existing contact with same name ----
+        add_property_contact(
+          new_property_contact = new_property_contact,
+          property_ids = input$property_id
         )
+
+        clear_add_contact_inputs()
       }
+    )
 
-      shinyalert(
-        title = if (length(new_property_ids) > 0) "Success" else "No Changes",
-        text = if (length(new_property_ids) > 0) {
-          success_text
-        } else {
-          "All selected properties are already linked to this contact."
-        },
-        type = if (length(new_property_ids) > 0) "success" else "info",
-        closeOnClickOutside = FALSE,
-        timer = 10000
-      )
+    ## Event :: Confirm possible duplicate ----
+    observeEvent(
+      input$confirm_add_property_contact,
+      {
+        req(
+          pending_contact(),
+          pending_property_ids()
+        )
 
-      ## Clear inputs after successful update
-      updateSelectizeInput(
-        session,
-        "property_id_update",
-        choices = setNames(
-          properties_list()$id,
-          properties_list()$property_name
-        ),
-        selected = character(0),
-        server = TRUE
-      )
-      updateSelectizeInput(
-        session,
-        "contact",
-        choices = setNames(
-          contacts()$id,
-          contacts()$display_label
-        ),
-        selected = character(0),
-        server = TRUE
-      )
-    })
+        removeModal()
+
+        add_property_contact(
+          new_property_contact = pending_contact(),
+          property_ids = pending_property_ids()
+        )
+
+        clear_add_contact_inputs()
+
+        ## Clear pending values
+        pending_contact(NULL)
+        pending_property_ids(NULL)
+      },
+      ignoreInit = TRUE
+    )
+
+    ## Event :: Update property contact with new properties ----
+    observeEvent(
+      input$update_property_contact,
+      {
+        req(iv_update$is_valid())
+
+        ## Existing property links ----
+        existing_property_ids <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "
+            SELECT property_id
+            FROM properties_contact
+            WHERE property_contact_id = {input$contact}
+            ",
+            .con = db_con
+          )
+        ) |>
+          pull(property_id)
+
+        ## Only add new links ----
+        new_property_ids <- setdiff(
+          input$property_id_update,
+          existing_property_ids
+        )
+
+        n_skipped <- length(input$property_id_update) - length(new_property_ids)
+
+        ## Insert new property links ----
+        if (length(new_property_ids) > 0) {
+          dbx::dbxInsert(
+            db_con,
+            table = "properties_contact",
+            records = tibble(
+              property_id = new_property_ids,
+              property_contact_id = input$contact
+            )
+          )
+
+          db_updated(
+            db_updated() + 1
+          )
+        }
+
+        ## Success message ----
+        success_text <- glue(
+          "Successfully linked ",
+          "{length(new_property_ids)} ",
+          "propert(y/ies) to the property contact."
+        )
+
+        if (n_skipped > 0) {
+          success_text <- glue(
+            "{success_text} Skipped ",
+            "{n_skipped} propert(y/ies) already ",
+            "linked to this contact."
+          )
+        }
+
+        shinyalert(
+          title = if (length(new_property_ids) > 0) {
+            "Success"
+          } else {
+            "No Changes"
+          },
+
+          text = if (length(new_property_ids) > 0) {
+            success_text
+          } else {
+            "All selected properties are already linked to this contact."
+          },
+
+          type = if (length(new_property_ids) > 0) {
+            "success"
+          } else {
+            "info"
+          },
+
+          closeOnClickOutside = FALSE,
+          timer = 10000
+        )
+
+        ## Clear inputs after successful update ----
+        clear_update_contact_inputs()
+      }
+    )
 
     ## Event :: Clear Input Add Contact ----
-    observeEvent(input$clear_inputs, {
-      updateSelectizeInput(
-        session,
-        "property_id",
-        choices = setNames(
-          properties_list()$id,
-          properties_list()$property_name
-        ),
-        selected = character(0),
-        server = TRUE
-      )
-      updateTextInput(session, "name_last", value = "")
-      updateTextInput(session, "name_first", value = "")
-      updateTextInput(session, "email", value = "")
-      updateTextInput(session, "phone_home", value = "")
-      updateTextInput(session, "phone_cell", value = "")
-      updateSelectInput(session, "dnc_input", selected = "FALSE")
-      updateTextInput(session, "property_contact_description", value = "")
-    })
+    observeEvent(
+      input$clear_inputs,
+      {
+        clear_add_contact_inputs()
+      }
+    )
 
     ## Event :: Clear inputs Update Contact ----
-    observeEvent(input$clear_inputs_update, {
-      updateSelectizeInput(
-        session,
-        "property_id_update",
-        choices = setNames(
-          properties_list()$id,
-          properties_list()$property_name
-        ),
-        selected = character(0)
-      )
-      updateSelectizeInput(
-        session,
-        "contact",
-        choices = setNames(
-          contacts()$id,
-          contacts()$display_label
-        ),
-        selected = character(0)
-      )
-    })
+    observeEvent(
+      input$clear_inputs_update,
+      {
+        clear_update_contact_inputs()
+      }
+    )
   })
 }
