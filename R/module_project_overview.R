@@ -157,8 +157,14 @@ module_project_overview_ui <- function(id) {
               card(
                 height = "100%",
                 card_header(div(
-                  style = "display: flex; align-items: center; gap: 8px;",
-                  h5("Overview")
+                  style = "display: flex; align-items: center; justify-content: space-between; gap: 8px;",
+                  h5("Overview"),
+                  actionButton(
+                    inputId = ns("view_priority_rankings"),
+                    label = "PID Priority Rankings",
+                    icon = icon("table"),
+                    class = "btn-outline-primary btn-sm"
+                  )
                 )),
                 card_body(
                   div(
@@ -515,6 +521,68 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
       db_updated(db_updated() + 1L)
     })
 
+    ## Output :: Priority rankings table (by PID) ----
+    output$priority_rankings_table <- renderTable(
+      {
+        req(selected_record())
+        rankings <- selected_record()$rankings
+        req(rankings, nrow(rankings) > 0)
+
+        ranking_lookup <- tibble(
+          id = ranking()$id,
+          ranking_label = ranking()$ranking_value
+        )
+
+        rankings |>
+          select(
+            pid,
+            priority_ecological_ranking_id,
+            priority_securement_ranking_id,
+            priority_ecological_ranking_reason,
+            priority_securement_ranking_reason
+          ) |>
+          left_join(
+            ranking_lookup,
+            by = c("priority_ecological_ranking_id" = "id")
+          ) |>
+          rename(ecological_label = ranking_label) |>
+          left_join(
+            ranking_lookup,
+            by = c("priority_securement_ranking_id" = "id")
+          ) |>
+          rename(securement_label = ranking_label) |>
+          select(
+            pid,
+            ecological_label,
+            priority_ecological_ranking_reason,
+            securement_label,
+            priority_securement_ranking_reason
+          ) |>
+          rename(
+            PID = pid,
+            `Ecological Priority` = ecological_label,
+            `Ecological Reasoning` = priority_ecological_ranking_reason,
+            `Securement Priority` = securement_label,
+            `Securement Reasoning` = priority_securement_ranking_reason
+          ) |>
+          arrange(PID)
+      },
+      colnames = TRUE,
+      spacing = "s"
+    )
+
+    ## Event :: Show priority rankings modal ----
+    observeEvent(input$view_priority_rankings, {
+      req(selected_record())
+      showModal(modalDialog(
+        title = "Ecological & Securement Priority Rankings",
+        tableOutput(ns("priority_rankings_table")),
+        easyClose = TRUE,
+        size = "l",
+        footer = modalButton("Close")
+      ))
+    })
+
     ## Reactive value :: Selected record ----
     selected_record <- reactiveVal(NULL)
 
@@ -599,6 +667,22 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
           unique() |>
           paste(collapse = ", ")
 
+        rankings_df <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "
+            SELECT pa.pid,
+                   pa.priority_ecological_ranking_id,
+                   pa.priority_securement_ranking_id,
+                   pa.priority_ecological_ranking_reason,
+                   pa.priority_securement_ranking_reason
+            FROM properties pr
+            LEFT JOIN parcels pa ON pr.id = pa.property_id
+            WHERE pr.property_name = {prop_name}",
+            .con = db_con
+          )
+        )
+
         size_df <- dbGetQuery(
           db_con,
           glue_sql(
@@ -680,6 +764,7 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
           selected_record(list(
             info = record_01,
             pids = pids_string,
+            rankings = rankings_df,
             size_ha = total_area_ha,
             size_acres = total_area_acres,
             contacts = contacts_df,
