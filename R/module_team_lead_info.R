@@ -143,6 +143,7 @@ module_team_lead_info_server <- function(id, db_con, db_updated = NULL) {
           LEFT JOIN action_item_type ait ON sai.action_item_type_id = ait.id
         WHERE
           tl.team_value = {input$team_lead_choice} AND ais.status_value NOT IN ('Not Required', 'Completed')
+          AND pr.securement_probability_id IS NOT NULL AND pr.securement_actions_complete IS NOT TRUE
         ORDER BY
           pr.property_name;",
           .con = db_con

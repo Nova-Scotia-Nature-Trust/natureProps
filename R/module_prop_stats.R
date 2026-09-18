@@ -77,14 +77,13 @@ module_prop_stats_UI <- function(id) {
         card_body(
           div(
             class = "indicator-grid",
-            uiOutput(ns("acres_total")),
-            uiOutput(ns("acres_nsnt")),
-            uiOutput(ns("acres_easement")),
-            uiOutput(ns("n_easements")),
-            uiOutput(ns("n_ecogifts")),
-            uiOutput(ns("ecological_vh_card")),
-            uiOutput(ns("securement_vh_card")),
-            uiOutput(ns("props_2025_card"))
+            uiOutput(ns("tcl")),
+            uiOutput(ns("tclh")),
+            uiOutput(ns("telh")),
+            uiOutput(ns("tclo")),
+            uiOutput(ns("afo")),
+            uiOutput(ns("ttc")),
+            uiOutput(ns("ecogifts"))
           )
         )
       ),
@@ -92,7 +91,6 @@ module_prop_stats_UI <- function(id) {
         height = "auto",
         full_screen = TRUE,
         card_body(
-          # plotOutput(ns("closing_year_plot"))
           mapboxglOutput(ns("closing_year_map"), height = "400px")
         )
       )
@@ -103,140 +101,193 @@ module_prop_stats_UI <- function(id) {
 # Server ----
 module_prop_stats_server <- function(id, db_con, gis_con, db_updated = NULL) {
   moduleServer(id, function(input, output, session) {
-    valboxes <- reactiveValues()
+    acerage_vals <- reactiveValues()
+    nprop_vals <- reactiveValues()
+
+    calc_acreage <- function(x) {
+      acreage <- dbGetQuery(
+        db_con,
+        statement = glue_sql(
+          "SELECT
+              pa.property_id,
+              pr.property_name,
+              pr.property_name_public,
+              pr.internal_record_id,
+              pa.size_confirmed_acres,
+              pi.area_ha * 2.471 AS pol_acres,
+              COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
+            FROM
+              properties pr
+              JOIN parcels pa ON pr.id = pa.property_id
+              LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
+              LEFT JOIN ownership ow ON pr.ownership_id = ow.id
+            WHERE
+              ow.ownership_value IN ({x*});",
+          .con = db_con
+        )
+      ) |>
+        as_tibble()
+
+      return(acreage)
+    }
 
     observe({
       if (!is.null(db_updated)) {
         db_updated()
       }
 
-      valboxes$eco_high <- dbGetQuery(
-        db_con,
-        "SELECT COUNT(*) FROM parcels
-               WHERE priority_ecological_ranking_id = 1;"
-      ) |>
-        pull(count)
-
-      valboxes$sec_high <- dbGetQuery(
-        db_con,
-        "SELECT COUNT(*) FROM parcels
-               WHERE priority_securement_ranking_id = 1;"
-      ) |>
-        pull(count)
-
-      valboxes$prop_2025 <- dbGetQuery(
-        db_con,
-        "SELECT COUNT(*) 
-         FROM parcels pa
-         JOIN properties pr ON pr.id = pa.property_id
-          WHERE pr.date_added > '2024-12-31';"
-      ) |>
-        pull(count)
-
-      # # Get total acres for NSNT-owned properties
-      # valboxes$nsnt_acres <- dbGetQuery(
-      #   db_con,
-      #   "SELECT
-      #     COALESCE(SUM(p.size_confirmed_acres), 0) +
-      #     COALESCE(SUM(CASE WHEN p.size_confirmed_acres IS NULL THEN pi.area_ha * 2.471053 ELSE 0 END), 0) AS total_acres
-      #   FROM parcels p
-      #   LEFT JOIN parcel_info pi ON p.id = pi.parcel_id
-      #   INNER JOIN properties pr ON p.property_id = pr.id
-      #   WHERE pr.ownership_id NOT IN (11, 12, 13);"
-      # ) |>
-      #   pull(total_acres)
-
-      # Number of ecogifts
-      valboxes$n_ecogifts <- dbGetQuery(
+      ## Number of ecogifts
+      nprop_vals$ecogifts <- dbGetQuery(
         db_con,
         "SELECT COUNT(*) FROM properties WHERE ecogift_number IS NOT NULL;"
       ) |>
         pull(count)
 
-      # Number of easements
-      valboxes$n_easements <- dbGetQuery(
-        db_con,
-        "SELECT COUNT(*) FROM properties WHERE ownership_id IN (2,3,4,12);"
+      ## Total Conservation Land Secured
+      tcl <- calc_acreage(
+        c(
+          "AF Owned",
+          "Easement",
+          "Easement - Assigned AF Easement",
+          "Easement - Held by AF",
+          "NSNT Owned",
+          "NSNT Owned - Transferred AF Donation",
+          "NSNT Owned & NSNT Easement",
+          "NSNT Owned & NSNT Easement - Assigned AF Easement",
+          "Transfer to Crown - No Easement",
+          "Transfer to Crown - NSNT Easement",
+          "Transfer to Crown - NSNT Stewardship"
+        )
       ) |>
-        pull(count)
+        summarise(
+          n_props = n_distinct(property_id),
+          total_acres = sum(acres),
+          .groups = "property_id"
+        )
 
-      # Acres under easement
-      valboxes$acres_easement <- dbGetQuery(
-        db_con,
-        "SELECT
-          pa.property_id,
-          pr.property_name,
-          pa.size_confirmed_acres,
-          pi.area_ha * 2.471 AS pol_acres,
-          COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
-        FROM
-          properties pr
-          JOIN parcels pa ON pr.id = pa.property_id
-          LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
-        WHERE
-          pr.ownership_id IN (2, 3, 4, 12);"
-      ) |>
-        pull(acres) |>
-        sum()
+      acerage_vals$tcl <- tcl$total_acres
+      nprop_vals$tcl <- tcl$n_props
 
-      # Total acres protected
-      valboxes$acres_total <- dbGetQuery(
-        db_con,
-        "SELECT
-          pa.property_id,
-          pr.property_name,
-          pa.size_confirmed_acres,
-          pi.area_ha * 2.471 AS pol_acres,
-          COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
-        FROM
-          properties pr
-          JOIN parcels pa ON pr.id = pa.property_id
-          LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
-        WHERE
-          pr.ownership_id IS NOT NULL AND pr.ownership_id NOT IN (7, 14)"
+      ## Total Conservation Land Held
+      tclh <- calc_acreage(
+        c(
+          "AF Owned",
+          "Easement",
+          "Easement - Assigned AF Easement",
+          "Easement - Held by AF",
+          "NSNT Owned",
+          "NSNT Owned - Transferred AF Donation",
+          "NSNT Owned & NSNT Easement",
+          "NSNT Owned & NSNT Easement - Assigned AF Easement",
+          "Transfer to Crown - NSNT Easement"
+        )
       ) |>
-        pull(acres) |>
-        sum()
+        summarise(
+          n_props = n_distinct(property_id),
+          total_acres = sum(acres),
+          .groups = "property_id"
+        )
 
-      # Total acres held by NSNT
-      valboxes$acres_nsnt <- dbGetQuery(
-        db_con,
-        "SELECT
-          pa.property_id,
-          pr.property_name,
-          pa.size_confirmed_acres,
-          pi.area_ha * 2.471 AS pol_acres,
-          COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471) AS acres
-        FROM
-          properties pr
-          JOIN parcels pa ON pr.id = pa.property_id
-          LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
-        WHERE
-          pr.ownership_id NOT IN (7, 11, 12, 13, 14);"
-      ) |>
-        pull(acres) |>
-        sum()
+      acerage_vals$tclh <- tclh$total_acres
+      nprop_vals$tclh <- tclh$n_props
+
+      ## Total Easement Land Held
+      telh <- calc_acreage(c(
+        "Easement",
+        "Easement - Assigned AF Easement",
+        "Easement - Held by AF",
+        "Transfer to Crown - NSNT Easement"
+      )) |>
+        summarise(
+          n_props = n_distinct(property_id),
+          total_acres = sum(acres),
+          .groups = "property_id"
+        )
+
+      acerage_vals$telh <- telh$total_acres
+      nprop_vals$telh <- telh$n_props
+
+      ## Total Conservation Land Owned
+      tclo <- calc_acreage(c(
+        "NSNT Owned",
+        "NSNT Owned - Transferred AF Donation",
+        "NSNT Owned & NSNT Easement",
+        "NSNT Owned & NSNT Easement - Assigned AF Easement"
+      )) |>
+        summarise(
+          n_props = n_distinct(property_id),
+          total_acres = sum(acres),
+          .groups = "property_id"
+        )
+
+      acerage_vals$tclo <- tclo$total_acres
+      nprop_vals$tclo <- tclo$n_props
+
+      ## AFCC owned
+      afo <- calc_acreage("AF Owned") |>
+        summarise(
+          n_props = n_distinct(property_id),
+          total_acres = sum(acres),
+          .groups = "property_id"
+        )
+
+      acerage_vals$afo <- afo$total_acres
+      nprop_vals$afo <- afo$n_props
+
+      ## Transferred to Crown
+      ttc <- calc_acreage(c(
+        "Transfer to Crown - No Easement",
+        "Transfer to Crown - NSNT Stewardship"
+      )) |>
+        summarise(
+          n_props = n_distinct(property_id),
+          total_acres = sum(acres),
+          .groups = "property_id"
+        )
+      acerage_vals$ttc <- ttc$total_acres
+      nprop_vals$ttc <- ttc$n_props
+
+      # End
     })
 
     # Helper function to create indicator cards
     indicator_card <- function(
       title,
-      value,
+      acreage_value,
+      n_prop,
       icon,
       theme = "primary",
       unit = NULL,
       custom_color = NULL
     ) {
-      formatted_value <- if (is.numeric(value)) {
-        paste0(
-          format(round(value, 1), big.mark = ","),
-          if (!is.null(unit)) paste0(" ", unit)
-        )
+      if (is.null(acreage_value)) {
+        formatted_value <- n_prop
+        n_prop_text <- NULL
       } else {
-        format(value, big.mark = ",")
+        formatted_value <- if (is.numeric(acreage_value)) {
+          paste0(
+            format(round(acreage_value, 1), big.mark = ","),
+            if (!is.null(unit)) paste0(" ", unit)
+          )
+        } else {
+          format(acreage_value, big.mark = ",")
+        }
+
+        n_prop_text <- paste0(n_prop, " properties")
       }
 
-      # Use custom color if provided, otherwise use theme class
+      card_content <- div(
+        h3(class = "indicator-value", formatted_value),
+        if (!is.null(n_prop_text)) {
+          h5(
+            class = "indicator-n-prop",
+            style = "color: black;",
+            n_prop_text
+          )
+        },
+        p(class = "indicator-title", title)
+      )
+
       if (!is.null(custom_color)) {
         div(
           class = "indicator-card",
@@ -245,106 +296,96 @@ module_prop_stats_server <- function(id, db_con, gis_con, db_updated = NULL) {
             style = paste0("color: ", custom_color, ";"),
             bs_icon(icon)
           ),
-          div(
-            h3(class = "indicator-value", formatted_value),
-            p(class = "indicator-title", title)
-          )
+          card_content
         )
       } else {
         div(
           class = paste("indicator-card", theme),
           div(class = "indicator-icon", bs_icon(icon)),
-          div(
-            h3(class = "indicator-value", formatted_value),
-            p(class = "indicator-title", title)
-          )
+          card_content
         )
       }
     }
 
-    output$ecological_vh_card <- renderUI({
+    output$tcl <- renderUI({
       indicator_card(
-        title = "Very High Priority (Ecological)",
-        value = valboxes$eco_high,
+        title = "Conservation Land Secured",
+        acreage_value = round(acerage_vals$tcl, 0),
+        n_prop = nprop_vals$tcl,
+        icon = "map",
+        theme = "success",
+        unit = "acres",
+        custom_color = NULL
+      )
+    })
+
+    output$tclh <- renderUI({
+      indicator_card(
+        title = "Conservation Land Held",
+        acreage_value = round(acerage_vals$tclh, 0),
+        n_prop = nprop_vals$tclh,
         icon = "tree",
         theme = "success",
-        unit = "parcels",
-        custom_color = NULL
-      )
-    })
-
-    output$securement_vh_card <- renderUI({
-      indicator_card(
-        title = "Very High Priority (Securement)",
-        value = valboxes$sec_high,
-        icon = "houses",
-        theme = "primary",
-        unit = "parcels",
-        custom_color = NULL
-      )
-    })
-
-    output$props_2025_card <- renderUI({
-      indicator_card(
-        title = "Added to database in 2025",
-        value = valboxes$prop_2025,
-        icon = "calendar-event",
-        theme = "warning",
-        unit = "properties",
-        custom_color = NULL
-      )
-    })
-
-    output$acres_nsnt <- renderUI({
-      indicator_card(
-        title = "Nature Trust Held Conservation Land",
-        value = round(valboxes$acres_nsnt, 0),
-        icon = "map",
-        theme = NULL,
         unit = "acres",
-        custom_color = "#1717c9ff"
+        custom_color = NULL
       )
     })
 
-    output$acres_total <- renderUI({
+    output$telh <- renderUI({
       indicator_card(
-        title = "Total Nature Trust Conservation Land",
-        value = round(valboxes$acres_total, 0),
-        icon = "map",
+        title = "Easements",
+        acreage_value = round(acerage_vals$telh, 0),
+        n_prop = nprop_vals$telh,
+        icon = "file-text",
         theme = "success",
         unit = "acres",
         custom_color = NULL
       )
     })
 
-    output$acres_easement <- renderUI({
+    output$tclo <- renderUI({
       indicator_card(
-        title = "Conservation Land Under Easement ",
-        value = round(valboxes$acres_easement, 0),
-        icon = "map",
-        theme = NULL,
+        title = "Nature Trust Owned",
+        acreage_value = round(acerage_vals$tclo, 0),
+        n_prop = nprop_vals$tclo,
+        icon = "shield-check",
+        theme = "success",
         unit = "acres",
-        custom_color = "#ce3f0bff"
-      )
-    })
-
-    output$n_ecogifts <- renderUI({
-      indicator_card(
-        title = "Number of Ecogifts",
-        value = valboxes$n_ecogifts,
-        icon = "houses",
-        theme = "warning",
-        unit = NULL,
         custom_color = NULL
       )
     })
 
-    output$n_easements <- renderUI({
+    output$afo <- renderUI({
       indicator_card(
-        title = "Number of Easements",
-        value = valboxes$n_easements,
-        icon = "houses",
-        theme = "warning",
+        title = "American Friends Owned",
+        acreage_value = round(acerage_vals$afo, 0),
+        n_prop = nprop_vals$afo,
+        icon = "globe-americas",
+        theme = "success",
+        unit = "acres",
+        custom_color = NULL
+      )
+    })
+
+    output$ttc <- renderUI({
+      indicator_card(
+        title = "Transferred to Crown",
+        acreage_value = round(acerage_vals$ttc, 0),
+        n_prop = nprop_vals$ttc,
+        icon = "arrow-right-square",
+        theme = "success",
+        unit = "acres",
+        custom_color = NULL
+      )
+    })
+
+    output$ecogifts <- renderUI({
+      indicator_card(
+        title = "Number of Ecogifts",
+        acreage_value = NULL,
+        n_prop = nprop_vals$ecogifts,
+        icon = "gift",
+        theme = "success",
         unit = NULL,
         custom_color = NULL
       )
@@ -377,39 +418,6 @@ module_prop_stats_server <- function(id, db_con, gis_con, db_updated = NULL) {
           filter(anticipated_closing_year > prior_fiscal)
       }
     })
-
-    # output$closing_year_plot <- renderPlot({
-    #   plot_data() |>
-    #     ggplot(aes(x = anticipated_closing_year, fill = probability_value)) +
-    #     geom_bar(
-    #       position = position_dodge2(preserve = "single"),
-    #       color = "black",
-    #       linewidth = 0.3
-    #     ) +
-    #     scale_fill_manual(
-    #       values = c(
-    #         "Confirmed" = "#2E7D32",
-    #         "Expected" = "#1976D2",
-    #         "Potential" = "#d36912ff"
-    #       )
-    #     ) +
-    #     scale_y_continuous(breaks = scales::breaks_width(2)) +
-    #     labs(
-    #       title = "Project Status",
-    #       x = "Anticipated Closing Year",
-    #       y = "Number of Properties",
-    #       fill = "Securement Probability"
-    #     ) +
-    #     theme(
-    #       axis.text.x = element_text(size = 18),
-    #       axis.text.y = element_text(size = 18),
-    #       axis.title.x = element_text(size = 20),
-    #       axis.title.y = element_text(size = 20),
-    #       plot.title = element_text(size = 20),
-    #       legend.title = element_text(size = 18),
-    #       legend.text = element_text(size = 18)
-    #     )
-    # })
 
     prob_map_sf <- reactive({
       if (!is.null(db_updated)) {

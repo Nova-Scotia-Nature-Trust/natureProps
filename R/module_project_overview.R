@@ -157,8 +157,14 @@ module_project_overview_ui <- function(id) {
               card(
                 height = "100%",
                 card_header(div(
-                  style = "display: flex; align-items: center; gap: 8px;",
-                  h5("Overview")
+                  style = "display: flex; align-items: center; justify-content: space-between; gap: 8px;",
+                  h5("Overview"),
+                  actionButton(
+                    inputId = ns("view_priority_rankings"),
+                    label = "PID Priority Rankings",
+                    icon = icon("table"),
+                    class = "btn-outline-primary btn-sm"
+                  )
                 )),
                 card_body(
                   div(
@@ -168,7 +174,7 @@ module_project_overview_ui <- function(id) {
                   )
                 )
               ),
-              ## Right column: Internal Communications + Action Items ----
+              ## Accordion ----
               accordion(
                 id = ns("log_accordion"),
                 open = FALSE,
@@ -253,7 +259,7 @@ module_project_overview_ui <- function(id) {
                       ns("contact_comm_contact_id"),
                       "Select Property Contact",
                       choices = NULL,
-                      multiple = FALSE,
+                      multiple = TRUE,
                       width = "100%",
                       options = list(
                         create = FALSE,
@@ -323,6 +329,70 @@ module_project_overview_ui <- function(id) {
                     ),
                     actionButton(
                       inputId = ns("submit_project_feasibility"),
+                      label = "Submit Changes",
+                      class = "btn-success"
+                    )
+                  )
+                ),
+                # Panel :: Assign Ecological Priority ----
+                accordion_panel(
+                  "Assign Ecological Priority",
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    selectizeInput(
+                      inputId = ns("ecological_pid"),
+                      label = "PID",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    selectizeInput(
+                      inputId = ns("ecological_priority"),
+                      label = "Ecological Priority",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    textAreaInput(
+                      ns("ecological_reason"),
+                      "Ecological Ranking Reasoning",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("submit_ecological_priority"),
+                      label = "Submit Changes",
+                      class = "btn-success"
+                    )
+                  )
+                ),
+                # Panel :: Assign Securement Priority ----
+                accordion_panel(
+                  "Assign Securement Priority",
+                  div(
+                    style = "display: flex; flex-direction: column; gap: 15px;",
+                    selectizeInput(
+                      inputId = ns("securement_pid"),
+                      label = "PID",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    selectizeInput(
+                      inputId = ns("securement_priority"),
+                      label = "Securement Priority",
+                      choices = NULL,
+                      multiple = FALSE
+                    ),
+                    textAreaInput(
+                      ns("securement_reason"),
+                      "Securement Ranking Reasoning",
+                      value = "",
+                      width = "100%",
+                      height = "150px",
+                      resize = "vertical"
+                    ),
+                    actionButton(
+                      inputId = ns("submit_securement_priority"),
                       label = "Submit Changes",
                       class = "btn-success"
                     )
@@ -510,9 +580,190 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
       )
     })
 
+    ## Observer :: Update ecological/securement priority ranking choices ----
+    observe({
+      updateSelectizeInput(
+        session,
+        "ecological_priority",
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = isolate(input$ecological_priority),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "securement_priority",
+        choices = setNames(
+          ranking()$id,
+          ranking()$ranking_value
+        ),
+        selected = isolate(input$securement_priority),
+        server = TRUE
+      )
+    })
+
+    ## Function :: Load PID rankings for a property ----
+    load_pid_rankings <- function(prop_name) {
+      dbGetQuery(
+        db_con,
+        glue_sql(
+          "
+          SELECT pa.pid,
+                 pa.priority_ecological_ranking_id,
+                 pa.priority_securement_ranking_id,
+                 pa.priority_ecological_ranking_reason,
+                 pa.priority_securement_ranking_reason
+          FROM properties pr
+          LEFT JOIN parcels pa ON pr.id = pa.property_id
+          WHERE pr.property_name = {prop_name}",
+          .con = db_con
+        )
+      )
+    }
+
+    ## Observer :: Update PID choices for priority accordion panels ----
+    observe({
+      rankings <- if (!is.null(selected_record())) {
+        selected_record()$rankings
+      } else {
+        NULL
+      }
+
+      pids <- if (!is.null(rankings) && nrow(rankings) > 0) {
+        unique(rankings$pid)
+      } else {
+        character(0)
+      }
+
+      updateSelectizeInput(
+        session,
+        "ecological_pid",
+        choices = c("", pids),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "securement_pid",
+        choices = c("", pids),
+        selected = character(0),
+        server = TRUE
+      )
+    })
+
+    ## Event :: Ecological PID selected ----
+    observeEvent(input$ecological_pid, {
+      req(input$ecological_pid, selected_record())
+
+      selected_parcel <- selected_record()$rankings |>
+        filter(pid == input$ecological_pid)
+
+      if (nrow(selected_parcel) == 1) {
+        updateSelectizeInput(
+          session,
+          "ecological_priority",
+          selected = selected_parcel$priority_ecological_ranking_id
+        )
+
+        updateTextAreaInput(
+          session,
+          "ecological_reason",
+          value = selected_parcel$priority_ecological_ranking_reason
+        )
+      }
+    })
+
+    ## Event :: Securement PID selected ----
+    observeEvent(input$securement_pid, {
+      req(input$securement_pid, selected_record())
+
+      selected_parcel <- selected_record()$rankings |>
+        filter(pid == input$securement_pid)
+
+      if (nrow(selected_parcel) == 1) {
+        updateSelectizeInput(
+          session,
+          "securement_priority",
+          selected = selected_parcel$priority_securement_ranking_id
+        )
+
+        updateTextAreaInput(
+          session,
+          "securement_reason",
+          value = selected_parcel$priority_securement_ranking_reason
+        )
+      }
+    })
+
     ## Event :: Manual refresh ----
     observeEvent(input$refresh_data, {
       db_updated(db_updated() + 1L)
+    })
+
+    ## Output :: Priority rankings table (by PID) ----
+    output$priority_rankings_table <- renderTable(
+      {
+        req(selected_record())
+        rankings <- selected_record()$rankings
+        req(rankings, nrow(rankings) > 0)
+
+        ranking_lookup <- tibble(
+          id = ranking()$id,
+          ranking_label = ranking()$ranking_value
+        )
+
+        rankings |>
+          select(
+            pid,
+            priority_ecological_ranking_id,
+            priority_securement_ranking_id,
+            priority_ecological_ranking_reason,
+            priority_securement_ranking_reason
+          ) |>
+          left_join(
+            ranking_lookup,
+            by = c("priority_ecological_ranking_id" = "id")
+          ) |>
+          rename(ecological_label = ranking_label) |>
+          left_join(
+            ranking_lookup,
+            by = c("priority_securement_ranking_id" = "id")
+          ) |>
+          rename(securement_label = ranking_label) |>
+          select(
+            pid,
+            ecological_label,
+            priority_ecological_ranking_reason,
+            securement_label,
+            priority_securement_ranking_reason
+          ) |>
+          rename(
+            PID = pid,
+            `Ecological Priority` = ecological_label,
+            `Ecological Reasoning` = priority_ecological_ranking_reason,
+            `Securement Priority` = securement_label,
+            `Securement Reasoning` = priority_securement_ranking_reason
+          ) |>
+          arrange(PID)
+      },
+      colnames = TRUE,
+      spacing = "s"
+    )
+
+    ## Event :: Show priority rankings modal ----
+    observeEvent(input$view_priority_rankings, {
+      req(selected_record())
+      showModal(modalDialog(
+        title = "Ecological & Securement Priority Rankings",
+        tableOutput(ns("priority_rankings_table")),
+        easyClose = TRUE,
+        size = "l",
+        footer = modalButton("Close")
+      ))
     })
 
     ## Reactive value :: Selected record ----
@@ -547,6 +798,7 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
                tl.team_value as team_lead, 
                ph.phase_value as phase, 
                p.stewardship_concerns,
+               p.project_feasibility_ranking_id,
                r.ranking_value as project_feasibility_ranking,
                p.project_feasibility_ranking_reason
         FROM properties p
@@ -598,6 +850,22 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
           pull(pid) |>
           unique() |>
           paste(collapse = ", ")
+
+        rankings_df <- dbGetQuery(
+          db_con,
+          glue_sql(
+            "
+            SELECT pa.pid,
+                   pa.priority_ecological_ranking_id,
+                   pa.priority_securement_ranking_id,
+                   pa.priority_ecological_ranking_reason,
+                   pa.priority_securement_ranking_reason
+            FROM properties pr
+            LEFT JOIN parcels pa ON pr.id = pa.property_id
+            WHERE pr.property_name = {prop_name}",
+            .con = db_con
+          )
+        )
 
         size_df <- dbGetQuery(
           db_con,
@@ -680,6 +948,7 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
           selected_record(list(
             info = record_01,
             pids = pids_string,
+            rankings = rankings_df,
             size_ha = total_area_ha,
             size_acres = total_area_acres,
             contacts = contacts_df,
@@ -687,8 +956,32 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
             contact_comms = contact_comms_df,
             actions = actions_df
           ))
+
+          updateSelectizeInput(
+            session,
+            "project_feasibility_ranking",
+            selected = record_01$project_feasibility_ranking_id
+          )
+
+          updateTextAreaInput(
+            session,
+            "project_feasibility_reasoning",
+            value = record_01$project_feasibility_ranking_reason
+          )
         } else {
           selected_record(NULL)
+
+          updateSelectizeInput(
+            session,
+            "project_feasibility_ranking",
+            selected = character(0)
+          )
+
+          updateTextAreaInput(
+            session,
+            "project_feasibility_reasoning",
+            value = ""
+          )
         }
       },
       ignoreNULL = FALSE
@@ -1364,6 +1657,120 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
       updateTextAreaInput(session, "project_feasibility_reasoning", value = "")
     })
 
+    ## Event :: Submit Ecological Priority ----
+    observeEvent(input$submit_ecological_priority, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before assigning ecological priority.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(input$ecological_pid, input$ecological_priority)
+
+      df <- tibble(
+        pid = input$ecological_pid,
+        priority_ecological_ranking_id = as.integer(input$ecological_priority),
+        priority_ecological_ranking_reason = input$ecological_reason
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "parcels",
+        records = df,
+        where_cols = "pid"
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      rec <- selected_record()
+      if (!is.null(rec)) {
+        rec$rankings <- load_pid_rankings(input$property)
+        selected_record(rec)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Ecological priority updated for PID {input$ecological_pid}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+
+      updateSelectizeInput(
+        session,
+        "ecological_priority",
+        selected = character(0)
+      )
+      updateTextAreaInput(session, "ecological_reason", value = "")
+    })
+
+    ## Event :: Submit Securement Priority ----
+    observeEvent(input$submit_securement_priority, {
+      if (!isTruthy(input$property)) {
+        shinyalert(
+          title = "Missing Property Name",
+          text = "Please select a property before assigning securement priority.",
+          type = "warning",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
+      req(input$securement_pid, input$securement_priority)
+
+      df <- tibble(
+        pid = input$securement_pid,
+        priority_securement_ranking_id = as.integer(input$securement_priority),
+        priority_securement_ranking_reason = input$securement_reason
+      )
+
+      dbx::dbxUpdate(
+        db_con,
+        table = "parcels",
+        records = df,
+        where_cols = "pid"
+      )
+
+      if (!is.null(db_updated)) {
+        db_updated(db_updated() + 1)
+      }
+
+      rec <- selected_record()
+      if (!is.null(rec)) {
+        rec$rankings <- load_pid_rankings(input$property)
+        selected_record(rec)
+      }
+
+      shinyalert(
+        title = "Success",
+        text = str_glue(
+          "Securement priority updated for PID {input$securement_pid}"
+        ),
+        type = "success",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        timer = 10000
+      )
+
+      updateSelectizeInput(
+        session,
+        "securement_priority",
+        selected = character(0)
+      )
+      updateTextAreaInput(session, "securement_reason", value = "")
+    })
+
     ## Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
       props <- property_choices()
@@ -1395,6 +1802,40 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
       updateDateInput(session, "comm_date", value = Sys.Date())
       updateDateInput(session, "contact_comm_date", value = Sys.Date())
       updateDateInput(session, "due_date", value = NA)
+
+      updateSelectizeInput(
+        session,
+        "project_feasibility_ranking",
+        selected = character(0)
+      )
+      updateTextAreaInput(session, "project_feasibility_reasoning", value = "")
+
+      updateSelectizeInput(
+        session,
+        "ecological_pid",
+        choices = "",
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        "ecological_priority",
+        selected = character(0)
+      )
+      updateTextAreaInput(session, "ecological_reason", value = "")
+
+      updateSelectizeInput(
+        session,
+        "securement_pid",
+        choices = "",
+        selected = character(0)
+      )
+      updateSelectizeInput(
+        session,
+        "securement_priority",
+        selected = character(0)
+      )
+      updateTextAreaInput(session, "securement_reason", value = "")
+
       selected_record(NULL)
     })
 

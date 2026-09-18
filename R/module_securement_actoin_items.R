@@ -1,5 +1,5 @@
 # UI ----
-module_action_item_tracking_ui <- function(id) {
+module_securement_action_items_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -103,7 +103,11 @@ module_action_item_tracking_ui <- function(id) {
 }
 
 # Server ----
-module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
+module_securement_action_items_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
   moduleServer(id, function(input, output, session) {
     ## Input validation ----
     iv <- InputValidator$new()
@@ -122,7 +126,7 @@ module_action_item_tracking_server <- function(id, db_con, db_updated = NULL) {
                 CONCAT_WS(' || ', pr.property_name, pr.property_name_public) AS display_name
         FROM securement_action_items AS sai
         LEFT JOIN properties AS pr ON sai.property_id = pr.id
-        WHERE pr.securement_actions_complete IS NOT TRUE        
+        WHERE pr.securement_probability_id IS NOT NULL AND pr.securement_actions_complete IS NOT TRUE      
         ORDER BY pr.property_name;"
       )
     })

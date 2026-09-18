@@ -69,15 +69,15 @@ ui <- page_navbar(
       height = "100%",
       nav_panel(
         title = "Add Property Record",
-        module_property_details_ui("property_details_form")
+        module_add_property_record_ui("property_details_form")
       ),
       nav_panel(
         title = "Add Property Contact",
-        module_property_contact_ui("property_contact_form")
+        module_add_property_contact_ui("property_contact_form")
       ),
       nav_panel(
         title = "Add Outreach & Communication",
-        module_property_contact_communication_ui(
+        module_add_property_contact_communication_ui(
           "property_contact_communication"
         )
       ),
@@ -98,7 +98,15 @@ ui <- page_navbar(
       height = "100%",
       nav_panel(
         title = "Securement Action Items",
-        module_action_item_tracking_ui("action_items")
+        module_securement_action_items_ui("action_items")
+      ),
+      nav_panel(
+        title = "Assign Securement Values",
+        module_assign_securement_values_ui("assign_priorities")
+      ),
+      nav_panel(
+        title = "Add Securement Communication",
+        module_add_securement_communication_ui("securement_comms")
       ),
       nav_panel(
         title = "Data Viewer",
@@ -110,10 +118,6 @@ ui <- page_navbar(
       nav_panel(
         title = "Queries",
         module_securement_queries_ui("securement_query")
-      ),
-      nav_panel(
-        title = "Add Securement Communication",
-        module_property_contact_securement_communication_ui("securement_comms")
       )
     )
   ),
@@ -133,10 +137,6 @@ ui <- page_navbar(
       nav_panel(
         title = "All Projects Review",
         module_all_projects_review_ui("all_projects")
-      ),
-      nav_panel(
-        title = "Assign Securement Values",
-        module_assign_securement_values_ui("assign_priorities")
       ),
       # nav_panel(
       #   title = "Data Viewer",
@@ -202,13 +202,17 @@ ui <- page_navbar(
     )
   ),
   nav_panel(
-    title = "Mapping",
+    title = "Maps",
     icon = bs_icon("map"),
     navset_card_tab(
       height = "100%",
       nav_panel(
-        title = "Property Map",
-        module_property_mapbox_ui("property_mapbox")
+        title = "Database Properties",
+        module_properties_mapbox_ui("properties_map")
+      ),
+      nav_panel(
+        title = "Secured Properties",
+        module_secured_properties_mapbox_ui("secured_properties_map")
       ),
       nav_panel(
         title = "ArcGIS Online Map",

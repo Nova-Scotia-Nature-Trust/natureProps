@@ -1324,7 +1324,7 @@
     },
     "mapgl": {
       "Package": "mapgl",
-      "Version": "0.4.4",
+      "Version": "0.5.0",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
@@ -1335,6 +1335,7 @@
         "grDevices",
         "htmltools",
         "htmlwidgets",
+        "httpuv",
         "jsonlite",
         "png",
         "rlang",
@@ -1343,7 +1344,7 @@
         "terra",
         "viridisLite"
       ],
-      "Hash": "6d5b0f00074dd86e82b157d89b0c87d1"
+      "Hash": "28ef0d841dcdce2da06277664b3bd4f0"
     },
     "markdown": {
       "Package": "markdown",

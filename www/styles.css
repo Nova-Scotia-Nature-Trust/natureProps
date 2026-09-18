@@ -16,3 +16,9 @@
   display: inline-block;
   transform: translateY(-5px);
 }
+
+.mapboxgl-map > .mapboxgl-legend #prob_legend {
+  position: absolute !important;
+  right: 10px !important;
+  bottom: 150px !important;
+}

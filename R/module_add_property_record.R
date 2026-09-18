@@ -1,5 +1,5 @@
 # UI ----
-module_property_details_ui <- function(id) {
+module_add_property_record_ui <- function(id) {
   ns <- NS(id)
 
   layout_columns(
@@ -80,11 +80,12 @@ module_property_details_ui <- function(id) {
               label = "Acquisition Type",
               choices = NULL
             ),
-            numericInput(
+            autonumericInput(
               inputId = ns("price_asking"),
               label = "Property Asking Price",
-              value = NA,
-              step = 1000
+              value = NULL,
+              currencySymbol = "$",
+              align = "left"
             )
           ),
           div(
@@ -258,7 +259,7 @@ module_property_details_ui <- function(id) {
 }
 
 # Server ----
-module_property_details_server <- function(id, db_con, prd_con, db_updated) {
+module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
   moduleServer(id, function(input, output, session) {
     updateDateInput(session, "date_added", value = Sys.Date())
 
@@ -298,7 +299,8 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
     iv_move$enable()
 
     ## Database Lookup Values ----
-    phase <- dbReadTable(db_con, "phase")
+    phase <- dbReadTable(db_con, "phase") |>
+      arrange(phase_value)
     acquisition <- dbReadTable(db_con, "acquisition_type")
     focus_area <- dbGetQuery(
       db_con,
@@ -974,6 +976,8 @@ module_property_details_server <- function(id, db_con, prd_con, db_updated) {
         ),
         selected = character(0)
       )
+
+      updateAutonumericInput(session, "price_asking", value = "")
     })
 
     ## Event :: Clear Update Property Inputs ----

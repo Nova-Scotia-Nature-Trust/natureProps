@@ -72,14 +72,14 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_property_details_server(
+  module_add_property_record_server(
     "property_details_form",
     db_con,
     prd_con,
     db_updated
   )
 
-  module_property_contact_server(
+  module_add_property_contact_server(
     "property_contact_form",
     db_con,
     db_updated
@@ -105,7 +105,7 @@ server <- function(input, output, session) {
     focal_pid_rv,
     panel_id = "outreach_panel"
   )
-  module_action_item_tracking_server("action_items", db_con, db_updated)
+  module_securement_action_items_server("action_items", db_con, db_updated)
 
   module_data_viewer_server(
     "securement_records_view",
@@ -122,7 +122,7 @@ server <- function(input, output, session) {
     cons_lands_data = cons_lands_data_rv,
   )
 
-  module_property_contact_communication_server(
+  module_add_property_contact_communication_server(
     "property_contact_communication",
     db_con,
     db_updated
@@ -142,7 +142,7 @@ server <- function(input, output, session) {
   module_project_overview_server("project_review", db_con, db_updated)
 
   module_property_mapbox_server(
-    "property_mapbox",
+    "properties_map",
     db_con = db_con,
     gis_con = gis_con,
     db_updated
@@ -213,7 +213,7 @@ server <- function(input, output, session) {
     db_updated
   )
 
-  module_property_contact_securement_communication_server(
+  module_add_securement_communication_server(
     "securement_comms",
     db_con,
     db_updated
@@ -223,5 +223,12 @@ server <- function(input, output, session) {
     "admin",
     db_con,
     cons_lands_data = cons_lands_data_rv
+  )
+
+  module_secured_properties_mapbox_server(
+    "secured_properties_map",
+    db_con,
+    gis_con,
+    db_updated
   )
 }

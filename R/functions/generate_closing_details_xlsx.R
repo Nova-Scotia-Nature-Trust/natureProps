@@ -38,6 +38,7 @@ generate_closing_details_xlsx <- function(db_con, property_id, output_file) {
     "Donor/Vendor Name" = "donor_vendor",
     "PID(s)" = "pids",
     "Property Size" = "size",
+    "Type of Protection" = "acquisition_value",
     "FMV" = "fmv",
     "Purchase Price (if applicable)" = "price_purchase",
     "Purchase/Donation Date" = "date_closed"
@@ -54,17 +55,23 @@ generate_closing_details_xlsx <- function(db_con, property_id, output_file) {
               pr.donor_vendor,
               pr.price_purchase,
               pr.date_closed,
-              SUM(COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471))::numeric(10, 2) AS size
+              SUM(COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471))::numeric(10, 2) AS size,
+              ap.fmv,
+              at.acquisition_value
       FROM properties pr
       LEFT JOIN parcels pa ON pr.id = pa.property_id
       LEFT JOIN parcel_info pi ON pi.parcel_id = pa.id
+      LEFT JOIN acquisition_type at ON at.id = pr.acquisition_securement_type_id
+      LEFT JOIN appraisals ap ON ap.property_id = pr.id AND ap.authoritative = TRUE
       WHERE pr.id = {property_id}
       GROUP BY
         pr.property_name,
         pr.property_name_public,
         pr.donor_vendor,
         pr.price_purchase,
-        pr.date_closed;
+        pr.date_closed,
+        at.acquisition_value,
+        ap.fmv;
       ",
       .con = db_con
     )

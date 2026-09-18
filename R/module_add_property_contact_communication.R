@@ -1,5 +1,5 @@
 # UI ----
-module_property_contact_communication_ui <- function(id) {
+module_add_property_contact_communication_ui <- function(id) {
   ns <- NS(id)
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
@@ -78,7 +78,7 @@ module_property_contact_communication_ui <- function(id) {
   )
 }
 # Server ----
-module_property_contact_communication_server <- function(
+module_add_property_contact_communication_server <- function(
   id,
   db_con,
   db_updated = NULL
@@ -293,7 +293,7 @@ module_property_contact_communication_server <- function(
         req(input$contact, iv_contact$is_valid())
         # Create the new communication record
         new_communication <- tibble(
-          property_contact_id = input$contact,
+          property_contact_id = input$contact[input$contact != ""],
           property_id = input$contact_property_id,
           communication_purpose_id = input$communication_purpose_id,
           communication_method_id = input$communication_method_id,

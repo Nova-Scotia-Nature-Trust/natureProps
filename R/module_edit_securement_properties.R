@@ -170,7 +170,8 @@ module_edit_securement_properties_server <- function(
           source_id,
           stewardship_concerns,
           structure,
-          structure_details
+          structure_details,
+          securement_status
         FROM properties 
         WHERE id = {property_id}",
         .con = db_con
@@ -208,7 +209,8 @@ module_edit_securement_properties_server <- function(
           source_id = NULL,
           stewardship_concerns = NULL,
           structure = NULL,
-          structure_details = NULL
+          structure_details = NULL,
+          securement_status = NULL
         )
         selected_themes <- NULL
         header_text <- "No property selected"
@@ -392,6 +394,17 @@ module_edit_securement_properties_server <- function(
               ""
             },
             rows = 3
+          ),
+
+          textAreaInput(
+            ns("edit_securement_status"),
+            "Securement Status",
+            value = if (isTruthy(record$securement_status)) {
+              record$securement_status
+            } else {
+              ""
+            },
+            rows = 3
           )
         )
       )
@@ -550,7 +563,29 @@ module_edit_securement_properties_server <- function(
           input$edit_structure_details
         } else {
           NA_character_
+        },
+
+        securement_status = if (isTruthy(input$edit_securement_status)) {
+          input$edit_securement_status
+        } else {
+          NA_character_
         }
+      )
+
+      # ---- Detect securement_status change ----
+      old_securement_status <- if (isTruthy(original$securement_status)) {
+        trimws(original$securement_status)
+      } else {
+        NA_character_
+      }
+      new_securement_status <- if (isTruthy(input$edit_securement_status)) {
+        trimws(input$edit_securement_status)
+      } else {
+        NA_character_
+      }
+      securement_status_changed <- !identical(
+        old_securement_status,
+        new_securement_status
       )
 
       dbx::dbxUpdate(
@@ -561,6 +596,16 @@ module_edit_securement_properties_server <- function(
       )
 
       update_property_timestamp(con = db_con, property_id = db_id)
+
+      if (securement_status_changed) {
+        dbExecute(
+          db_con,
+          glue_sql(
+            "UPDATE properties SET date_securement_status = {Sys.Date()} WHERE id = {input$property_name}",
+            .con = db_con
+          )
+        )
+      }
 
       # ---- Update property_theme junction table ----
       new_theme_ids <- as.integer(input$edit_project_theme_id)
