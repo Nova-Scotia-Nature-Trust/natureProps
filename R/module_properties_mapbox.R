@@ -102,6 +102,16 @@ module_properties_mapbox_ui <- function(id) {
             ),
             selected = "satellite-streets"
           ),
+          actionButton(
+            ns("show_legends"),
+            "Show Legends",
+            class = "btn-outline-success"
+          ),
+          actionButton(
+            ns("hide_legends"),
+            "Hide Legends",
+            class = "btn-outline-warning mt-2"
+          )
         )
       ),
       hr(),
@@ -442,17 +452,6 @@ module_property_mapbox_server <- function(
     )
 
     # ---- Map Layer IDs ----
-    # map_layer_ids <- c(
-    #   "securement_probability_points",
-    #   "securement_priority",
-    #   "ecological_priority",
-    #   "nsnt_conservation_lands_layer",
-    #   "papa_layer",
-    #   "papa_pending_layer",
-    #   "nsprd_layer",
-    #   "crown_land_layer"
-    # )
-
     map_layers <- list(
       "Securement Probability" = "securement_probability_points",
       "Securement Priority" = "securement_priority",
@@ -466,23 +465,24 @@ module_property_mapbox_server <- function(
 
     map_layer_ids <- unname(unlist(map_layers))
 
+    # ---- Layer Palettes ----
+    pal_priority <- c(
+      "#D7191C",
+      "#FDAE61",
+      "#FFFF8A",
+      "#9D8BD0",
+      "#674AB5"
+    )
+
+    pal_nsnt <- "#3d9c68"
+    pal_crown <- "#FFA500"
+    pal_papa_pending <- "#D3D3D3"
+    pal_papa <- "#1f4e1c"
+    pal_hover <- "#043E8E"
+    pal_missing_priority <- "#6d6969"
+
     # ---- Render Map with All Layers ----
     output$map <- renderMapboxgl({
-      pal_priority <- c(
-        "#D7191C",
-        "#FDAE61",
-        "#FFFF8A",
-        "#9D8BD0",
-        "#674AB5"
-      )
-
-      pal_nsnt <- "#3d9c68"
-      pal_crown <- "#FFA500"
-      pal_papa_pending <- "#D3D3D3"
-      pal_papa <- "#1f4e1c"
-      pal_hover <- "#043E8E"
-      pal_missing_priority <- "#6d6969"
-
       mapboxgl(
         mapbox_style("satellite-streets")
       ) |>
@@ -793,7 +793,7 @@ module_property_mapbox_server <- function(
       ignoreNULL = FALSE
     )
 
-    # ---- Map Style ----
+    # ---- Change Basemap ----
     observeEvent(input$map_style, {
       mapboxgl_proxy("map") |>
         set_style(
@@ -1032,6 +1032,101 @@ module_property_mapbox_server <- function(
       )
     })
 
+    # ---- Hide All Legends ----
+    observeEvent(input$hide_legends, {
+      mapboxgl_proxy("map") |>
+        clear_legend()
+    })
+
+    # ---- Show All Legends ----
+    observeEvent(input$show_legends, {
+      mapboxgl_proxy("map") |>
+
+        add_categorical_legend(
+          unique_id = "pri_legend",
+          legend_title = "Ecological Priority",
+          values = c(
+            "Very High",
+            "High",
+            "Medium",
+            "Low",
+            "Very Low"
+          ),
+          colors = pal_priority,
+          patch_shape = "square",
+          position = "bottom-left",
+          width = "170px",
+          layer_id = "ecological_priority",
+          interactive = TRUE,
+          style = list(
+            background_opacity = 0.95,
+            border_width = 1,
+            border_color = "gray",
+            title_color = "black",
+            element_border_color = "black",
+            element_border_width = 1
+          )
+        ) |>
+
+        add_categorical_legend(
+          unique_id = "gen_legend",
+          add = TRUE,
+          legend_title = NULL,
+          values = c(
+            "Crown Land",
+            "NT Conservation Lands",
+            "Protected Areas",
+            "Pending Protected Areas"
+          ),
+          colors = c(
+            pal_crown,
+            pal_nsnt,
+            pal_papa,
+            pal_papa_pending
+          ),
+          patch_shape = "square",
+          position = "bottom-right",
+          width = "210px",
+          interactive = FALSE,
+          style = list(
+            background_opacity = 0.95,
+            border_width = 1,
+            border_color = "gray",
+            title_color = "black",
+            element_border_color = "black",
+            element_border_width = 1
+          )
+        ) |>
+
+        add_categorical_legend(
+          unique_id = "prob_legend",
+          add = TRUE,
+          legend_title = "Securement Probability",
+          values = c(
+            "Confirmed",
+            "Expected",
+            "Potential"
+          ),
+          colors = c(
+            "#2E7D32",
+            "#1976D2",
+            "#d36912ff"
+          ),
+          patch_shape = "circle",
+          position = "bottom-right",
+          width = "210px",
+          layer_id = "securement_probability_points",
+          interactive = TRUE,
+          style = list(
+            background_opacity = 0.95,
+            border_width = 1,
+            border_color = "gray",
+            title_color = "black",
+            element_border_color = "black",
+            element_border_width = 1
+          )
+        )
+    })
     # ---- Reset Map View ----
     observeEvent(input$reset_view, {
       mapboxgl_proxy("map") |>
