@@ -202,7 +202,7 @@ ui <- page_navbar(
     )
   ),
   nav_panel(
-    title = "Mapping",
+    title = "Maps",
     icon = bs_icon("map"),
     navset_card_tab(
       height = "100%",

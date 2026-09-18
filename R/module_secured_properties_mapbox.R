@@ -40,7 +40,7 @@ module_secured_properties_mapbox_ui <- function(id) {
           actionButton(
             ns("clear_filters"),
             "Clear Filters",
-            class = "btn-outline-secondary btn-sm w-100",
+            class = "btn-secondary w-100",
             width = "100%"
           )
         ),
@@ -70,6 +70,7 @@ module_secured_properties_mapbox_ui <- function(id) {
       actionButton(
         ns("reset_view"),
         "Reset Map View",
+        icon = icon("rotate-left"),
         class = "btn-secondary w-100"
       )
     ),

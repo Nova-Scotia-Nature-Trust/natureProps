@@ -68,6 +68,25 @@ module_properties_mapbox_ui <- function(id) {
           )
         ),
         accordion_panel(
+          title = "Phase Filter",
+          icon = bs_icon("funnel"),
+          selectizeInput(
+            inputId = ns("phase_filter"),
+            label = "Phase",
+            choices = NULL,
+            multiple = TRUE,
+            options = list(
+              placeholder = "Select one or more phases"
+            )
+          ),
+          actionButton(
+            inputId = ns("reset_phase_filter"),
+            label = "Reset Filter",
+            icon = icon("rotate-left"),
+            class = "btn-secondary"
+          )
+        ),
+        accordion_panel(
           title = "Map Controls",
           icon = bs_icon("gear"),
           selectInput(
@@ -83,24 +102,23 @@ module_properties_mapbox_ui <- function(id) {
             ),
             selected = "satellite-streets"
           ),
-          hr(),
-          actionButton(
-            ns("hide_all_layers"),
-            "Hide All Layers",
-            class = "btn-warning"
-          ),
-          br(),
-          actionButton(
-            ns("show_all_layers"),
-            "Show All Layers",
-            class = "btn-success"
-          )
         )
       ),
       hr(),
       actionButton(
+        ns("show_all_layers"),
+        "Show All Layers",
+        class = "btn-success"
+      ),
+      actionButton(
+        ns("hide_all_layers"),
+        "Hide All Layers",
+        class = "btn-warning"
+      ),
+      actionButton(
         ns("reset_view"),
         "Reset Map View",
+        icon = icon("rotate-left"),
         class = "btn-secondary"
       )
     ),
@@ -313,6 +331,23 @@ module_property_mapbox_server <- function(
       result
     })
 
+    # ---- Populate Phase Filter Choices ----
+    observe({
+      phase_choices <- parcels_sf() |>
+        st_drop_geometry() |>
+        pull(phase) |>
+        na.omit() |>
+        unique() |>
+        sort()
+
+      updateSelectizeInput(
+        session,
+        "phase_filter",
+        choices = phase_choices,
+        selected = character(0)
+      )
+    })
+
     # ---- Securement Probability Points ----
     prior_fiscal <- str_remove(
       quarter(
@@ -407,16 +442,29 @@ module_property_mapbox_server <- function(
     )
 
     # ---- Map Layer IDs ----
-    map_layer_ids <- c(
-      "securement_probability_points",
-      "securement_priority",
-      "ecological_priority",
-      "nsnt_conservation_lands_layer",
-      "papa_layer",
-      "papa_pending_layer",
-      "nsprd_layer",
-      "crown_land_layer"
+    # map_layer_ids <- c(
+    #   "securement_probability_points",
+    #   "securement_priority",
+    #   "ecological_priority",
+    #   "nsnt_conservation_lands_layer",
+    #   "papa_layer",
+    #   "papa_pending_layer",
+    #   "nsprd_layer",
+    #   "crown_land_layer"
+    # )
+
+    map_layers <- list(
+      "Securement Probability" = "securement_probability_points",
+      "Securement Priority" = "securement_priority",
+      "Ecological Priority" = "ecological_priority",
+      "Nature Trust Conservation Lands" = "nsnt_conservation_lands_layer",
+      "Protected Areas" = "papa_layer",
+      "Pending Protected Areas" = "papa_pending_layer",
+      "NSPRD Parcels" = "nsprd_layer",
+      "Crown Land" = "crown_land_layer"
     )
+
+    map_layer_ids <- unname(unlist(map_layers))
 
     # ---- Render Map with All Layers ----
     output$map <- renderMapboxgl({
@@ -593,16 +641,7 @@ module_property_mapbox_server <- function(
 
         # ---- Layers Control ----
         add_layers_control(
-          layers = list(
-            "Securement Probability" = "securement_probability_points",
-            "Securement Priority" = "securement_priority",
-            "Ecological Priority" = "ecological_priority",
-            "Nature Trust Conservation Lands" = "nsnt_conservation_lands_layer",
-            "Protected Areas" = "papa_layer",
-            "Pending Protected Areas" = "papa_pending_layer",
-            "NSPRD Parcels" = "nsprd_layer",
-            "Crown Land" = "crown_land_layer"
-          ),
+          layers = map_layers,
           position = "top-right",
           collapsible = TRUE
         ) |>
@@ -719,6 +758,40 @@ module_property_mapbox_server <- function(
           max_width = 250
         )
     })
+
+    # ---- Phase Filter ----
+    observeEvent(
+      input$phase_filter,
+      {
+        selected <- input$phase_filter
+
+        proxy <- mapboxgl_proxy("map")
+
+        if (is.null(selected) || length(selected) == 0) {
+          # Nothing selected = show everything
+          proxy |>
+            set_filter(
+              "ecological_priority",
+              NULL
+            )
+        } else {
+          # One or more phases selected = show only those phases
+          proxy |>
+            set_filter(
+              "ecological_priority",
+              list(
+                "in",
+                list("get", "phase"),
+                list(
+                  "literal",
+                  selected
+                )
+              )
+            )
+        }
+      },
+      ignoreNULL = FALSE
+    )
 
     # ---- Map Style ----
     observeEvent(input$map_style, {
@@ -906,7 +979,7 @@ module_property_mapbox_server <- function(
       ignoreNULL = FALSE
     )
 
-    # ---- Toggle Layers ----
+    # ---- Hide All Layers ----
     observeEvent(input$hide_all_layers, {
       proxy <- mapboxgl_proxy("map")
 
@@ -918,8 +991,17 @@ module_property_mapbox_server <- function(
             "none"
           )
       }
+
+      proxy |>
+        clear_controls("layers") |>
+        add_layers_control(
+          layers = map_layers,
+          position = "top-right",
+          collapsible = TRUE
+        )
     })
 
+    # ---- Show All Layers ----
     observeEvent(input$show_all_layers, {
       proxy <- mapboxgl_proxy("map")
 
@@ -932,16 +1014,22 @@ module_property_mapbox_server <- function(
           )
       }
 
-      # Restore all legends
-      #
-      # shinyjs::runjs(
-      #   "
-      #   ['prob_legend', 'pri_legend', 'gen_legend'].forEach(function(id) {
-      #     var el = document.getElementById(id);
-      #     if (el) el.style.display = '';
-      #   });
-      # "
-      # )
+      proxy |>
+        clear_controls("layers") |>
+        add_layers_control(
+          layers = map_layers,
+          position = "top-right",
+          collapsible = TRUE
+        )
+    })
+
+    # ---- Reset Phase Filter ----
+    observeEvent(input$reset_phase_filter, {
+      updateSelectizeInput(
+        session,
+        "phase_filter",
+        selected = character(0)
+      )
     })
 
     # ---- Reset Map View ----
