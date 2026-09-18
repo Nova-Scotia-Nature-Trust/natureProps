@@ -174,7 +174,7 @@ module_project_overview_ui <- function(id) {
                   )
                 )
               ),
-              ## Right column: Internal Communications + Action Items ----
+              ## Accordion ----
               accordion(
                 id = ns("log_accordion"),
                 open = FALSE,
@@ -259,7 +259,7 @@ module_project_overview_ui <- function(id) {
                       ns("contact_comm_contact_id"),
                       "Select Property Contact",
                       choices = NULL,
-                      multiple = FALSE,
+                      multiple = TRUE,
                       width = "100%",
                       options = list(
                         create = FALSE,
