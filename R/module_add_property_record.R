@@ -157,7 +157,7 @@ module_add_property_record_ui <- function(id) {
           multiple = FALSE,
           ## Panel :: Add PID to Existing Property ----
           accordion_panel(
-            title = "Add PID to Existing Property",
+            title = "Add New PID to Existing Property",
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               selectizeInput(
@@ -201,7 +201,7 @@ module_add_property_record_ui <- function(id) {
           ),
           ## Panel :: Move PID to New Property ----
           accordion_panel(
-            title = "Move PID(s) to New Property",
+            title = "Move Existing PID(s) to New Property",
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               selectizeInput(
@@ -545,30 +545,32 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
           property_name = input$property_name,
           date_added = input$date_added,
           focus_area_internal_id,
-          property_description = if_else(
-            isTruthy(input$property_description),
-            as.character(input$property_description),
+          property_description = if (isTruthy(input$property_description)) {
+            as.character(input$property_description)
+          } else {
             NA_character_
-          ),
-          stewardship_concerns = if_else(
-            isTruthy(input$stewardship_concerns),
-            as.character(input$stewardship_concerns),
+          },
+          stewardship_concerns = if (isTruthy(input$stewardship_concerns)) {
+            as.character(input$stewardship_concerns)
+          } else {
             NA_character_
-          ),
+          },
           phase_id = input$phase,
           phase_id_change = input$date_added,
           source_id = input$source,
           team_lead_id = input$team_lead,
-          project_region_id = if_else(
-            isTruthy(input$region),
-            as.integer(input$region),
+          project_region_id = if (isTruthy(input$region)) {
+            as.integer(input$region)
+          } else {
             NA_integer_
-          ),
-          price_asking = if_else(
-            isTruthy(input$price_asking) && input$price_asking > 0,
-            as.numeric(input$price_asking),
+          },
+          price_asking = if (
+            isTruthy(input$price_asking) && input$price_asking > 0
+          ) {
+            as.numeric(input$price_asking)
+          } else {
             NA_real_
-          )
+          }
         )
 
         # Try to append property - stop if it fails
