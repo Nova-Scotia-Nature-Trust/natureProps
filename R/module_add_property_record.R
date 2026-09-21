@@ -157,7 +157,7 @@ module_add_property_record_ui <- function(id) {
           multiple = FALSE,
           ## Panel :: Add PID to Existing Property ----
           accordion_panel(
-            title = "Add PID to Existing Property",
+            title = "Add New PID to Existing Property",
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               selectizeInput(
@@ -201,7 +201,7 @@ module_add_property_record_ui <- function(id) {
           ),
           ## Panel :: Move PID to New Property ----
           accordion_panel(
-            title = "Move PID(s) to New Property",
+            title = "Move Existing PID(s) to New Property",
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               selectizeInput(
