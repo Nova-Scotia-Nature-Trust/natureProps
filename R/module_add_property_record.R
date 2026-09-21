@@ -589,7 +589,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
         message("PROPERTY ALREADY IN DATABASE")
         shinyalert(
           title = "Database Error",
-          text = "Property name already exists",
+          text = "Property name already exists. Please use a unique name.",
           type = "error",
           closeOnEsc = TRUE,
           closeOnClickOutside = TRUE
