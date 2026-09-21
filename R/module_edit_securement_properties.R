@@ -475,6 +475,26 @@ module_edit_securement_properties_server <- function(
         }
       }
 
+      # ---- Property name uniqueness check ----
+      property_check <- dbGetQuery(
+        db_con,
+        glue_sql(
+          "SELECT EXISTS (SELECT 1 FROM properties WHERE property_name = {input$edit_property_name} AND id != {db_id})",
+          .con = db_con
+        )
+      )[[1]]
+
+      if (property_check) {
+        shinyalert(
+          title = "Property Name Error",
+          text = "Property name already exists. Please use a unique name.",
+          type = "error",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+        return()
+      }
+
       # ---- Build update tibble for properties ----
       update_tibble <- tibble(
         id = db_id,
