@@ -911,9 +911,18 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
         query_03b <- glue_sql(
           "   
-        SELECT pcc.id, pcc.date_contacted, cp.purpose_value AS communication_purpose, pcc.communication_description
+        SELECT
+          pcc.id,
+          pcc.date_contacted,
+          pcd.name_first AS contact_name_first,
+          pcd.name_last AS contact_name_last,
+          cp.purpose_value AS communication_purpose,
+          cm.method_value AS communication_method,
+          pcc.communication_description
         FROM property_contact_communication pcc
         LEFT JOIN communication_purpose cp ON pcc.communication_purpose_id = cp.id
+        LEFT JOIN communication_method cm ON pcc.communication_method_id = cm.id
+        LEFT JOIN property_contact_details pcd ON pcc.property_contact_id = pcd.id
         LEFT JOIN properties prop ON pcc.property_id = prop.id
         WHERE prop.property_name = {prop_name}
         ORDER BY pcc.date_contacted DESC, pcc.id DESC;
@@ -1022,11 +1031,20 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
       )
     }
 
-    ## Helper :: table-style row (bold date - purpose header, description below) ----
-    contact_comm_row <- function(date, purpose, description) {
+    ## Helper :: table-style row (bold date - name - purpose - method header, description below) ----
+    contact_comm_row <- function(date, name, purpose, method, description) {
       div(
         class = "record-row",
-        p(class = "record-row-title", date, " - ", em(purpose)),
+        p(
+          class = "record-row-title fw-normal",
+          strong(date),
+          " | ",
+          em(name),
+          " - ",
+          em(purpose),
+          " - ",
+          em(method)
+        ),
         if (!is.null(description) && !is.na(description) && description != "") {
           p(class = "record-row-subtitle", description)
         }
@@ -1291,7 +1309,12 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
                   as.Date(contact_comm$date_contacted),
                   "%B %d, %Y"
                 ),
+                name = paste(
+                  contact_comm$contact_name_first,
+                  contact_comm$contact_name_last
+                ),
                 purpose = contact_comm$communication_purpose,
+                method = contact_comm$communication_method,
                 description = contact_comm$communication_description
               )
             })
