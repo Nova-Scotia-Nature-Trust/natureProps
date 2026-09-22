@@ -5,6 +5,7 @@ SELECT
    pr.property_name_public AS "Public Property Name",
    pr.property_name AS "Property Name",
    STRING_AGG(pa.pid::text, ', ') AS "PIDs",
+   STRING_AGG(pm.aan::text, ', ') AS "AAN",
    pr.internal_record_id AS "Landscape ID",
    pr.landscape_url,
    SUM(COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471))::numeric(10, 2) AS "Size (Acres)",
@@ -17,8 +18,7 @@ SELECT
    pr.ecogift_number AS "Ecogift Number",
    pr.donor_vendor AS "Donor / Vendor",
    pr.llt_funding_secured AS "LLT Funding Secured",
-   ca.campaign_value AS "Campaign",
-   STRING_AGG(pm.aan::text, ', ') AS "AAN",
+   ca.campaign_value AS "Campaign",  
    CASE WHEN EXISTS (
       SELECT 1 FROM parcels px WHERE px.property_id = pr.id AND px.tax_exempt = true
    ) THEN

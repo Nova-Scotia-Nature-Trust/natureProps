@@ -4,6 +4,7 @@ CREATE VIEW view_insurance AS
 SELECT
    pr.property_name_public AS "Property Name",
    STRING_AGG(pa.pid::text, ', ') AS "PIDs",
+   STRING_AGG(pm.aan::text, ', ') AS "AAN",
    pr.internal_record_id AS "Internal Record ID",
    INITCAP( TRIM( REGEXP_REPLACE( MIN(pp.padd_county), '\s*county\s*', '', 'i' ) ) ) AS "County",
    o.ownership_value AS "Ownership",
@@ -30,7 +31,10 @@ FROM
       ON pr.acquisition_securement_type_id = at.id 
    LEFT JOIN
       parcel_info info 
-      ON pa.id = info.parcel_id 
+      ON pa.id = info.parcel_id
+   LEFT JOIN
+      parcel_madd pm
+      ON pm.parcel_id = pa.id 
 WHERE
    pr.ownership_id NOT IN 
    (

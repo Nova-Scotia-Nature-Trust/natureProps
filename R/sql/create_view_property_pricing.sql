@@ -5,6 +5,7 @@ SELECT
     pr.property_name AS "Property Name",
     pr.property_name_public AS "Property Name Public",
     STRING_AGG(DISTINCT pa.pid::text, ', ') AS "PIDs",
+    STRING_AGG(pm.aan::text, ', ') AS "AAN",
     fai.internal_value AS "Focus Area",
 
     ROUND(ac.acres, 2) AS "Acres",
@@ -36,6 +37,9 @@ LEFT JOIN focus_area_internal fai ON fai.id = pr.focus_area_internal_id
 
 LEFT JOIN parcels pa
     ON pa.property_id = pr.id
+
+LEFT JOIN parcel_madd pm
+    ON pm.parcel_id = pa.id
 
 LEFT JOIN appraisals ap
     ON ap.property_id = pr.id

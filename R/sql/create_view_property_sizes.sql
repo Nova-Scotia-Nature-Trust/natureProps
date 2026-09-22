@@ -5,6 +5,7 @@ SELECT
    pr.property_name AS "Property",
    pr.property_name_public AS "Property Name Public",
    pa.pid AS "PID",
+   STRING_AGG(pm.aan::text, ', ') AS "AAN",
    CASE
       WHEN
          pa.size_confirmed_acres IS NULL 
@@ -28,9 +29,20 @@ FROM
       ON pr.id = pa.property_id 
    LEFT JOIN
       parcel_info pi 
-      ON pa.id = pi.parcel_id 
+      ON pa.id = pi.parcel_id
+   LEFT JOIN
+      parcel_madd pm
+      ON pm.parcel_id = pa.id 
 WHERE
    pr.ownership_id IS NOT NULL 
    AND pr.ownership_id NOT IN (7, 14)
+GROUP BY
+   pr.property_name,
+   pr.property_name_public,
+   pa.pid,
+   pa.size_confirmed_acres,
+   pa.size_confirmed_ha,
+   pi.area_ha,
+   pa.size_confirmed_notes
 ORDER BY
    pr.property_name, pid;
