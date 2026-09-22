@@ -3,7 +3,7 @@ DROP VIEW IF EXISTS view_property_pricing;
 CREATE VIEW view_property_pricing AS
 SELECT
     pr.property_name AS "Property Name",
-       pr.property_name_public AS "Property Name Public",
+    pr.property_name_public AS "Property Name Public",
     STRING_AGG(DISTINCT pa.pid::text, ', ') AS "PIDs",
     fai.internal_value AS "Focus Area",
 

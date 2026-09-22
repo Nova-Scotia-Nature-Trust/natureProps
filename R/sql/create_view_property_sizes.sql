@@ -3,6 +3,7 @@ DROP VIEW IF EXISTS view_property_sizes;
 CREATE VIEW view_property_sizes AS
 SELECT
    pr.property_name AS "Property",
+   pr.property_name_public AS "Property Name Public",
    pa.pid AS "PID",
    CASE
       WHEN
