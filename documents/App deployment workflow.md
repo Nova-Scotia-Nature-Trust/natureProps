@@ -434,6 +434,38 @@ SELECT cron.unschedule('refresh-conservation-land-metrics');
 
 ```
 
+## PostgreSQL JIT
+
+**Disable PostgreSQL JIT:** JIT (Just-In-Time compilation) is a PostgreSQL feature that can speed up complex queries by compiling parts of them while they run. In some PostgreSQL/PostGIS installations, JIT can cause compatibility errors. If you encounter the following error when running PostGIS queries:
+
+```bash
+FATAL: failed to load summary "/usr/lib/postgresql/16/lib/bitcode/postgis-3.index.bc": Invalid summary version 10. Version should be in the range [1-9].
+```
+
+Disable PostgreSQL JIT for the database by running:
+
+```sql
+ALTER DATABASE your_db_name SET jit = off;
+```
+
+For the current database connection only, use:  
+```sql
+SET jit = off;
+```
+
+To verify that JIT is disabled, run: 
+```sql
+SHOW jit;
+```
+
+The result should be:
+```sql
+off
+```
+
+
+
+
 ## Databasus backups
 
 Create the docker-compose.yml. Note it is storing data in the `/mnt/data` directory which is an external partition.
