@@ -10,7 +10,8 @@ SELECT
    com.date_contacted AS "Date Contacted",
    com.communication_description AS "Description",
    com.date_follow_up AS "Follow Up Date",
-   pid.pids AS "PIDs" 
+   pid.pids AS "PIDs",
+   STRING_AGG(pm.aan::text, ', ') AS "AAN" 
 FROM
    property_contact_communication com 
    LEFT JOIN
@@ -38,8 +39,25 @@ FROM
             property_id 
       )
       pid 
-      ON p.id = pid.property_id 
+      ON p.id = pid.property_id
+   LEFT JOIN
+      parcels pa
+      ON p.id = pa.property_id
+   LEFT JOIN
+      parcel_madd pm
+      ON pm.parcel_id = pa.id 
 WHERE
-   pur.purpose_value = 'Securement' 
+   pur.purpose_value = 'Securement'
+GROUP BY
+   p.property_name,
+   com.property_contact_id,
+   con.name_first,
+   con.name_last,
+   pur.purpose_value,
+   me.method_value,
+   com.date_contacted,
+   com.communication_description,
+   com.date_follow_up,
+   pid.pids
 ORDER BY
    p.property_name;

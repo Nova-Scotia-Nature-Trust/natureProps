@@ -5,6 +5,7 @@ CREATE VIEW view_appraisals AS
    pr.property_name AS "Property Name",
    pr.property_name_public AS "Property Name Public",
    STRING_AGG(pa.pid::text, ', ') AS "PIDs",
+   STRING_AGG(pm.aan::text, ', ') AS "AAN",
    ap.appraisal_effective_date AS "Appraisal Effective Date",
    ap.appraiser_name AS "Name of Appraiser",
    ROUND(ap.fmv, 2) AS "Fair Market Value (CAD)",
@@ -22,6 +23,9 @@ FROM
    LEFT JOIN 
       parcel_info pi 
       ON pa.id = pi.parcel_id
+   LEFT JOIN
+      parcel_madd pm
+      ON pm.parcel_id = pa.id
 GROUP BY
    pr.property_name,
    ap.appraisal_effective_date,

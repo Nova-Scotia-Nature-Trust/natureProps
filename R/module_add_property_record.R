@@ -157,11 +157,11 @@ module_add_property_record_ui <- function(id) {
           multiple = FALSE,
           ## Panel :: Add PID to Existing Property ----
           accordion_panel(
-            title = "Add New PID to Existing Property",
+            title = "Add New PID(s) to Existing Property",
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               selectizeInput(
-                inputId = ns("update_pid"),
+                inputId = ns("add_pid_pid"),
                 label = "Enter PID(s)",
                 choices = NULL,
                 multiple = TRUE,
@@ -171,7 +171,7 @@ module_add_property_record_ui <- function(id) {
                 )
               ),
               selectizeInput(
-                inputId = ns("update_property"),
+                inputId = ns("add_pid_property"),
                 label = "Select Property",
                 choices = NULL,
                 multiple = FALSE,
@@ -180,19 +180,19 @@ module_add_property_record_ui <- function(id) {
                 )
               ),
               selectizeInput(
-                inputId = ns("update_acquisition_type"),
+                inputId = ns("add_pid_acquisition_type"),
                 label = "Acquisition Type",
                 choices = NULL
               ),
               div(
                 style = "margin-top: 10px;",
                 actionButton(
-                  inputId = ns("submit_update"),
+                  inputId = ns("add_pid_submit"),
                   label = "Add PID to Property",
                   class = "btn-success"
                 ),
                 actionButton(
-                  inputId = ns("clear_update_inputs"),
+                  inputId = ns("add_pid_clear"),
                   label = "Clear Inputs",
                   class = "btn-secondary"
                 )
@@ -205,7 +205,7 @@ module_add_property_record_ui <- function(id) {
             div(
               style = "display: flex; flex-direction: column; gap: 15px;",
               selectizeInput(
-                inputId = ns("move_pid"),
+                inputId = ns("move_to_new_pid"),
                 label = "Select PID(s)",
                 choices = NULL,
                 multiple = TRUE,
@@ -214,24 +214,24 @@ module_add_property_record_ui <- function(id) {
                 )
               ),
               textInput(
-                inputId = ns("move_property_name"),
+                inputId = ns("move_to_new_property_name"),
                 label = "New Property Name",
                 value = ""
               ),
               selectizeInput(
-                inputId = ns("move_phase"),
+                inputId = ns("move_to_new_phase"),
                 label = "Phase",
                 choices = NULL
               ),
               textAreaInput(
-                inputId = ns("move_phase_description"),
+                inputId = ns("move_to_new_phase_description"),
                 label = "Phase Description",
                 value = "",
                 height = "100px",
                 width = "100%"
               ),
               textAreaInput(
-                inputId = ns("move_property_description"),
+                inputId = ns("move_to_new_property_description"),
                 label = "Property Description",
                 value = "",
                 height = "100px",
@@ -240,12 +240,50 @@ module_add_property_record_ui <- function(id) {
               div(
                 style = "margin-top: 10px;",
                 actionButton(
-                  inputId = ns("submit_move"),
+                  inputId = ns("move_to_new_submit"),
                   label = "Move PID(s) to New Property",
                   class = "btn-success"
                 ),
                 actionButton(
-                  inputId = ns("clear_move_inputs"),
+                  inputId = ns("move_to_new_clear"),
+                  label = "Clear Inputs",
+                  class = "btn-secondary"
+                )
+              )
+            )
+          ),
+          ## Panel :: Move PID to Existing Property ----
+          accordion_panel(
+            title = "Move Existing PID(s) to Existing Property",
+            div(
+              style = "display: flex; flex-direction: column; gap: 15px;",
+              selectizeInput(
+                inputId = ns("move_to_existing_pid"),
+                label = "Select PID(s)",
+                choices = NULL,
+                multiple = TRUE,
+                options = list(
+                  placeholder = "Select PID(s) to move"
+                )
+              ),
+              selectizeInput(
+                inputId = ns("move_to_existing_property"),
+                label = "Select Destination Property",
+                choices = NULL,
+                multiple = FALSE,
+                options = list(
+                  placeholder = "Select destination property"
+                )
+              ),
+              div(
+                style = "margin-top: 10px;",
+                actionButton(
+                  inputId = ns("move_to_existing_submit"),
+                  label = "Move PID(s) to Property",
+                  class = "btn-success"
+                ),
+                actionButton(
+                  inputId = ns("move_to_existing_clear"),
                   label = "Clear Inputs",
                   class = "btn-secondary"
                 )
@@ -281,22 +319,28 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
     iv$enable()
 
     ### Update Property Form ----
-    iv_update <- InputValidator$new()
-    iv_update$add_rule("update_property", sv_required())
-    iv_update$add_rule(
-      "update_pid",
+    iv_add_pid <- InputValidator$new()
+    iv_add_pid$add_rule("add_pid_property", sv_required())
+    iv_add_pid$add_rule(
+      "add_pid_pid",
       ~ validate_pid_input(., valid_pids, enable_check = TRUE)
     )
-    iv_update$enable()
+    iv_add_pid$enable()
 
     ### Move PID Form ----
-    iv_move <- InputValidator$new()
-    iv_move$add_rule("move_pid", sv_required())
-    iv_move$add_rule("move_property_name", sv_required())
-    iv_move$add_rule("move_phase", sv_required())
-    iv_move$add_rule("move_phase_description", sv_required())
-    iv_move$add_rule("move_property_description", sv_required())
-    iv_move$enable()
+    iv_move_to_new <- InputValidator$new()
+    iv_move_to_new$add_rule("move_to_new_pid", sv_required())
+    iv_move_to_new$add_rule("move_to_new_property_name", sv_required())
+    iv_move_to_new$add_rule("move_to_new_phase", sv_required())
+    iv_move_to_new$add_rule("move_to_new_phase_description", sv_required())
+    iv_move_to_new$add_rule("move_to_new_property_description", sv_required())
+    iv_move_to_new$enable()
+
+    ### Move PID to Existing Property Form ----
+    iv_move_to_existing <- InputValidator$new()
+    iv_move_to_existing$add_rule("move_to_existing_pid", sv_required())
+    iv_move_to_existing$add_rule("move_to_existing_property", sv_required())
+    iv_move_to_existing$enable()
 
     ## Database Lookup Values ----
     phase <- dbReadTable(db_con, "phase") |>
@@ -335,12 +379,25 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
     observe({
       updateSelectizeInput(
         session,
-        "update_property",
+        "add_pid_property",
         choices = setNames(
           property_list()$id,
           property_list()$property_name
         ),
-        selected = isolate(input$update_property),
+        selected = character(0),
+        server = TRUE
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        "move_to_existing_property",
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = character(0),
         server = TRUE
       )
     })
@@ -374,7 +431,21 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
     observe({
       updateSelectizeInput(
         session,
-        inputId = "move_pid",
+        inputId = "move_to_new_pid",
+        choices = c("", pids()),
+        selected = character(0),
+        options = list(
+          create = FALSE,
+          placeholder = "Search or select PID"
+        ),
+        server = TRUE
+      )
+    })
+
+    observe({
+      updateSelectizeInput(
+        session,
+        inputId = "move_to_existing_pid",
         choices = c("", pids()),
         selected = character(0),
         options = list(
@@ -409,7 +480,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
 
     updateSelectizeInput(
       session,
-      "move_phase",
+      "move_to_new_phase",
       choices = setNames(
         phase$id,
         phase$phase_value
@@ -464,7 +535,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
 
     updateSelectizeInput(
       session,
-      "update_acquisition_type",
+      "add_pid_acquisition_type",
       choices = setNames(
         acquisition$id,
         acquisition$acquisition_value
@@ -589,7 +660,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
         message("PROPERTY ALREADY IN DATABASE")
         shinyalert(
           title = "Database Error",
-          text = "Property name already exists",
+          text = "Property name already exists. Please use a unique name.",
           type = "error",
           closeOnEsc = TRUE,
           closeOnClickOutside = TRUE
@@ -645,14 +716,14 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
       populate_nsprd_tables(input$pid, prd_con, db_con)
     })
 
-    ## Event :: Submit update (add PID to existing property) ----
-    observeEvent(input$submit_update, {
-      req(input$update_pid)
-      iv_update$is_valid()
+    ## Event :: Add new PID to existing property ----
+    observeEvent(input$add_pid_submit, {
+      req(input$add_pid_pid)
+      iv_add_pid$is_valid()
 
       # Check if any PIDs already exist in the database
       existing_pids <- dbReadTable(db_con, "parcels") |>
-        filter(pid %in% input$update_pid) |>
+        filter(pid %in% input$add_pid_pid) |>
         pull(pid)
 
       if (length(existing_pids) > 0) {
@@ -670,11 +741,11 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
 
       ## Write new parcel(s) to existing property ----
       new_parcel <- tibble(
-        pid = input$update_pid,
-        property_id = as.integer(input$update_property),
+        pid = input$add_pid_pid,
+        property_id = as.integer(input$add_pid_property),
         acquisition_type_id = if_else(
-          isTruthy(input$update_acquisition_type),
-          as.integer(input$update_acquisition_type),
+          isTruthy(input$add_pid_acquisition_type),
+          as.integer(input$add_pid_acquisition_type),
           NA_integer_
         )
       )
@@ -694,20 +765,53 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
       # Only proceed if successful
       db_updated(db_updated() + 1)
       # Extract data from NSPRD database
-      populate_nsprd_tables(input$update_pid, prd_con, db_con)
+      populate_nsprd_tables(input$add_pid_pid, prd_con, db_con)
 
       message("PID(S) ADDED TO EXISTING PROPERTY")
+
+      updateSelectizeInput(
+        session,
+        "add_pid_pid",
+        label = "Enter PID(s)",
+        choices = NULL,
+        options = list(
+          create = TRUE,
+          placeholder = "Type PID and press Enter"
+        ),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "add_pid_property",
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "add_pid_acquisition_type",
+        choices = setNames(
+          acquisition$id,
+          acquisition$acquisition_value
+        ),
+        selected = character(0)
+      )
     })
 
-    ## Event :: Move PID to New Property ----
-    observeEvent(input$submit_move, {
-      iv_move$is_valid()
+    ## Event :: Move Exisiting PID to New Property ----
+    observeEvent(input$move_to_new_submit, {
+      iv_move_to_new$is_valid()
 
       ## Check property name
       property_check <- dbGetQuery(
         db_con,
         glue_sql(
-          "SELECT EXISTS (SELECT 1 FROM properties WHERE property_name = {input$move_property_name})",
+          "SELECT EXISTS (SELECT 1 FROM properties WHERE property_name = {input$move_to_new_property_name})",
           .con = db_con
         )
       )[[1]]
@@ -732,7 +836,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
             pid,
             property_id
           FROM parcels 
-          WHERE pid IN ({input$move_pid*});
+          WHERE pid IN ({input$move_to_new_pid*});
           ",
           .con = db_con
         )
@@ -776,10 +880,10 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
       ## Create the attributes for the new property
       new_property_info <- old_prop_details |>
         mutate(
-          property_name = input$move_property_name,
-          phase_id = input$move_phase,
-          phase_id_description = input$move_phase_description,
-          property_description = input$move_property_description,
+          property_name = input$move_to_new_property_name,
+          phase_id = input$move_to_new_phase,
+          phase_id_description = input$move_to_new_phase_description,
+          property_description = input$move_to_new_property_description,
           date_updated = Sys.Date(),
           phase_id_change = Sys.Date()
         )
@@ -824,7 +928,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
           UPDATE parcels
           SET property_id = new_property.id
           FROM new_property
-          WHERE parcels.pid IN ({input$move_pid*});
+          WHERE parcels.pid IN ({input$move_to_new_pid*});
           ",
           .con = conn
         )
@@ -848,7 +952,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
       ## Reset inputs
       updateSelectizeInput(
         session,
-        inputId = "move_pid",
+        inputId = "move_to_new_pid",
         choices = c("", pids()),
         selected = character(0),
         options = list(
@@ -858,18 +962,104 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
         server = TRUE
       )
 
-      updateTextInput(session, "move_property_name", value = "")
+      updateTextInput(session, "move_to_new_property_name", value = "")
 
       updateSelectizeInput(
         session,
-        "move_phase",
+        "move_to_new_phase",
         choices = setNames(phase$id, phase$phase_value),
         selected = character(0)
       )
 
-      updateTextInput(session, "move_phase_description", value = "")
+      updateTextInput(session, "move_to_new_phase_description", value = "")
 
-      updateTextAreaInput(session, "move_property_description", value = "")
+      updateTextAreaInput(session, "move_to_new_property_description", value = "")
+    })
+
+    ## Event :: Move Exisiting PID to Existing Property ----
+    observeEvent(input$move_to_existing_submit, {
+      iv_move_to_existing$is_valid()
+
+      target_property_id <- as.integer(input$move_to_existing_property)
+
+      ## Get the current property for the selected PID(s)
+      pid_info <- DBI::dbGetQuery(
+        db_con,
+        glue_sql(
+          "
+          SELECT
+            pid,
+            property_id
+          FROM parcels
+          WHERE pid IN ({input$move_to_existing_pid*});
+          ",
+          .con = db_con
+        )
+      ) |>
+        as_tibble()
+
+      if (any(pid_info$property_id == target_property_id, na.rm = TRUE)) {
+        shinyalert(
+          title = "Database Error",
+          text = "One or more selected PIDs already belong to the destination property.",
+          type = "error",
+          closeOnEsc = TRUE,
+          closeOnClickOutside = TRUE
+        )
+
+        return()
+      }
+
+      ## Move PIDs to the destination property
+      pool::poolWithTransaction(db_con, function(conn) {
+        move_pid_query <- glue_sql(
+          "
+          UPDATE parcels
+          SET property_id = {target_property_id}
+          WHERE pid IN ({input$move_to_existing_pid*});
+          ",
+          .con = conn
+        )
+
+        DBI::dbExecute(conn, move_pid_query)
+      })
+
+      ## Message
+      db_updated(db_updated() + 1)
+
+      # Return message
+      shinyalert(
+        title = "Success",
+        text = glue::glue(
+          "PID(s) moved to property"
+        ),
+        type = "success",
+        timer = 5000
+      )
+
+      ## Reset inputs
+      updateSelectizeInput(
+        session,
+        inputId = "move_to_existing_pid",
+        choices = c("", pids()),
+        selected = character(0),
+        options = list(
+          create = FALSE,
+          placeholder = "Search or select PID"
+        ),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "move_to_existing_property",
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = character(0),
+        server = TRUE
+      )
     })
 
     ## Event :: Clear New Property Inputs ----
@@ -983,10 +1173,10 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
     })
 
     ## Event :: Clear Update Property Inputs ----
-    observeEvent(input$clear_update_inputs, {
+    observeEvent(input$add_pid_clear, {
       updateSelectizeInput(
         session,
-        "update_pid",
+        "add_pid_pid",
         label = "Enter PID(s)",
         choices = NULL,
         options = list(
@@ -998,7 +1188,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
 
       updateSelectizeInput(
         session,
-        "update_property",
+        "add_pid_property",
         choices = setNames(
           property_list()$id,
           property_list()$property_name
@@ -1009,7 +1199,7 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
 
       updateSelectizeInput(
         session,
-        "update_acquisition_type",
+        "add_pid_acquisition_type",
         choices = setNames(
           acquisition$id,
           acquisition$acquisition_value
@@ -1019,10 +1209,10 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
     })
 
     ## Event :: Clear Move PID to New Property Inputs ----
-    observeEvent(input$clear_move_inputs, {
+    observeEvent(input$move_to_new_clear, {
       updateSelectizeInput(
         session,
-        inputId = "move_pid",
+        inputId = "move_to_new_pid",
         choices = c("", pids()),
         selected = character(0),
         options = list(
@@ -1032,18 +1222,44 @@ module_add_property_record_server <- function(id, db_con, prd_con, db_updated) {
         server = TRUE
       )
 
-      updateTextInput(session, "move_property_name", value = "")
+      updateTextInput(session, "move_to_new_property_name", value = "")
 
       updateSelectizeInput(
         session,
-        "move_phase",
+        "move_to_new_phase",
         choices = setNames(phase$id, phase$phase_value),
         selected = character(0)
       )
 
-      updateTextInput(session, "move_phase_description", value = "")
+      updateTextInput(session, "move_to_new_phase_description", value = "")
 
-      updateTextAreaInput(session, "move_property_description", value = "")
+      updateTextAreaInput(session, "move_to_new_property_description", value = "")
+    })
+
+    ## Event :: Clear Move PID to Existing Property Inputs ----
+    observeEvent(input$move_to_existing_clear, {
+      updateSelectizeInput(
+        session,
+        inputId = "move_to_existing_pid",
+        choices = c("", pids()),
+        selected = character(0),
+        options = list(
+          create = FALSE,
+          placeholder = "Search or select PID"
+        ),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        "move_to_existing_property",
+        choices = setNames(
+          property_list()$id,
+          property_list()$property_name
+        ),
+        selected = character(0),
+        server = TRUE
+      )
     })
   })
 }

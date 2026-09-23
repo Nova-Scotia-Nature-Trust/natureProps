@@ -4,7 +4,8 @@ ui <- page_navbar(
   useShinyjs(),
   # Link to CSS stylesheet
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+    tags$link(rel = "icon", type = "image/png", href = "favicon.png")
   ),
   id = "main_navbar",
   selected = "Home",
