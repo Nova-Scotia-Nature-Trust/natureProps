@@ -25,28 +25,19 @@ server <- function(input, output, session) {
   }
 
   # Setup Cons Lands processing ----
+  db_updated <- reactiveVal(0)
+
   cons_lands_data_rv <- reactiveVal(NULL)
 
-  cons_lands_data_rv(
-    prep_cons_lands_data(
-      gis_con,
-      db_con
+  # Runs on startup and whenever any edit module signals a change (db_updated),
+  # otherwise cons_lands_data_rv stays frozen at its startup value (e.g. stale public_view)
+  observeEvent(db_updated(), {
+    cons_lands_data_rv(
+      prep_cons_lands_data(
+        gis_con,
+        db_con
+      )
     )
-  )
-
-  # Toggle sidebar when gear icon is clicked
-  observeEvent(input$toggle_sidebar, {
-    # Use toggle_sidebar with the correct sidebar ID
-    bslib::toggle_sidebar("main_sidebar")
-  })
-
-  # observeEvent(input$dark_toggle, {
-  #   toggle_dark_mode(if (input$dark_toggle) "dark" else "light")
-  # })
-  # Dark mode ----
-  observeEvent(input$dark_toggle, {
-    mode <- if (input$dark_toggle) "dark" else "light"
-    toggle_dark_mode(mode)
   })
 
   module_pol_viewer_server(
@@ -54,8 +45,6 @@ server <- function(input, output, session) {
     db_con,
     db_updated
   )
-
-  db_updated <- reactiveVal(0)
   focal_pid_rv <- reactiveVal(NULL)
   prop_spp_rv <- reactiveVal(NULL)
 
