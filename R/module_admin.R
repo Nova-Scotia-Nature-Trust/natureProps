@@ -3,30 +3,26 @@ module_admin_ui <- function(id) {
   ns <- NS(id)
 
   div(
-    div(
-      style = "padding: 12px; background-color: #f8f9fa; border-radius: 4px;",
+    tags$h6("Landscape Shapefiles"),
 
-      tags$h6("Landscape Shapefiles"),
+    selectizeInput(
+      ns("property"),
+      "Select Property",
+      choices = NULL,
+      multiple = FALSE
+    ),
 
-      selectizeInput(
-        ns("property"),
-        "Select Property",
-        choices = NULL,
-        multiple = FALSE
-      ),
+    selectizeInput(
+      ns("pid"),
+      "Select PID(s)",
+      choices = NULL,
+      multiple = TRUE
+    ),
 
-      selectizeInput(
-        ns("pid"),
-        "Select PID(s)",
-        choices = NULL,
-        multiple = TRUE
-      ),
-
-      downloadButton(
-        ns("download_landscape_pids"),
-        "Download Landscape Shapefiles",
-        class = "btn-primary"
-      )
+    downloadButton(
+      ns("download_landscape_pids"),
+      "Download Landscape Shapefiles",
+      class = "btn-primary"
     ),
 
     hr(style = "margin: 20px 0;"),
