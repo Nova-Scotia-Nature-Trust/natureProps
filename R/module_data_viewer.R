@@ -211,7 +211,7 @@ module_data_viewer_server <- function(
       ),
       secured_props_view = list(
         fetch = function(db_con) prep_view_secured_properties(db_con, gis_con),
-        order_col = 9,
+        order_col = 10,
         order_dir = "desc",
         currency_cols = NULL
       ),
@@ -244,7 +244,7 @@ module_data_viewer_server <- function(
           dbGetQuery(db_con, "SELECT * FROM view_llt_projects;")
         },
         order_col = 3,
-        order_dir = "asc",
+        order_dir = "desc",
         currency_cols = c("Endowement Funding Amount")
       ),
       securement_communication = list(
