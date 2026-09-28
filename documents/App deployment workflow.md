@@ -586,7 +586,7 @@ sudo systemctl start postgresql@18-main
 ```
 ## Adding Database User Roles 
 
-To create a new user and grant permissions follow the steps below
+To create a new user and grant permissions follow the steps below. 
 
 ```sql
 CREATE ROLE newuser
@@ -606,6 +606,12 @@ TO newuser;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public
 TO newuser;
+
+-- This will mean that new privledges are granted for new tables automatically
+-- Must be logged in as postgres user to grant these privledges.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT ON TABLES TO newuser;
+
 ```
 
 ## Setting Constraints for DROP 
