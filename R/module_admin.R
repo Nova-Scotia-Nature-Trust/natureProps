@@ -3,30 +3,26 @@ module_admin_ui <- function(id) {
   ns <- NS(id)
 
   div(
-    div(
-      style = "padding: 12px; background-color: #f8f9fa; border-radius: 4px;",
+    tags$h6("Landscape Shapefiles"),
 
-      tags$h6("Landscape Shapefiles"),
+    selectizeInput(
+      ns("property"),
+      "Select Property",
+      choices = NULL,
+      multiple = FALSE
+    ),
 
-      selectizeInput(
-        ns("property"),
-        "Select Property",
-        choices = NULL,
-        multiple = FALSE
-      ),
+    selectizeInput(
+      ns("pid"),
+      "Select PID(s)",
+      choices = NULL,
+      multiple = TRUE
+    ),
 
-      selectizeInput(
-        ns("pid"),
-        "Select PID(s)",
-        choices = NULL,
-        multiple = TRUE
-      ),
-
-      downloadButton(
-        ns("download_landscape_pids"),
-        "Download Landscape Shapefiles",
-        class = "btn-primary"
-      )
+    downloadButton(
+      ns("download_landscape_pids"),
+      "Download Landscape Shapefiles",
+      class = "btn-primary"
     ),
 
     hr(style = "margin: 20px 0;"),
@@ -48,6 +44,12 @@ module_admin_ui <- function(id) {
     div(style = "margin-top: 8px;"),
 
     hr(style = "margin: 20px 0;"),
+
+    bslib::input_switch(
+      ns("remove_non_public"),
+      "Remove non-public lands",
+      value = FALSE
+    ),
 
     downloadButton(
       outputId = ns("download_cons_lands"),
@@ -165,7 +167,15 @@ module_admin_server <- function(
           str_glue("nsnt_conservation_lands_{Sys.Date()}.shp")
         )
 
-        st_read(gis_con, "nsnt_conservation_lands") |>
+        cons_lands_out <- st_read(gis_con, "nsnt_conservation_lands")
+
+        if (input$remove_non_public) {
+          cons_lands_out <- cons_lands_out |>
+            filter(public_view == TRUE)
+        }
+
+        cons_lands_out |>
+          mutate(public_view = if_else(public_view == TRUE, "Yes", "No")) |>
           select(all_of(map_shp_names)) |>
           st_write(
             filepath,

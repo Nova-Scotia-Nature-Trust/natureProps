@@ -48,7 +48,7 @@ FROM
       parcel_madd pm 
       ON pm.parcel_id = pa.id 
 WHERE
-   pr.ownership_id IS NOT NULL AND pr.ownership_id NOT IN (7, 14)
+   pr.ownership_id IS NOT NULL
 GROUP BY
    pr.id,
    pr.property_name_public,

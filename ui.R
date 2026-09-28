@@ -29,15 +29,6 @@ ui <- page_navbar(
         module_pol_viewer_ui("pol_webpage")
       ),
       accordion_panel(
-        title = "Display Settings",
-        icon = bs_icon("palette"),
-        input_switch(
-          id = "dark_toggle",
-          label = "Dark Mode",
-          value = FALSE
-        )
-      ),
-      accordion_panel(
         title = "Admin",
         icon = bs_icon("folder2"),
         module_admin_ui("admin")
@@ -270,15 +261,7 @@ ui <- page_navbar(
   #   )
   # ),
   nav_spacer(),
-  nav_item(
-    actionBttn(
-      inputId = "toggle_sidebar",
-      label = "",
-      icon = icon("gear"),
-      style = "simple",
-      size = "s"
-    )
-  )
+  nav_item(input_dark_mode(id = "dark_toggle", mode = "light"))
 )
 
 if (USE_AUTH) {

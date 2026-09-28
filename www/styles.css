@@ -42,3 +42,11 @@
 .mapboxgl-legend * {
   color: black !important;
 }
+
+/* Lighten outline-primary buttons in dark mode; sandstone hardcodes
+   --bs-btn-color: #325d88 (a dark navy) for .btn-outline-primary, which is
+   unreadable on the dark background before hover fills the button */
+[data-bs-theme="dark"] .btn-outline-primary {
+  --bs-btn-color: #8ab4d8 !important;
+  --bs-btn-border-color: #8ab4d8 !important;
+}

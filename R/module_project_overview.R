@@ -953,6 +953,21 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
 
         actions_df <- dbGetQuery(db_con, query_04)
 
+        acquisition_type <- dbGetQuery(
+          db_con,
+          statement = glue_sql(
+            " SELECT ac.acquisition_value
+            FROM properties pr
+            INNER JOIN parcels pa ON pa.property_id = pr.id
+            LEFT JOIN acquisition_type ac ON ac.id = pa.acquisition_type_id
+            WHERE pr.property_name = {prop_name}",
+            .con = db_con
+          )
+        ) |>
+          as_tibble() |>
+          pull() |>
+          unique()
+
         if (nrow(record_01) == 1) {
           selected_record(list(
             info = record_01,
@@ -963,7 +978,8 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
             contacts = contacts_df,
             comms = comms_df,
             contact_comms = contact_comms_df,
-            actions = actions_df
+            actions = actions_df,
+            acquisition = acquisition_type
           ))
 
           updateSelectizeInput(
@@ -1080,22 +1096,33 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
               ))
             },
             "bounding-box-circles",
-            "success"
+            "primary"
           ),
           info_value_box(
             "Date Added",
             format(as.Date(info$date_added), "%B %d, %Y"),
             "calendar-event",
-            "warning"
+            "primary"
           ),
           info_value_box("Team Lead", info$team_lead, "person", "primary"),
-          info_value_box("Project Phase", info$phase, "flag", "success"),
+          info_value_box(
+            "Project Phase",
+            info$phase,
+            "ui-checks-grid",
+            "primary"
+          ),
           info_value_box(
             "Phase Set",
             phase_followup,
             "calendar-check",
-            "warning"
-          )
+            "primary"
+          ),
+          info_value_box(
+            "Acquisition Type",
+            rec$acquisition,
+            "basket3",
+            "primary"
+          ),
         ),
 
         hr(class = "section-divider"),
