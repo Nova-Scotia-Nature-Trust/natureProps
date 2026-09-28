@@ -45,6 +45,12 @@ module_admin_ui <- function(id) {
 
     hr(style = "margin: 20px 0;"),
 
+    bslib::input_switch(
+      ns("remove_non_public"),
+      "Remove non-public lands",
+      value = FALSE
+    ),
+
     downloadButton(
       outputId = ns("download_cons_lands"),
       label = "Download Conservation Lands Shapefile",
@@ -161,7 +167,15 @@ module_admin_server <- function(
           str_glue("nsnt_conservation_lands_{Sys.Date()}.shp")
         )
 
-        st_read(gis_con, "nsnt_conservation_lands") |>
+        cons_lands_out <- st_read(gis_con, "nsnt_conservation_lands")
+
+        if (input$remove_non_public) {
+          cons_lands_out <- cons_lands_out |>
+            filter(public_view == TRUE)
+        }
+
+        cons_lands_out |>
+          mutate(public_view = if_else(public_view == TRUE, "Yes", "No")) |>
           select(all_of(map_shp_names)) |>
           st_write(
             filepath,
