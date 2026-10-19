@@ -520,7 +520,7 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
     team_lead_choices <- reactive({
       dbGetQuery(
         db_con,
-        "SELECT id, team_value FROM team_lead ORDER BY team_value"
+        "SELECT id, team_value FROM team_lead WHERE team_value NOT IN ('Rich LaPaix', 'Keith Spafford') ORDER BY team_value"
       )
     })
 
