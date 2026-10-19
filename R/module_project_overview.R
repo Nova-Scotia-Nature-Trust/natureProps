@@ -1016,14 +1016,14 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
     info_value_box <- function(title, value, icon, theme = "primary") {
       is_empty <- is.null(value) ||
         length(value) == 0 ||
-        (!inherits(value, "html") && (is.na(value) || value == ""))
+        (!inherits(value, "html") && all(is.na(value) | value == ""))
 
       display_value <- if (is_empty) {
         "\u2014"
       } else if (inherits(value, "html")) {
         value
       } else {
-        as.character(value)
+        paste(value[!is.na(value) & value != ""], collapse = ", ")
       }
 
       div(
