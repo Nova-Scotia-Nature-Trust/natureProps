@@ -90,3 +90,4 @@ tests/
 .posit/assistant/settings.json
 documents/drawSQL-image-export-2026-08-25.jpg
 documents/drawSQL-pgsql-export-2026-08-25.sql
+R/authentication/*
