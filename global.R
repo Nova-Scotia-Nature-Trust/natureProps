@@ -13,7 +13,8 @@ library(shinyjs)
 library(shinyalert)
 library(dbx)
 library(janitor)
-library(shinymanager)
+library(shinyauthr)
+library(sodium)
 library(markdown)
 library(leaflet)
 library(leaflet.extras)
@@ -43,16 +44,6 @@ onStop(function() {
   poolClose(db_con)
   poolClose(prd_con)
 })
-
-USE_AUTH <- FALSE
-
-if (USE_AUTH) {
-  shinymanager::set_labels(
-    language = "en",
-    "Please authenticate" = "Property Database Manager",
-    "Login" = "Sign in"
-  )
-}
 
 thematic_shiny(font = "auto")
 

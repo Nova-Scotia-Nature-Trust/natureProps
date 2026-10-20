@@ -63,45 +63,6 @@
       ],
       "Hash": "0cafd6f0500e5deba33be22c46bf6055"
     },
-    "R.methodsS3": {
-      "Package": "R.methodsS3",
-      "Version": "1.8.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "utils"
-      ],
-      "Hash": "278c286fd6e9e75d0c2e8f731ea445c8"
-    },
-    "R.oo": {
-      "Package": "R.oo",
-      "Version": "1.27.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "R.methodsS3",
-        "methods",
-        "utils"
-      ],
-      "Hash": "6ac79ff194202248cf946fe3a5d6d498"
-    },
-    "R.utils": {
-      "Package": "R.utils",
-      "Version": "2.13.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "R.methodsS3",
-        "R.oo",
-        "methods",
-        "tools",
-        "utils"
-      ],
-      "Hash": "d32373d88da809f8974d5307481862b0"
-    },
     "R6": {
       "Package": "R6",
       "Version": "2.5.1",
@@ -140,25 +101,6 @@
         "withr"
       ],
       "Hash": "beb7e18bf3f9e096f716a52a77ec793c"
-    },
-    "RSQLite": {
-      "Package": "RSQLite",
-      "Version": "2.4.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "DBI",
-        "R",
-        "bit64",
-        "blob",
-        "cpp11",
-        "memoise",
-        "methods",
-        "pkgconfig",
-        "plogr",
-        "rlang"
-      ],
-      "Hash": "37186150849b2172a0f4357773701fed"
     },
     "Rcpp": {
       "Package": "Rcpp",
@@ -221,24 +163,6 @@
         "R"
       ],
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
-    },
-    "billboarder": {
-      "Package": "billboarder",
-      "Version": "0.5.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "ggplot2",
-        "htmltools",
-        "htmlwidgets",
-        "jsonlite",
-        "magrittr",
-        "rlang",
-        "scales",
-        "shiny"
-      ],
-      "Hash": "8cfc73709bd06a57f4039fe15083b238"
     },
     "bit": {
       "Package": "bit",
@@ -1875,17 +1799,6 @@
       ],
       "Hash": "c5bba8f0d1df8c4b9538a40570798d9b"
     },
-    "scrypt": {
-      "Package": "scrypt",
-      "Version": "0.1.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "Rcpp"
-      ],
-      "Hash": "5669c376aea6546ff938528588101b7a"
-    },
     "selectr": {
       "Package": "selectr",
       "Version": "0.4-2",
@@ -1997,6 +1910,21 @@
       ],
       "Hash": "45f99f3173e5513e2dec78dc4d63f9f0"
     },
+    "shinyauthr": {
+      "Package": "shinyauthr",
+      "Version": "1.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "dplyr",
+        "glue",
+        "rlang",
+        "shiny",
+        "shinyjs",
+        "sodium"
+      ],
+      "Hash": "44eb8cee6d3f7a84ea56008ffecb209b"
+    },
     "shinycssloaders": {
       "Package": "shinycssloaders",
       "Version": "1.1.0.9006",
@@ -2030,32 +1958,6 @@
       ],
       "Hash": "802e4786b353a4bb27116957558548d5"
     },
-    "shinymanager": {
-      "Package": "shinymanager",
-      "Version": "1.0.6",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "datastorm-open",
-      "RemoteRepo": "shinymanager",
-      "RemoteRef": "master",
-      "RemoteSha": "be21b51c370698647696c40a0391817cdeef4d5d",
-      "Requirements": [
-        "DBI",
-        "DT",
-        "R.utils",
-        "R6",
-        "RSQLite",
-        "billboarder",
-        "glue",
-        "htmltools",
-        "openssl",
-        "scrypt",
-        "shiny",
-        "yaml"
-      ],
-      "Hash": "4c8de675750a1495f19691f748f4cd56"
-    },
     "shinyvalidate": {
       "Package": "shinyvalidate",
       "Version": "0.1.3",
@@ -2080,6 +1982,13 @@
         "stringr"
       ],
       "Hash": "58767e44739b76965332e8a4fe3f91f1"
+    },
+    "sodium": {
+      "Package": "sodium",
+      "Version": "1.4.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "ae00d33a499e429a04409bc1167c4995"
     },
     "sourcetools": {
       "Package": "sourcetools",

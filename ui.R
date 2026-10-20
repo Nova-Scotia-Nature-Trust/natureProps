@@ -1,20 +1,9 @@
-ui <- page_navbar(
+app_navbar <- navset_bar(
   title = "Nature Trust Property Database Manager",
   bg = "#31688E",
-  useShinyjs(),
-  # Link to CSS stylesheet
-  tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
-    tags$link(rel = "icon", type = "image/png", href = "favicon.png")
-  ),
   id = "main_navbar",
   selected = "Home",
   collapsible = TRUE,
-  # theme = bs_theme(bootswatch = "darkly"), # Alternatives: Sandstone, Yeti.
-  theme = bs_theme(
-    bootswatch = "sandstone",
-    success = "#5c8a1c"
-  ),
   fillable = TRUE,
   sidebar = sidebar(
     id = "main_sidebar",
@@ -261,20 +250,54 @@ ui <- page_navbar(
   #   )
   # ),
   nav_spacer(),
-  nav_item(input_dark_mode(id = "dark_toggle", mode = "light"))
+  nav_item(input_dark_mode(id = "dark_toggle", mode = "light")),
+  nav_item(shinyauthr::logoutUI(id = "logout", class = "btn-sm"))
 )
 
-if (USE_AUTH) {
-  ui <- secure_app(
-    ui,
-    tags_top = tags$div(
+# Login screen is shown until authenticated; the app is hidden until then
+ui <- page_fillable(
+  title = "Nature Trust Property Database Manager",
+  theme = bs_theme(
+    bootswatch = "sandstone",
+    success = "#5c8a1c"
+  ),
+  padding = 0,
+  gap = 0,
+  useShinyjs(),
+  # Link to CSS stylesheet
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+    tags$link(rel = "icon", type = "image/png", href = "favicon.png")
+  ),
+  div(
+    id = "login_page",
+    div(
+      style = "text-align: center; margin-top: 2rem;",
       tags$img(
         src = "nsnt_logo_horizontal.jpg",
-        alt = "Nature Trust Logo",
-        style = "width: 200px; margin-bottom: 15px;"
+        alt = "Nova Scotia Nature Trust logo",
+        style = "max-width: 300px; width: 100%; height: auto;"
+      )
+    ),
+    shinyauthr::loginUI(
+      id = "login",
+      title = "Property Database Manager",
+      error_message = "",
+      cookie_expiry = 7
+    ),
+    shinyjs::hidden(
+      div(
+        id = "login_error",
+        class = "text-center text-danger fw-bold",
+        "Invalid username or password!"
       )
     )
+  ),
+  shinyjs::hidden(
+    div(
+      id = "app_content",
+      class = "html-fill-item html-fill-container",
+      app_navbar
+    )
   )
-} else {
-  ui <- ui
-}
+)
