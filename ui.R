@@ -283,7 +283,7 @@ ui <- page_fillable(
       id = "login",
       title = "Property Database Manager",
       error_message = "",
-      cookie_expiry = 30
+      cookie_expiry = 7
     ),
     shinyjs::hidden(
       div(

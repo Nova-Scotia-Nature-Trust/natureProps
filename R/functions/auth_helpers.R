@@ -27,7 +27,7 @@ add_sessionid_to_db <- function(con, user, sessionid) {
   )
 }
 
-#' Fetch unexpired remember-me session tokens (30 days)
+#' Fetch unexpired remember-me session tokens (7 days)
 get_sessionids_from_db <- function(con) {
   DBI::dbGetQuery(
     con,
@@ -36,7 +36,7 @@ get_sessionids_from_db <- function(con) {
         username AS user,
         sessionid
     FROM public.remember_me_tokens
-    WHERE created_at > now() - interval '30 days'
+    WHERE created_at > now() - interval '7 days'
     "
   )
 }
