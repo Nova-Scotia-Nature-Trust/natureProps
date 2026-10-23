@@ -800,11 +800,14 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
                p.stewardship_concerns,
                p.project_feasibility_ranking_id,
                r.ranking_value as project_feasibility_ranking,
-               p.project_feasibility_ranking_reason
+               p.project_feasibility_ranking_reason,
+               sp.probability_value as securement_probability,
+               p.anticipated_closing_year
         FROM properties p
         LEFT JOIN team_lead tl ON p.team_lead_id = tl.id 
         LEFT JOIN phase ph ON p.phase_id = ph.id
         LEFT JOIN ranking r ON p.project_feasibility_ranking_id = r.id
+        LEFT JOIN securement_probability sp ON p.securement_probability_id = sp.id
         WHERE p.property_name = {prop_name};
         ",
           .con = db_con
@@ -1123,6 +1126,18 @@ module_project_overview_server <- function(id, db_con, db_updated = NULL) {
             "basket3",
             "primary"
           ),
+          info_value_box(
+            "Securement Probability",
+            info$securement_probability,
+            "percent",
+            "primary"
+          ),
+          info_value_box(
+            "Anticipated Closing Year",
+            info$anticipated_closing_year,
+            "calendar-range",
+            "primary"
+          )
         ),
 
         hr(class = "section-divider"),
