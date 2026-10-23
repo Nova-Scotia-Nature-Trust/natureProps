@@ -269,6 +269,12 @@ server <- function(input, output, session) {
         cons_lands_data = cons_lands_data_rv
       )
 
+      module_securement_actions_quality_control_server(
+        "securement_actions_qc",
+        db_con,
+        db_updated
+      )
+
       module_secured_properties_mapbox_server(
         "secured_properties_map",
         db_con,

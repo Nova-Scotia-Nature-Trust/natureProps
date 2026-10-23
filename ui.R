@@ -126,6 +126,12 @@ app_navbar <- navset_bar(
       nav_panel(
         title = "Queries",
         module_review_queries_ui("review_queries")
+      ),
+      nav_panel(
+        title = "Quality Control",
+        module_securement_actions_quality_control_ui(
+          "securement_actions_qc"
+        )
       )
     )
   ),
