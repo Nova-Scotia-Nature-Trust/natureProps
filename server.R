@@ -269,8 +269,8 @@ server <- function(input, output, session) {
         cons_lands_data = cons_lands_data_rv
       )
 
-      module_securement_actions_quality_control_server(
-        "securement_actions_qc",
+      module_securement_actions_data_validation_server(
+        "securement_actions_data_validation",
         db_con,
         db_updated
       )

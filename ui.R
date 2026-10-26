@@ -128,9 +128,9 @@ app_navbar <- navset_bar(
         module_review_queries_ui("review_queries")
       ),
       nav_panel(
-        title = "Quality Control",
-        module_securement_actions_quality_control_ui(
-          "securement_actions_qc"
+        title = "Data Validation",
+        module_securement_actions_data_validation_ui(
+          "securement_actions_data_validation"
         )
       )
     )

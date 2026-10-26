@@ -40,14 +40,14 @@ get_updated_properties <- function(con, days = 7) {
       .by = property_id
     )
 
-  check_df <- property_list |>
+  df <- property_list |>
     left_join(update_summary, by = "property_id") |>
     mutate(
       updated = !is.na(n_updates),
       n_updates = coalesce(n_updates, 0L)
     ) |>
-    arrange(updated, property_name) |>
-    transmute(
+    arrange(last_updated, property_name) |>
+    mutate(
       `Property Name` = property_name,
       `Public Property Name` = property_name_public,
       `Anticipated Closing Year` = anticipated_closing_year,
@@ -55,10 +55,11 @@ get_updated_properties <- function(con, days = 7) {
       `Updated` = if_else(updated, "Yes", "No"),
       `Number of Updates` = n_updates,
       `Fields Updated` = fields_updated,
-      `Last Updated` = last_updated
+      `Last Updated` = last_updated,
+      .keep = "none"
     )
 
-  return(check_df)
+  return(df)
 }
 
 # List "Active - Securement" properties with no securement action items

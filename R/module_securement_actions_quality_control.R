@@ -1,5 +1,5 @@
 # UI ----
-module_securement_actions_quality_control_ui <- function(id) {
+module_securement_actions_data_validation_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -12,13 +12,13 @@ module_securement_actions_quality_control_ui <- function(id) {
           "",
           open = TRUE,
           selectizeInput(
-            ns("quality_control_choice"),
-            "Select Quality Control Check",
+            ns("data_validation_choice"),
+            "Select Data Validation Check",
             choices = c(
               "",
-              "Action item updates",
-              "Active securement properties not tracked",
-              "Action items missing status"
+              "Updates to action items",
+              "Missing status for action items",
+              "Active securement properties not tracked"
             ),
             selected = "",
             multiple = FALSE
@@ -50,12 +50,12 @@ module_securement_actions_quality_control_ui <- function(id) {
             class = "btn-secondary"
           )
         ),
-        # Main layout - Quality Control result card only
+        # Main layout - Data Validation result card only
         card(
           height = "100%",
           card_header(
             class = "d-flex justify-content-between align-items-center",
-            h5("Quality Control Result"),
+            h5("Data Validation Result"),
             downloadButton(
               outputId = ns("download_query_data"),
               label = "Download",
@@ -74,17 +74,17 @@ module_securement_actions_quality_control_ui <- function(id) {
 }
 
 # Server ----
-module_securement_actions_quality_control_server <- function(
+module_securement_actions_data_validation_server <- function(
   id,
   db_con,
   db_updated = NULL
 ) {
   moduleServer(id, function(input, output, session) {
-    quality_control_choices <- c(
+    data_validation_choices <- c(
       "",
-      "Action item updates",
-      "Active securement properties not tracked",
-      "Action items missing status"
+      "Updates to action items",
+      "Missing status for action items",
+      "Active securement properties not tracked"
     )
 
     ## Filter choices (refresh when db_updated changes) ----
@@ -143,15 +143,15 @@ module_securement_actions_quality_control_server <- function(
 
     ## Table data (re-runs when inputs or db_updated change) ----
     table_data <- reactive({
-      req(input$quality_control_choice)
+      req(input$data_validation_choice)
 
       if (!is.null(db_updated)) {
         db_updated()
       }
 
       data <- switch(
-        input$quality_control_choice,
-        "Action item updates" = {
+        input$data_validation_choice,
+        "Updates to action items" = {
           req(input$days)
           get_updated_properties(db_con, days = input$days)
         },
@@ -172,7 +172,7 @@ module_securement_actions_quality_control_server <- function(
     output$conditional_days_ui <- renderUI({
       ns <- session$ns
 
-      req(input$quality_control_choice == "Action item updates")
+      req(input$data_validation_choice == "Updates to action items")
 
       numericInput(
         ns("days"),
@@ -187,8 +187,8 @@ module_securement_actions_quality_control_server <- function(
     observeEvent(input$clear_inputs, {
       updateSelectizeInput(
         session,
-        inputId = "quality_control_choice",
-        choices = quality_control_choices,
+        inputId = "data_validation_choice",
+        choices = data_validation_choices,
         selected = character(0),
         server = TRUE
       )
@@ -266,9 +266,9 @@ module_securement_actions_quality_control_server <- function(
     ## Download handler ----
     output$download_query_data <- downloadHandler(
       filename = function() {
-        query_name <- input$quality_control_choice
+        query_name <- input$data_validation_choice
         if (query_name == "") {
-          query_name <- "quality_control_results"
+          query_name <- "data_validation_results"
         }
         # Clean the check name for filename
         query_name <- str_replace_all(query_name, " ", "_") |>
