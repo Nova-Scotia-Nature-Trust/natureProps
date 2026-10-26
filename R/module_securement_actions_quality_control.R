@@ -158,7 +158,7 @@ module_securement_actions_data_validation_server <- function(
         "Active securement properties not tracked" = get_untracked_properties(
           db_con
         ),
-        "Action items missing status" = get_missing_status_counts(db_con)
+        "Missing status for action items" = get_missing_status_counts(db_con)
       )
 
       data |>
