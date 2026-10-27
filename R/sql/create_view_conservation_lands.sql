@@ -23,8 +23,8 @@ SELECT
   ca.campaign_value AS "Campaign", 
   pr.public_view AS "Public View",
   pr.notes_sensitivity AS "Sensitivity Notes",
-  pa.size_confirmed_ha AS "Size (Hectares)",
-  pa.size_confirmed_acres AS "Size (Acres)",
+  COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471)::numeric(10, 2) AS "Size (Acres)",
+  COALESCE(pa.size_confirmed_ha, pi.area_ha)::numeric(10, 2) AS "Size (Hectares)",
   pa.size_confirmed_notes AS "Size Confirmed Notes"
 FROM properties pr
 LEFT JOIN ownership o 
@@ -41,6 +41,8 @@ LEFT JOIN campaign ca
   ON pr.campaign_id = ca.id 
 LEFT JOIN parcels pa 
   ON pa.property_id = pr.id
+LEFT JOIN parcel_info pi 
+  ON pi.parcel_id = pa.id 
 WHERE 
   pr.ownership_id IS NOT NULL 
   AND pr.ownership_id NOT IN (7, 11, 13, 14)
