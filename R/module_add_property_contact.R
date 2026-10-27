@@ -57,11 +57,10 @@ module_add_property_contact_ui <- function(id) {
               label = "Email",
               value = ""
             ),
-            selectInput(
+            checkboxInput(
               inputId = ns("dnc_input"),
-              label = "Do Not Contact",
-              choices = list("TRUE" = TRUE, "FALSE" = FALSE),
-              selected = "FALSE"
+              label = "Do Not Contact (DNC)",
+              value = FALSE
             )
           ),
           layout_columns(
@@ -74,6 +73,14 @@ module_add_property_contact_ui <- function(id) {
             textInput(
               inputId = ns("phone_cell"),
               label = "Cell Phone",
+              value = ""
+            )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            textInput(
+              inputId = ns("re_constituent_id"),
+              label = "RE Constituent ID",
               value = ""
             )
           ),
@@ -95,6 +102,55 @@ module_add_property_contact_ui <- function(id) {
               "",
               height = "100px",
               width = "100%"
+            )
+          ),
+          div(
+            style = "display: flex; align-items: center; gap: 8px;",
+            h6("Mailing Address", class = "text-muted"),
+            popover(
+              icon("question-circle"),
+              includeMarkdown("popups/mailing_address.md"),
+              title = "Mailing Address Help",
+              placement = "top"
+            )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            textInput(
+              inputId = ns("address_line1"),
+              label = "Address Line 1",
+              value = ""
+            ),
+            textInput(
+              inputId = ns("address_line2"),
+              label = "Address Line 2",
+              value = ""
+            )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            textInput(
+              inputId = ns("city"),
+              label = "City",
+              value = ""
+            ),
+            textInput(
+              inputId = ns("state_province_code"),
+              label = "Province/State",
+              value = ""
+            )
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            textInput(
+              inputId = ns("postal_code"),
+              label = "Postal Code",
+              value = ""
+            ),
+            textInput(
+              inputId = ns("country_code"),
+              label = "Country",
+              value = ""
             )
           ),
           div(
@@ -195,6 +251,22 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
       "phone_cell",
       ~ if (isTruthy(.)) validate_phone_number(.)
     )
+    iv_create$add_rule(
+      "postal_code",
+      ~ if (isTruthy(.)) validate_postal_code(.)
+    )
+    iv_create$add_rule(
+      "state_province_code",
+      ~ if (isTruthy(.) && nchar(.) > 2) {
+        "Must be a 2-character code (e.g. NS, ON)"
+      }
+    )
+    iv_create$add_rule(
+      "country_code",
+      ~ if (isTruthy(.) && nchar(.) > 2) {
+        "Must be a 2-character code (e.g. CA, US)"
+      }
+    )
     iv_create$enable()
 
     ## Input Validation :: Update Existing Contact ----
@@ -290,8 +362,15 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
       updateTextInput(session, "email", value = "")
       updateTextInput(session, "phone_home", value = "")
       updateTextInput(session, "phone_cell", value = "")
-      updateSelectInput(session, "dnc_input", selected = "FALSE")
+      updateCheckboxInput(session, "dnc_input", value = FALSE)
       updateTextInput(session, "property_contact_description", value = "")
+      updateTextInput(session, "re_constituent_id", value = "")
+      updateTextInput(session, "address_line1", value = "")
+      updateTextInput(session, "address_line2", value = "")
+      updateTextInput(session, "city", value = "")
+      updateTextInput(session, "state_province_code", value = "")
+      updateTextInput(session, "postal_code", value = "")
+      updateTextInput(session, "country_code", value = "")
     }
 
     ## Helper :: Clear Update Contact Inputs ----
@@ -470,6 +549,48 @@ module_add_property_contact_server <- function(id, db_con, db_updated) {
             isTruthy(input$property_contact_description)
           ) {
             input$property_contact_description
+          } else {
+            NA_character_
+          },
+
+          re_constituent_id = if (isTruthy(input$re_constituent_id)) {
+            input$re_constituent_id
+          } else {
+            NA_character_
+          },
+
+          address_line1 = if (isTruthy(input$address_line1)) {
+            input$address_line1
+          } else {
+            NA_character_
+          },
+
+          address_line2 = if (isTruthy(input$address_line2)) {
+            input$address_line2
+          } else {
+            NA_character_
+          },
+
+          city = if (isTruthy(input$city)) {
+            input$city
+          } else {
+            NA_character_
+          },
+
+          state_province_code = if (isTruthy(input$state_province_code)) {
+            input$state_province_code
+          } else {
+            NA_character_
+          },
+
+          postal_code = if (isTruthy(input$postal_code)) {
+            input$postal_code
+          } else {
+            NA_character_
+          },
+
+          country_code = if (isTruthy(input$country_code)) {
+            input$country_code
           } else {
             NA_character_
           }
