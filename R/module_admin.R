@@ -203,16 +203,22 @@ module_admin_server <- function(
       }
       dbGetQuery(
         db_con,
-        "SELECT property_name FROM properties ORDER BY property_name;"
+        "SELECT property_name, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name,
+                date_added 
+         FROM properties;"
       ) |>
-        pull(property_name)
+        arrange(property_name)
     })
 
     observe({
       updateSelectizeInput(
         session,
         "property",
-        choices = property_list(),
+        choices = setNames(
+          property_list()$property_name,
+          property_list()$display_name
+        ),
         selected = isolate(input$property),
         server = TRUE
       )
