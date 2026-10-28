@@ -165,17 +165,25 @@ module_property_mapbox_server <- function(
 
       dbGetQuery(
         db_con,
-        "SELECT property_name FROM properties;"
+        "SELECT property_name, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name,
+                date_added 
+         FROM properties;"
       ) |>
-        pull(property_name) |>
-        sort()
+        arrange(property_name)
     })
 
     observe({
       updateSelectizeInput(
         session,
         "property",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$property_name,
+            property_choices()$display_name
+          )
+        ),
         selected = "",
         server = TRUE
       )

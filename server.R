@@ -57,19 +57,6 @@ server <- function(input, output, session) {
     shinyjs::toggle("app_content", condition = isTRUE(credentials()$user_auth))
   })
 
-  # Set current user in database
-  observe({
-    req(credentials()$user_auth)
-    DBI::dbExecute(
-      db_con,
-      "SELECT set_config('app.current_user', $1, false)",
-      params = list(
-        # Fall back to username if name is missing
-        dplyr::coalesce(credentials()$info$name, credentials()$info$user)
-      )
-    )
-  })
-
   # Modules start only after login ----
   # req() sits in the event expression so a FALSE value doesn't consume `once`
   observeEvent(
@@ -267,6 +254,12 @@ server <- function(input, output, session) {
         "admin",
         db_con,
         cons_lands_data = cons_lands_data_rv
+      )
+
+      module_securement_actions_data_validation_server(
+        "securement_actions_data_validation",
+        db_con,
+        db_updated
       )
 
       module_secured_properties_mapbox_server(

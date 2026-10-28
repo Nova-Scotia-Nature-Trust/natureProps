@@ -54,9 +54,14 @@ module_pol_viewer_server <- function(id, db_con, db_updated = NULL) {
         db_updated()
       }
 
-      dbGetQuery(db_con, glue("SELECT property_name FROM properties;")) |>
-        pull(property_name) |>
-        sort()
+      dbGetQuery(
+        db_con,
+        "SELECT property_name, 
+                CONCAT_WS(' || ', property_name, property_name_public) AS display_name,
+                date_added 
+         FROM properties;"
+      ) |>
+        arrange(property_name)
     })
 
     ## Update select input with property choices
@@ -64,7 +69,13 @@ module_pol_viewer_server <- function(id, db_con, db_updated = NULL) {
       updateSelectizeInput(
         session,
         inputId = "property",
-        choices = c("", property_choices()),
+        choices = c(
+          "",
+          setNames(
+            property_choices()$property_name,
+            property_choices()$display_name
+          )
+        ),
         selected = "",
         server = TRUE
       )

@@ -1,5 +1,5 @@
 app_navbar <- navset_bar(
-  title = "Nature Trust Property Database Manager",
+  title = "Rivendell",
   bg = "#31688E",
   id = "main_navbar",
   selected = "Home",
@@ -126,6 +126,12 @@ app_navbar <- navset_bar(
       nav_panel(
         title = "Queries",
         module_review_queries_ui("review_queries")
+      ),
+      nav_panel(
+        title = "Data Validation",
+        module_securement_actions_data_validation_ui(
+          "securement_actions_data_validation"
+        )
       )
     )
   ),
@@ -281,7 +287,15 @@ ui <- page_fillable(
     ),
     shinyauthr::loginUI(
       id = "login",
-      title = "Property Database Manager",
+      title = tagList(
+        "Rivendell",
+        tags$small(
+          class = "d-block text-muted fs-6 mt-1",
+          "Please log in"
+        )
+      ),
+      user_title = "Username",
+      login_title = "Log In",
       error_message = "",
       cookie_expiry = 7
     ),
