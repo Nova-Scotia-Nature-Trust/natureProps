@@ -4,6 +4,19 @@ module_securement_actions_data_validation_ui <- function(id) {
 
   div(
     style = "height: 100%; display: flex; flex-direction: column;",
+    # Space out buttons so checked (filled) ones are visibly separate
+    tags$style(HTML(
+      ".checkbox-group-buttons .btn-group-container-sw {
+        gap: 4px;
+      }
+      .checkbox-group-buttons .btn-group-container-sw > .btn-group > .btn {
+        border-radius: var(--bs-border-radius) !important;
+        margin: 0 !important;
+      }
+      .checkbox-group-buttons .btn.active {
+        box-shadow: inset 0 0 0 2px white;
+      }"
+    )),
     card(
       full_screen = TRUE,
       height = "100%",
