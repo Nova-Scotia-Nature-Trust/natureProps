@@ -1,5 +1,5 @@
 # UI ----
-module_review_queries_ui <- function(id) {
+module_project_review_queries_ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -16,6 +16,7 @@ module_review_queries_ui <- function(id) {
             "Select query",
             choices = c(
               "",
+              "Explore Phase",
               "Focal area chart"
             ),
             multiple = FALSE,
@@ -23,24 +24,15 @@ module_review_queries_ui <- function(id) {
           ),
           # Conditional UI for additional inputs
           uiOutput(ns("conditional_filters_ui")),
-          actionButton(
-            inputId = ns("run_query"),
-            label = "Run query",
-            width = "100%",
-            class = "btn-primary"
-          ),
-          actionButton(
-            inputId = ns("clear_inputs"),
-            label = "Clear Inputs",
-            width = "100%"
-          )
+          # Conditional UI for query action buttons (Explore Phase auto-refreshes)
+          uiOutput(ns("query_actions_ui"))
         ),
         # Main layout - results card
         card(
           height = "100%",
           card_header(h5("Query Result")),
           card_body(
-            plotOutput(outputId = ns("view_plot"), height = "100%")
+            uiOutput(ns("results_ui"))
           )
         )
       )
@@ -49,7 +41,7 @@ module_review_queries_ui <- function(id) {
 }
 
 # Server ----
-module_review_queries_server <- function(
+module_project_review_queries_server <- function(
   id,
   db_con,
   db_updated = NULL
@@ -57,8 +49,23 @@ module_review_queries_server <- function(
   moduleServer(id, function(input, output, session) {
     # Add reactive value to track plot data
     plot_data <- reactiveVal(NULL)
+    # Add reactive value to track table data
+    table_data <- reactiveVal(NULL)
     # Add reactive value to track if query has been run
     query_run <- reactiveVal(FALSE)
+
+    ## Results UI (plot vs. table, based on query select) ----
+    output$results_ui <- renderUI({
+      ns <- session$ns
+
+      req(input$query_choice)
+
+      if (input$query_choice == "Explore Phase") {
+        DTOutput(outputId = ns("view_df"), height = "100%")
+      } else {
+        plotOutput(outputId = ns("view_plot"), height = "100%")
+      }
+    })
 
     ## Conditional UI (based on query select) ----
     output$conditional_filters_ui <- renderUI({
@@ -89,9 +96,44 @@ module_review_queries_server <- function(
             )
           )
         )
+      } else if (input$query_choice == "Explore Phase") {
+        div(
+          selectizeInput(
+            inputId = ns("phase"),
+            label = "Phase",
+            choices = NULL,
+            multiple = TRUE
+          ),
+          input_switch(
+            ns("contacts_only"),
+            "Only properties with a contact",
+            value = FALSE
+          )
+        )
       } else {
         return(NULL)
       }
+    })
+
+    ## Query action buttons (Run query only applies to Focal area chart) ----
+    output$query_actions_ui <- renderUI({
+      ns <- session$ns
+
+      tagList(
+        if (identical(input$query_choice, "Focal area chart")) {
+          actionButton(
+            inputId = ns("run_query"),
+            label = "Run query",
+            width = "100%",
+            class = "btn-primary"
+          )
+        },
+        actionButton(
+          inputId = ns("clear_inputs"),
+          label = "Clear Inputs",
+          width = "100%"
+        )
+      )
     })
 
     ## Securement probability reactive ----
@@ -118,6 +160,11 @@ module_review_queries_server <- function(
         pull()
     })
 
+    ## Phase value reactive ----
+    phase_choices <- reactive({
+      dbGetQuery(db_con, "SELECT * FROM phase")
+    })
+
     ## Initialize inputs ----
     observe({
       req(input$query_choice)
@@ -139,6 +186,17 @@ module_review_queries_server <- function(
           inputId = "closing_year",
           choices = closing_year_choices,
           selected = closing_year_choices,
+          server = TRUE
+        )
+      } else if (input$query_choice == "Explore Phase") {
+        updateSelectizeInput(
+          session,
+          inputId = "phase",
+          choices = setNames(
+            phase_choices()$id,
+            phase_choices()$phase_value
+          ),
+          selected = character(0),
           server = TRUE
         )
       }
@@ -177,6 +235,89 @@ module_review_queries_server <- function(
         plot_data(data)
       }
     })
+
+    # Event :: Explore Phase inputs changed (auto-refresh table, no run button) ----
+    observeEvent(
+      list(input$phase, input$contacts_only),
+      {
+        req(input$query_choice == "Explore Phase")
+
+        if (length(input$phase) == 0) {
+          table_data(NULL)
+          return()
+        }
+
+        # Query property details, size, contacts, and last communication for selected phase(s)
+        query <- glue_sql(
+          "WITH property_sizes AS (
+            SELECT
+              pa.property_id,
+              ROUND(SUM(COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471)), 2) AS acres,
+              ROUND(SUM(COALESCE(pa.size_confirmed_ha, pi.area_ha)), 2) AS hectares
+            FROM parcels pa
+            LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
+            GROUP BY pa.property_id
+          ),
+          property_contacts AS (
+            SELECT
+              ppc.property_id,
+              STRING_AGG(
+                DISTINCT con.name_first || ' ' || con.name_last, ', '
+                ORDER BY con.name_first || ' ' || con.name_last
+              ) AS contact_names
+            FROM properties_contact ppc
+            LEFT JOIN property_contact_details con ON ppc.property_contact_id = con.id
+            GROUP BY ppc.property_id
+          ),
+          last_comm AS (
+            SELECT property_id, MAX(date_contacted) AS last_contact_date
+            FROM property_contact_communication
+            GROUP BY property_id
+          ),
+          acquisition_types AS (
+            SELECT
+              pa.property_id,
+              STRING_AGG(
+                DISTINCT at.acquisition_value, ', '
+                ORDER BY at.acquisition_value
+              ) AS acquisition_value
+            FROM parcels pa
+            LEFT JOIN acquisition_type at ON pa.acquisition_type_id = at.id
+            GROUP BY pa.property_id
+          )
+          SELECT
+            p.property_name AS \"Property Name\",
+            ph.phase_value AS \"Phase\",
+            p.phase_id_description AS \"Phase Description\",
+            ps.acres AS \"Size (acres)\",
+            ps.hectares AS \"Size (ha)\",
+            pc.contact_names AS \"Property Contacts\",
+            lc.last_contact_date AS \"Last Contact Date\",
+            ac.acquisition_value AS \"Acquisition Type\"
+          FROM properties p
+          LEFT JOIN phase ph ON p.phase_id = ph.id
+          LEFT JOIN property_sizes ps ON ps.property_id = p.id
+          LEFT JOIN property_contacts pc ON pc.property_id = p.id
+          LEFT JOIN last_comm lc ON lc.property_id = p.id
+          LEFT JOIN acquisition_types ac ON ac.property_id = p.id
+          WHERE p.phase_id IN ({phase_ids*})
+          ORDER BY p.property_name;",
+          phase_ids = input$phase,
+          .con = db_con
+        )
+
+        data <- dbGetQuery(conn = db_con, statement = query) |>
+          as_tibble()
+
+        if (isTRUE(input$contacts_only)) {
+          data <- data |>
+            filter(!is.na(`Property Contacts`))
+        }
+
+        table_data(data)
+      },
+      ignoreInit = TRUE
+    )
 
     # Auto-update plot when inputs change (after first run)
     observeEvent(
@@ -217,6 +358,7 @@ module_review_queries_server <- function(
         inputId = "query_choice",
         choices = c(
           "",
+          "Explore Phase",
           "Focal area chart"
         ),
         selected = character(0),
@@ -239,11 +381,51 @@ module_review_queries_server <- function(
         server = TRUE
       )
 
+      updateSelectizeInput(
+        session,
+        inputId = "phase",
+        choices = setNames(
+          phase_choices()$id,
+          phase_choices()$phase_value
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
       # Reset query_run flag
       query_run(FALSE)
 
-      # Clear plot data
+      # Clear plot and table data
       plot_data(NULL)
+      table_data(NULL)
+    })
+
+    # Render data table ----
+    output$view_df <- renderDT({
+      req(table_data())
+
+      DT::datatable(
+        table_data(),
+        options = list(
+          pageLength = 50,
+          lengthMenu = list(
+            c(10, 25, 50, 100, -1),
+            c("10", "25", "50", "100", "All")
+          ),
+          scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
+          stateSave = FALSE
+        ),
+        filter = list(
+          position = "top",
+          clear = TRUE,
+          plain = TRUE
+        ),
+        rownames = FALSE,
+        selection = "single",
+        extensions = c("Buttons", "FixedHeader")
+      )
     })
 
     # Render plot ----

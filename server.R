@@ -175,7 +175,7 @@ server <- function(input, output, session) {
         db_updated
       )
 
-      module_review_queries_server("review_queries", db_con, db_updated)
+      module_project_review_queries_server("review_queries", db_con, db_updated)
 
       module_eco_highlights_server("ecological_highlights", db_con, db_updated)
 
