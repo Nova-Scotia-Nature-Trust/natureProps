@@ -347,7 +347,8 @@ module_securement_queries_server <- function(
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons", "FixedHeader")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 
