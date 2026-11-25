@@ -401,7 +401,19 @@ module_data_viewer_server <- function(
 
       # Convert character columns to factors to enable column filter dropdowns
       data_for_display <- rv$data |>
-        mutate(across(where(is.character), as.factor))
+        mutate(across(where(is.character), as.factor)) |>
+        # Server-side sort uses factor level order, so order levels by link text, not URL
+        mutate(across(
+          any_of(c("Internal Record ID", "Landscape ID")),
+          ~ factor(
+            .x,
+            levels = levels(.x)[order(
+              # Strip HTML tags with regex
+              stringr::str_remove_all(levels(.x), "<[^>]+>"),
+              method = "radix"
+            )]
+          )
+        ))
 
       cfg <- view_config[[input$data_view]]
 
