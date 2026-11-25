@@ -13,7 +13,7 @@ module_project_review_queries_ui <- function(id) {
           width = 300,
           selectizeInput(
             ns("query_choice"),
-            "Select query",
+            "Select Query",
             choices = c(
               "",
               "Phase & Focus Area",
@@ -30,7 +30,20 @@ module_project_review_queries_ui <- function(id) {
         # Main layout - results card
         card(
           height = "100%",
-          card_header(h5("Query Result")),
+          card_header(
+            class = "d-flex justify-content-between align-items-center",
+            h5("Query Result"),
+            # Download only applies to the table query
+            conditionalPanel(
+              condition = "input.query_choice == 'Phase & Focus Area'",
+              ns = ns,
+              downloadButton(
+                outputId = ns("download_query_data"),
+                label = "Download",
+                class = "btn-sm"
+              )
+            )
+          ),
           card_body(
             uiOutput(ns("results_ui"))
           )
@@ -53,8 +66,6 @@ module_project_review_queries_server <- function(
     table_data <- reactiveVal(NULL)
     # Add reactive value to track if query has been run
     query_run <- reactiveVal(FALSE)
-    # Track the previous focus area selection, to resolve "All" vs. specific picks
-    prev_focus_area <- reactiveVal("all")
 
     ## Results UI (plot vs. table, based on query select) ----
     output$results_ui <- renderUI({
@@ -106,11 +117,20 @@ module_project_review_queries_server <- function(
             choices = NULL,
             multiple = TRUE
           ),
-          selectizeInput(
-            inputId = ns("focus_area"),
-            label = "Focus Area",
-            choices = NULL,
-            multiple = TRUE
+          input_switch(
+            ns("filter_focus_area"),
+            "Filter by Focus Area",
+            value = FALSE
+          ),
+          conditionalPanel(
+            condition = "input.filter_focus_area",
+            ns = ns,
+            selectizeInput(
+              inputId = ns("focus_area"),
+              label = "Focus Area",
+              choices = NULL,
+              multiple = TRUE
+            )
           ),
           input_switch(
             ns("contacts_only"),
@@ -170,7 +190,7 @@ module_project_review_queries_server <- function(
 
     ## Phase value reactive ----
     phase_choices <- reactive({
-      dbGetQuery(db_con, "SELECT * FROM phase")
+      dbGetQuery(db_con, "SELECT * FROM phase ORDER BY phase_value")
     })
 
     ## Focus area value reactive ----
@@ -179,6 +199,11 @@ module_project_review_queries_server <- function(
         db_con,
         "SELECT * FROM focus_area_internal ORDER BY internal_value"
       )
+    })
+
+    ## Focus area select choices (with "Unassigned" for missing values) ----
+    focus_area_select_choices <- reactive({
+      c("Unassigned", focus_area_choices()$internal_value)
     })
 
     ## Initialize inputs ----
@@ -216,53 +241,14 @@ module_project_review_queries_server <- function(
           server = TRUE
         )
 
-        # "All" represents every focus area; default selection on load
         updateSelectizeInput(
           session,
           inputId = "focus_area",
-          choices = c(
-            "All" = "all",
-            setNames(
-              focus_area_choices()$id,
-              focus_area_choices()$internal_value
-            )
-          ),
-          selected = "all",
+          choices = focus_area_select_choices(),
+          selected = character(0),
           server = TRUE
         )
-        prev_focus_area("all")
       }
-    })
-
-    # Event :: Focus area selection changed ("All" and specific picks are mutually exclusive) ----
-    observeEvent(input$focus_area, {
-      req(input$query_choice == "Phase & Focus Area")
-
-      current <- input$focus_area
-      previous <- prev_focus_area()
-
-      if (length(current) == 0) {
-        # Nothing selected - fall back to "All"
-        updateSelectizeInput(session, "focus_area", selected = "all")
-        prev_focus_area("all")
-        return()
-      }
-
-      if (length(current) > 1 && "all" %in% current) {
-        new_selection <- if ("all" %in% previous) {
-          # User picked a specific area while "All" was selected - drop "All"
-          setdiff(current, "all")
-        } else {
-          # User picked "All" while specific areas were selected - drop the rest
-          "all"
-        }
-
-        updateSelectizeInput(session, "focus_area", selected = new_selection)
-        prev_focus_area(new_selection)
-        return()
-      }
-
-      prev_focus_area(current)
     })
 
     # Event :: Run query ----
@@ -301,11 +287,16 @@ module_project_review_queries_server <- function(
 
     # Event :: Phase & Focus Area inputs changed (auto-refresh table, no run button) ----
     observeEvent(
-      list(input$phase, input$focus_area, input$contacts_only),
+      list(
+        input$phase,
+        input$filter_focus_area,
+        input$focus_area,
+        input$contacts_only
+      ),
       {
         req(input$query_choice == "Phase & Focus Area")
 
-        if (length(input$phase) == 0 || length(input$focus_area) == 0) {
+        if (length(input$phase) == 0) {
           table_data(NULL)
           return()
         }
@@ -352,7 +343,7 @@ module_project_review_queries_server <- function(
             p.property_name AS \"Property Name\",
             ph.phase_value AS \"Phase\",
             p.phase_id_description AS \"Phase Description\",
-            fa.internal_value AS \"Focus Area\",
+            COALESCE(fa.internal_value, 'Unassigned') AS \"Focus Area\",
             ps.acres AS \"Size (acres)\",
             ps.hectares AS \"Size (ha)\",
             pc.contact_names AS \"Property Contacts\",
@@ -374,13 +365,9 @@ module_project_review_queries_server <- function(
         data <- dbGetQuery(conn = db_con, statement = query) |>
           as_tibble()
 
-        if (!("all" %in% input$focus_area)) {
-          focus_area_labels <- focus_area_choices() |>
-            filter(id %in% as.integer(input$focus_area)) |>
-            pull(internal_value)
-
+        if (isTRUE(input$filter_focus_area) && length(input$focus_area) > 0) {
           data <- data |>
-            filter(`Focus Area` %in% focus_area_labels)
+            filter(`Focus Area` %in% input$focus_area)
         }
 
         if (isTRUE(input$contacts_only)) {
@@ -466,21 +453,14 @@ module_project_review_queries_server <- function(
         server = TRUE
       )
 
-      # Reset focus area back to the "All" default
       updateSelectizeInput(
         session,
         inputId = "focus_area",
-        choices = c(
-          "All" = "all",
-          setNames(
-            focus_area_choices()$id,
-            focus_area_choices()$internal_value
-          )
-        ),
-        selected = "all",
+        choices = focus_area_select_choices(),
+        selected = character(0),
         server = TRUE
       )
-      prev_focus_area("all")
+      update_switch("filter_focus_area", value = FALSE, session = session)
 
       # Reset query_run flag
       query_run(FALSE)
@@ -521,6 +501,28 @@ module_project_review_queries_server <- function(
         fillContainer = TRUE
       )
     })
+
+    ## Download handler ----
+    output$download_query_data <- downloadHandler(
+      filename = function() {
+        query_name <- str_replace_all(
+          input$query_choice,
+          "[^A-Za-z0-9]+",
+          "_"
+        ) |>
+          str_to_lower()
+        glue("{query_name}_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- table_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          write_csv(data.frame(), file)
+        }
+      }
+    )
 
     # Render plot ----
     output$view_plot <- renderCachedPlot(
