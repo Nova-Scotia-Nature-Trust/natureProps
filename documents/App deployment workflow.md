@@ -619,6 +619,8 @@ GRANT SELECT ON TABLES TO newuser;
 The database schema was initially set up without `DROP CASCADE` constraints. In order to delete a property and all associated records the constraints can be set up after which the following can be run to remove a property. 
 
 ```r
+property_id = 79
+
 pool::poolWithTransaction(db_con, function(con) {
   
   DBI::dbExecute(

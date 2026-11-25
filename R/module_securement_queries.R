@@ -13,23 +13,18 @@ module_securement_queries_ui <- function(id) {
           width = 300,
           selectizeInput(
             ns("query_choice"),
-            "Select query",
+            "Select Query",
             choices = c(
               "",
-              "Focal area properties",
-              "Securement action"
+              "Secured properties pricing",
+              "Action items for all properties",
+              "Action items for closed properties"
             ),
             multiple = FALSE,
             width = "100%"
           ),
           # Conditional UI for additional inputs
           uiOutput(ns("conditional_query_ui")),
-          actionButton(
-            inputId = ns("run_query"),
-            label = "Run query",
-            width = "100%",
-            class = "btn-primary"
-          ),
           actionButton(
             inputId = ns("clear_inputs"),
             label = "Clear Inputs",
@@ -79,7 +74,7 @@ module_securement_queries_server <- function(
 
       req(input$query_choice)
 
-      if (input$query_choice == "Focal area properties") {
+      if (input$query_choice == "Secured properties pricing") {
         selectizeInput(
           ns("focal_area"),
           "Select Focal Area",
@@ -90,7 +85,7 @@ module_securement_queries_server <- function(
             placeholder = "Select a focal area"
           )
         )
-      } else if (input$query_choice == "Securement action") {
+      } else if (input$query_choice == "Action items for all properties") {
         div(
           selectizeInput(
             ns("closing_year"),
@@ -118,6 +113,17 @@ module_securement_queries_server <- function(
           #   value = FALSE
           # )
         )
+      } else if (input$query_choice == "Action items for closed properties") {
+        selectizeInput(
+          ns("closing_fiscal_year"),
+          "Select Closing Fiscal Year",
+          choices = NULL,
+          multiple = FALSE,
+          options = list(
+            create = FALSE,
+            placeholder = "Select a closing fiscal year"
+          )
+        )
       } else {
         return(NULL)
       }
@@ -131,18 +137,21 @@ module_securement_queries_server <- function(
         db_updated() # Creates the reactive dependency; ignore the return value.
       }
       # Query database for Focal Areas
-      dbGetQuery(
-        conn = db_con,
-        statement = glue_sql(
-          "SELECT DISTINCT fa.internal_value 
-          FROM focus_area_internal fa
-          INNER JOIN properties props ON fa.id = props.focus_area_internal_id
-          WHERE props.ownership_id NOT IN (11, 12, 13, 14)
-          ORDER BY fa.internal_value;",
-          .con = db_con
-        )
-      ) |>
-        pull()
+      c(
+        "Unassigned",
+        dbGetQuery(
+          conn = db_con,
+          statement = glue_sql(
+            "SELECT DISTINCT fa.internal_value 
+            FROM focus_area_internal fa
+            INNER JOIN properties props ON fa.id = props.focus_area_internal_id
+            WHERE props.ownership_id NOT IN (11, 12, 13, 14)
+            ORDER BY fa.internal_value;",
+            .con = db_con
+          )
+        ) |>
+          pull()
+      )
     })
 
     closing_year_reactive <- reactive({
@@ -153,10 +162,33 @@ module_securement_queries_server <- function(
       c(
         dbGetQuery(
           conn = db_con,
-          statement = "SELECT DISTINCT anticipated_closing_year FROM properties;"
+          statement = "SELECT DISTINCT anticipated_closing_year
+                       FROM properties
+                       WHERE anticipated_closing_year IS NOT NULL
+                       ORDER BY anticipated_closing_year;"
         ) |>
           pull(),
         "Unassigned"
+      )
+    })
+
+    closing_fiscal_year_reactive <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      # Only fiscal years with tracked action items; tracking began in 2024/25
+      # Leading "" keeps the single-select empty (no default choice)
+      c(
+        "",
+        dbGetQuery(
+          conn = db_con,
+          statement = "SELECT DISTINCT pr.date_closed_fiscal
+                       FROM properties pr
+                       INNER JOIN securement_action_items sai ON sai.property_id = pr.id
+                       WHERE pr.date_closed_fiscal >= '2024/25'
+                       ORDER BY pr.date_closed_fiscal;"
+        ) |>
+          pull()
       )
     })
 
@@ -196,43 +228,62 @@ module_securement_queries_server <- function(
         choices = securement_probability_reactive(),
         server = TRUE
       )
+
+      updateSelectizeInput(
+        session,
+        inputId = "closing_fiscal_year",
+        choices = closing_fiscal_year_reactive(),
+        selected = "",
+        server = TRUE
+      )
     })
 
-    # Event :: Run query ----
-    observeEvent(input$run_query, {
-      req(input$query_choice)
+    # Event :: Query or inputs changed (auto-refresh table, no run button) ----
+    observeEvent(
+      list(
+        input$query_choice,
+        input$focal_area,
+        input$closing_year,
+        input$securement_probability,
+        input$closing_fiscal_year
+      ),
+      {
+        # Clear stale results so incomplete inputs don't leave an old table showing
+        table_data(NULL)
 
-      if (input$query_choice == "Focal area properties") {
-        req(input$focal_area)
+        req(input$query_choice)
 
-        col_name <- "Focus Area (Internal)"
+        if (input$query_choice == "Secured properties pricing") {
+          req(input$focal_area)
 
-        data <- dbGetQuery(
-          db_con,
-          glue_sql(
-            "SELECT * FROM view_focal_areas_securement WHERE {`col_name`} IN ({input$focal_area*})",
-            .con = db_con
+          col_name <- "Focus Area (Internal)"
+
+          data <- dbGetQuery(
+            db_con,
+            glue_sql(
+              "SELECT * FROM view_secured_properties_pricing WHERE {`col_name`} IN ({input$focal_area*})",
+              .con = db_con
+            )
           )
-        )
-      } else if (input$query_choice == "Securement action") {
-        req(input$closing_year)
-        req(input$securement_probability)
+        } else if (input$query_choice == "Action items for all properties") {
+          req(input$closing_year)
+          req(input$securement_probability)
 
-        data <- dbGetQuery(
-          db_con,
-          "SELECT * FROM view_securement_action_items;"
-        )
-
-        data <- data |>
-          select("Property Name", "Action Item", "Status") |>
-          pivot_wider(
-            id_cols = "Property Name",
-            names_from = "Action Item",
-            values_from = "Status"
+          data <- dbGetQuery(
+            db_con,
+            "SELECT * FROM view_securement_action_items;"
           )
-        additional_data <- dbGetQuery(
-          conn = db_con,
-          statement = '
+
+          data <- data |>
+            select("Property Name", "Action Item", "Status") |>
+            pivot_wider(
+              id_cols = "Property Name",
+              names_from = "Action Item",
+              values_from = "Status"
+            )
+          additional_data <- dbGetQuery(
+            conn = db_con,
+            statement = '
           SELECT pr.property_name AS "Property Name", 
                  COALESCE(pr.anticipated_closing_year, \'Unassigned\') AS "Closing Year",
                  pr.anticipated_closing_date AS "Closing Date",
@@ -243,36 +294,69 @@ module_securement_queries_server <- function(
           LEFT JOIN securement_probability se ON pr.securement_probability_id = se.id
           LEFT JOIN phase ph ON pr.phase_id = ph.id
           WHERE se.probability_value IS NOT NULL;'
-        )
-
-        data <- data |>
-          left_join(additional_data, join_by("Property Name"))
-
-        data <- data |>
-          relocate(
-            "Property Name",
-            "Closing Year",
-            "Closing Date",
-            "Securement Probability",
-            "Phase",
-            "Securement Status"
           )
 
-        no_current_action <- additional_data |>
-          filter(!`Property Name` %in% data$`Property Name`)
+          data <- data |>
+            left_join(additional_data, join_by("Property Name"))
 
-        data <- data |>
-          bind_rows(no_current_action) |>
-          arrange(`Property Name`)
+          data <- data |>
+            relocate(
+              "Property Name",
+              "Closing Year",
+              "Closing Date",
+              "Securement Probability",
+              "Phase",
+              "Securement Status"
+            )
 
-        data <- data |>
-          filter(`Securement Probability` %in% input$securement_probability) |>
-          filter(`Closing Year` %in% input$closing_year) |>
-          arrange(`Property Name`)
-      }
+          no_current_action <- additional_data |>
+            filter(!`Property Name` %in% data$`Property Name`)
 
-      table_data(data)
-    })
+          data <- data |>
+            bind_rows(no_current_action) |>
+            arrange(`Property Name`)
+
+          data <- data |>
+            filter(
+              `Securement Probability` %in% input$securement_probability
+            ) |>
+            filter(`Closing Year` %in% input$closing_year) |>
+            arrange(`Property Name`)
+        } else if (input$query_choice == "Action items for closed properties") {
+          req(input$closing_fiscal_year)
+
+          data <- dbGetQuery(
+            db_con,
+            glue_sql(
+              "SELECT pr.property_name_public AS \"Property Name\",
+                    pr.date_closed_fiscal AS \"Closing Fiscal Year\",
+                    ait.type_value AS \"Action Item\",
+                    ais.status_value AS \"Status\"
+             FROM properties pr
+             INNER JOIN phase ph ON pr.phase_id = ph.id
+             INNER JOIN securement_action_items sai ON sai.property_id = pr.id
+             LEFT JOIN action_item_type ait ON sai.action_item_type_id = ait.id
+             LEFT JOIN action_item_status ais ON sai.action_item_status_id = ais.id
+             WHERE ph.phase_value = 'Secured'
+               AND pr.date_closed_fiscal = {input$closing_fiscal_year}
+             ORDER BY pr.property_name_public, ait.id;",
+              .con = db_con
+            )
+          )
+
+          data <- data |>
+            pivot_wider(
+              id_cols = c("Property Name", "Closing Fiscal Year"),
+              names_from = "Action Item",
+              values_from = "Status"
+            ) |>
+            arrange(`Property Name`)
+        }
+
+        table_data(data)
+      },
+      ignoreInit = TRUE
+    )
 
     # Event :: Clear inputs ----
     observeEvent(input$clear_inputs, {
@@ -281,8 +365,9 @@ module_securement_queries_server <- function(
         inputId = "query_choice",
         choices = c(
           "",
-          "Focal area properties",
-          "Securement action"
+          "Secured properties pricing",
+          "Action items for all properties",
+          "Action items for closed properties"
         ),
         selected = character(0),
         server = TRUE
@@ -308,6 +393,14 @@ module_securement_queries_server <- function(
         inputId = "securement_probability",
         choices = securement_probability_reactive(),
         selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "closing_fiscal_year",
+        choices = closing_fiscal_year_reactive(),
+        selected = "",
         server = TRUE
       )
 
@@ -347,7 +440,8 @@ module_securement_queries_server <- function(
         ),
         rownames = FALSE,
         selection = "single",
-        extensions = c("Buttons", "FixedHeader")
+        extensions = c("Buttons"),
+        fillContainer = TRUE
       )
     })
 

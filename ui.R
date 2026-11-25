@@ -125,7 +125,7 @@ app_navbar <- navset_bar(
       # ),
       nav_panel(
         title = "Queries",
-        module_review_queries_ui("review_queries")
+        module_project_review_queries_ui("review_queries")
       ),
       nav_panel(
         title = "Data Validation",

@@ -792,7 +792,8 @@ module_property_mapbox_server <- function(
                 list("get", "phase"),
                 list(
                   "literal",
-                  selected
+                  # as.list() keeps a single selection as a JSON array, not a string (avoids substring matching)
+                  as.list(selected)
                 )
               )
             )

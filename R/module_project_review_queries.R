@@ -1,0 +1,559 @@
+# UI ----
+module_project_review_queries_ui <- function(id) {
+  ns <- NS(id)
+
+  div(
+    style = "height: 100%; display: flex; flex-direction: column;",
+    card(
+      full_screen = TRUE,
+      height = "100%",
+      layout_sidebar(
+        sidebar = sidebar(
+          open = TRUE,
+          width = 300,
+          selectizeInput(
+            ns("query_choice"),
+            "Select Query",
+            choices = c(
+              "",
+              "Phase & Focus Area",
+              "Focus Area Chart"
+            ),
+            multiple = FALSE,
+            width = "100%"
+          ),
+          # Conditional UI for additional inputs
+          uiOutput(ns("conditional_filters_ui")),
+          # Conditional UI for query action buttons (Phase & Focus Area auto-refreshes)
+          uiOutput(ns("query_actions_ui"))
+        ),
+        # Main layout - results card
+        card(
+          height = "100%",
+          card_header(
+            class = "d-flex justify-content-between align-items-center",
+            h5("Query Result"),
+            # Download only applies to the table query
+            conditionalPanel(
+              condition = "input.query_choice == 'Phase & Focus Area'",
+              ns = ns,
+              downloadButton(
+                outputId = ns("download_query_data"),
+                label = "Download",
+                class = "btn-sm"
+              )
+            )
+          ),
+          card_body(
+            uiOutput(ns("results_ui"))
+          )
+        )
+      )
+    )
+  )
+}
+
+# Server ----
+module_project_review_queries_server <- function(
+  id,
+  db_con,
+  db_updated = NULL
+) {
+  moduleServer(id, function(input, output, session) {
+    # Add reactive value to track plot data
+    plot_data <- reactiveVal(NULL)
+    # Add reactive value to track table data
+    table_data <- reactiveVal(NULL)
+    # Add reactive value to track if query has been run
+    query_run <- reactiveVal(FALSE)
+
+    ## Results UI (plot vs. table, based on query select) ----
+    output$results_ui <- renderUI({
+      ns <- session$ns
+
+      req(input$query_choice)
+
+      if (input$query_choice == "Phase & Focus Area") {
+        DTOutput(outputId = ns("view_df"), height = "100%")
+      } else {
+        plotOutput(outputId = ns("view_plot"), height = "100%")
+      }
+    })
+
+    ## Conditional UI (based on query select) ----
+    output$conditional_filters_ui <- renderUI({
+      ns <- session$ns
+
+      req(input$query_choice)
+
+      if (input$query_choice == "Focus Area Chart") {
+        div(
+          selectizeInput(
+            ns("securement_probability"),
+            "Securement probability",
+            choices = NULL,
+            multiple = TRUE,
+            options = list(
+              create = FALSE,
+              placeholder = "Select securement probability"
+            )
+          ),
+          selectizeInput(
+            ns("closing_year"),
+            "Anticipated Closing Year",
+            choices = NULL,
+            multiple = TRUE,
+            options = list(
+              create = FALSE,
+              placeholder = "Select closing year"
+            )
+          )
+        )
+      } else if (input$query_choice == "Phase & Focus Area") {
+        div(
+          selectizeInput(
+            inputId = ns("phase"),
+            label = "Phase",
+            choices = NULL,
+            multiple = TRUE
+          ),
+          input_switch(
+            ns("filter_focus_area"),
+            "Filter by Focus Area",
+            value = FALSE
+          ),
+          conditionalPanel(
+            condition = "input.filter_focus_area",
+            ns = ns,
+            selectizeInput(
+              inputId = ns("focus_area"),
+              label = "Focus Area",
+              choices = NULL,
+              multiple = TRUE
+            )
+          ),
+          input_switch(
+            ns("contacts_only"),
+            "Only display properties with a contact",
+            value = FALSE
+          )
+        )
+      } else {
+        return(NULL)
+      }
+    })
+
+    ## Query action buttons (Run query only applies to Focus Area Chart) ----
+    output$query_actions_ui <- renderUI({
+      ns <- session$ns
+
+      tagList(
+        if (identical(input$query_choice, "Focus Area Chart")) {
+          actionButton(
+            inputId = ns("run_query"),
+            label = "Run query",
+            width = "100%",
+            class = "btn-primary"
+          )
+        },
+        actionButton(
+          inputId = ns("clear_inputs"),
+          label = "Clear Inputs",
+          width = "100%"
+        )
+      )
+    })
+
+    ## Securement probability reactive ----
+    securement_probability_reactive <- reactive({
+      # Query database for distinct securement probability values
+      dbGetQuery(db_con, "SELECT * FROM securement_probability") |>
+        select(probability_value, id) |>
+        deframe()
+    })
+
+    ## Closing year reactive ----
+    closing_year_reactive <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+      # Query database for distinct closing years
+      dbGetQuery(
+        conn = db_con,
+        statement = "SELECT DISTINCT anticipated_closing_year 
+                     FROM properties 
+                     WHERE anticipated_closing_year IS NOT NULL
+                     ORDER BY anticipated_closing_year;"
+      ) |>
+        pull()
+    })
+
+    ## Phase value reactive ----
+    phase_choices <- reactive({
+      dbGetQuery(db_con, "SELECT * FROM phase ORDER BY phase_value")
+    })
+
+    ## Focus area value reactive ----
+    focus_area_choices <- reactive({
+      dbGetQuery(
+        db_con,
+        "SELECT * FROM focus_area_internal ORDER BY internal_value"
+      )
+    })
+
+    ## Focus area select choices (with "Unassigned" for missing values) ----
+    focus_area_select_choices <- reactive({
+      c("Unassigned", focus_area_choices()$internal_value)
+    })
+
+    ## Initialize inputs ----
+    observe({
+      req(input$query_choice)
+
+      if (input$query_choice == "Focus Area Chart") {
+        securement_choices <- securement_probability_reactive()
+        closing_year_choices <- closing_year_reactive()
+
+        updateSelectizeInput(
+          session,
+          inputId = "securement_probability",
+          choices = securement_choices,
+          selected = securement_choices,
+          server = TRUE
+        )
+
+        updateSelectizeInput(
+          session,
+          inputId = "closing_year",
+          choices = closing_year_choices,
+          selected = closing_year_choices,
+          server = TRUE
+        )
+      } else if (input$query_choice == "Phase & Focus Area") {
+        updateSelectizeInput(
+          session,
+          inputId = "phase",
+          choices = setNames(
+            phase_choices()$id,
+            phase_choices()$phase_value
+          ),
+          selected = character(0),
+          server = TRUE
+        )
+
+        updateSelectizeInput(
+          session,
+          inputId = "focus_area",
+          choices = focus_area_select_choices(),
+          selected = character(0),
+          server = TRUE
+        )
+      }
+    })
+
+    # Event :: Run query ----
+    observeEvent(input$run_query, {
+      req(input$query_choice)
+
+      if (input$query_choice == "Focus Area Chart") {
+        req(input$securement_probability, input$closing_year)
+
+        # Mark that query has been run at least once
+        query_run(TRUE)
+
+        # Query properties with focal area, securement probability, and closing year
+        query <- glue_sql(
+          "SELECT 
+            fa.internal_value AS focal_area,
+            prop.securement_probability_id,
+            prop.anticipated_closing_year
+          FROM properties prop
+          INNER JOIN focus_area_internal fa ON prop.focus_area_internal_id = fa.id
+          WHERE prop.securement_probability_id IN ({securement_prob*})
+            AND prop.anticipated_closing_year IN ({closing_yr*})
+            AND prop.securement_probability_id IS NOT NULL
+            AND prop.anticipated_closing_year IS NOT NULL;",
+          securement_prob = input$securement_probability,
+          closing_yr = input$closing_year,
+          .con = db_con
+        )
+
+        data <- dbGetQuery(conn = db_con, statement = query) |>
+          as_tibble()
+
+        plot_data(data)
+      }
+    })
+
+    # Event :: Phase & Focus Area inputs changed (auto-refresh table, no run button) ----
+    observeEvent(
+      list(
+        input$phase,
+        input$filter_focus_area,
+        input$focus_area,
+        input$contacts_only
+      ),
+      {
+        req(input$query_choice == "Phase & Focus Area")
+
+        if (length(input$phase) == 0) {
+          table_data(NULL)
+          return()
+        }
+
+        # Query property details, size, contacts, and last communication for selected phase(s)
+        query <- glue_sql(
+          "WITH property_sizes AS (
+            SELECT
+              pa.property_id,
+              ROUND(SUM(COALESCE(pa.size_confirmed_acres, pi.area_ha * 2.471)), 2) AS acres,
+              ROUND(SUM(COALESCE(pa.size_confirmed_ha, pi.area_ha)), 2) AS hectares
+            FROM parcels pa
+            LEFT JOIN parcel_info pi ON pa.id = pi.parcel_id
+            GROUP BY pa.property_id
+          ),
+          property_contacts AS (
+            SELECT
+              ppc.property_id,
+              STRING_AGG(
+                DISTINCT con.name_first || ' ' || con.name_last, ', '
+                ORDER BY con.name_first || ' ' || con.name_last
+              ) AS contact_names
+            FROM properties_contact ppc
+            LEFT JOIN property_contact_details con ON ppc.property_contact_id = con.id
+            GROUP BY ppc.property_id
+          ),
+          last_comm AS (
+            SELECT property_id, MAX(date_contacted) AS last_contact_date
+            FROM property_contact_communication
+            GROUP BY property_id
+          ),
+          acquisition_types AS (
+            SELECT
+              pa.property_id,
+              STRING_AGG(
+                DISTINCT at.acquisition_value, ', '
+                ORDER BY at.acquisition_value
+              ) AS acquisition_value
+            FROM parcels pa
+            LEFT JOIN acquisition_type at ON pa.acquisition_type_id = at.id
+            GROUP BY pa.property_id
+          )
+          SELECT
+            p.property_name AS \"Property Name\",
+            ph.phase_value AS \"Phase\",
+            p.phase_id_description AS \"Phase Description\",
+            COALESCE(fa.internal_value, 'Unassigned') AS \"Focus Area\",
+            ps.acres AS \"Size (acres)\",
+            ps.hectares AS \"Size (ha)\",
+            pc.contact_names AS \"Property Contacts\",
+            lc.last_contact_date AS \"Last Contact Date\",
+            ac.acquisition_value AS \"Acquisition Type\"
+          FROM properties p
+          LEFT JOIN phase ph ON p.phase_id = ph.id
+          LEFT JOIN focus_area_internal fa ON p.focus_area_internal_id = fa.id
+          LEFT JOIN property_sizes ps ON ps.property_id = p.id
+          LEFT JOIN property_contacts pc ON pc.property_id = p.id
+          LEFT JOIN last_comm lc ON lc.property_id = p.id
+          LEFT JOIN acquisition_types ac ON ac.property_id = p.id
+          WHERE p.phase_id IN ({phase_ids*})
+          ORDER BY p.property_name;",
+          phase_ids = input$phase,
+          .con = db_con
+        )
+
+        data <- dbGetQuery(conn = db_con, statement = query) |>
+          as_tibble()
+
+        if (isTRUE(input$filter_focus_area) && length(input$focus_area) > 0) {
+          data <- data |>
+            filter(`Focus Area` %in% input$focus_area)
+        }
+
+        if (isTRUE(input$contacts_only)) {
+          data <- data |>
+            filter(!is.na(`Property Contacts`))
+        }
+
+        table_data(data)
+      },
+      ignoreInit = TRUE
+    )
+
+    # Auto-update plot when inputs change (after first run)
+    observeEvent(
+      list(input$securement_probability, input$closing_year),
+      {
+        req(query_run(), input$query_choice == "Focus Area Chart")
+        req(input$securement_probability, input$closing_year)
+
+        # Query properties with focal area, securement probability, and closing year
+        query <- glue_sql(
+          "SELECT 
+            fa.internal_value AS focal_area,
+            prop.securement_probability_id,
+            prop.anticipated_closing_year
+          FROM properties prop
+          INNER JOIN focus_area_internal fa ON prop.focus_area_internal_id = fa.id
+          WHERE prop.securement_probability_id IN ({securement_prob*})
+            AND prop.anticipated_closing_year IN ({closing_yr*})
+            AND prop.securement_probability_id IS NOT NULL
+            AND prop.anticipated_closing_year IS NOT NULL;",
+          securement_prob = input$securement_probability,
+          closing_yr = input$closing_year,
+          .con = db_con
+        )
+
+        data <- dbGetQuery(conn = db_con, statement = query) |>
+          as_tibble()
+
+        plot_data(data)
+      },
+      ignoreInit = TRUE
+    )
+
+    # Event :: Clear inputs ----
+    observeEvent(input$clear_inputs, {
+      updateSelectizeInput(
+        session,
+        inputId = "query_choice",
+        choices = c(
+          "",
+          "Phase & Focus Area",
+          "Focus Area Chart"
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "securement_probability",
+        choices = securement_probability_reactive(),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "closing_year",
+        choices = closing_year_reactive(),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "phase",
+        choices = setNames(
+          phase_choices()$id,
+          phase_choices()$phase_value
+        ),
+        selected = character(0),
+        server = TRUE
+      )
+
+      updateSelectizeInput(
+        session,
+        inputId = "focus_area",
+        choices = focus_area_select_choices(),
+        selected = character(0),
+        server = TRUE
+      )
+      update_switch("filter_focus_area", value = FALSE, session = session)
+
+      # Reset query_run flag
+      query_run(FALSE)
+
+      # Clear plot and table data
+      plot_data(NULL)
+      table_data(NULL)
+    })
+
+    # Render data table ----
+    output$view_df <- renderDT({
+      req(table_data())
+
+      data_for_display <- table_data() |>
+        mutate(across(where(is.character), as.factor))
+
+      DT::datatable(
+        data_for_display,
+        options = list(
+          pageLength = 50,
+          lengthMenu = list(
+            c(10, 25, 50, 100, -1),
+            c("10", "25", "50", "100", "All")
+          ),
+          scrollX = TRUE,
+          scrollY = "400px",
+          fixedHeader = TRUE,
+          stateSave = FALSE
+        ),
+        filter = list(
+          position = "top",
+          clear = TRUE,
+          plain = TRUE
+        ),
+        rownames = FALSE,
+        selection = "single",
+        extensions = c("Buttons"),
+        fillContainer = TRUE
+      )
+    })
+
+    ## Download handler ----
+    output$download_query_data <- downloadHandler(
+      filename = function() {
+        query_name <- str_replace_all(
+          input$query_choice,
+          "[^A-Za-z0-9]+",
+          "_"
+        ) |>
+          str_to_lower()
+        glue("{query_name}_{format(Sys.Date(), '%Y%m%d')}.csv")
+      },
+      content = function(file) {
+        data_to_download <- table_data()
+
+        if (!is.null(data_to_download) && nrow(data_to_download) > 0) {
+          write_csv(data_to_download, file)
+        } else {
+          write_csv(data.frame(), file)
+        }
+      }
+    )
+
+    # Render plot ----
+    output$view_plot <- renderCachedPlot(
+      {
+        req(plot_data())
+
+        chart_data <- plot_data() |>
+          count(focal_area, name = "property_count") |>
+          arrange(desc(property_count))
+
+        ggplot(
+          chart_data,
+          aes(x = reorder(focal_area, property_count), y = property_count)
+        ) +
+          geom_col(fill = "#2C3E50", alpha = 0.8) +
+          coord_flip() +
+          labs(
+            title = "Properties by Focal Area",
+            x = "Focal Area",
+            y = "Number of Properties"
+          ) +
+          theme(
+            plot.title = element_text(hjust = 0.5, face = "bold"),
+            axis.text = element_text(size = 14),
+            axis.title = element_text(size = 14),
+            panel.grid.major.y = element_blank()
+          )
+      },
+      cacheKeyExpr = {
+        list(plot_data())
+      }
+    )
+  })
+}

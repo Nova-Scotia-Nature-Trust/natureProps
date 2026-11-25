@@ -63,6 +63,10 @@ module_edit_funding_server <- function(id, db_con, db_updated = NULL) {
 
     ## Reactive :: Property choices ----
     property_choices <- reactive({
+      if (!is.null(db_updated)) {
+        db_updated()
+      }
+
       choices <- dbGetQuery(
         db_con,
         "SELECT pr.id, 

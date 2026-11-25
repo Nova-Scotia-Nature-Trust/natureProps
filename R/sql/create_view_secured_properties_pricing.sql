@@ -1,8 +1,8 @@
-DROP VIEW IF EXISTS view_focal_areas_securement;
+DROP VIEW IF EXISTS view_secured_properties_pricing;
 
-CREATE VIEW view_focal_areas_securement AS 
+CREATE VIEW view_secured_properties_pricing AS 
 SELECT
-   fo.internal_value AS "Focus Area (Internal)",
+   COALESCE(fo.internal_value, 'Unassigned') AS "Focus Area (Internal)",
    pr.property_name_public AS "Property Name",
    pr.date_closed_fiscal AS "Fiscal Closing Date",
    SUM( COALESCE(pa.size_confirmed_ha, ROUND(info.area_ha, 2)) ) AS "Size (ha)",
@@ -14,9 +14,9 @@ SELECT
        AVG(ap.fmv) / SUM( COALESCE(pa.size_confirmed_ha, info.area_ha) * 2.47105 ), 0
    ) AS "FMV Price Per Acre"  
 FROM
-   focus_area_internal fo 
-   INNER JOIN
-      properties pr 
+   properties pr 
+   LEFT JOIN
+      focus_area_internal fo 
       ON pr.focus_area_internal_id = fo.id 
    INNER JOIN
       parcels pa 
@@ -30,10 +30,10 @@ FROM
 WHERE
    pr.ownership_id NOT IN (11, 12, 13, 14)
 GROUP BY
-   fo.internal_value,
+   COALESCE(fo.internal_value, 'Unassigned'),
    pr.property_name_public,
    pr.date_closed_fiscal,
    pr.price_purchase
 ORDER BY
-   fo.internal_value,
+   COALESCE(fo.internal_value, 'Unassigned'),
    pr.property_name_public;

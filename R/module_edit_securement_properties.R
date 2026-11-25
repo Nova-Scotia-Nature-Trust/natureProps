@@ -475,6 +475,22 @@ module_edit_securement_properties_server <- function(
         }
       }
 
+      # ---- Require a public name before a property can be marked Secured ----
+      new_phase_value <- phase_choices() |>
+        filter(id == new_phase) |>
+        pull(phase_value)
+
+      if (isTruthy(new_phase_value) && new_phase_value == "Secured") {
+        if (!isTruthy(input$edit_property_name_public)) {
+          shinyalert(
+            "Public Name Required",
+            "This property cannot be set to Secured without a Public Property Name",
+            type = "warning"
+          )
+          return()
+        }
+      }
+
       # ---- Property name uniqueness check ----
       property_check <- dbGetQuery(
         db_con,

@@ -42,7 +42,7 @@ DBI::dbExecute(
 )
 DBI::dbExecute(
   db_con,
-  readr::read_file("R/sql/create_view_focal_areas_securement.sql"),
+  readr::read_file("R/sql/create_view_secured_properties_pricing"),
   immediate = TRUE
 )
 DBI::dbExecute(
