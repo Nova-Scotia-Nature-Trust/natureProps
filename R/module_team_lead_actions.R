@@ -336,15 +336,10 @@ module_team_lead_actions_server <- function(id, db_con, db_updated = NULL) {
       }
     })
 
-    # Render actions table ----
-    output$actions_table <- renderDT({
-      req(filtered_actions())
-
-      show_completed <- isTRUE(input$show_all_actions)
-
-      # Convert character columns to factors for select inputs, and give
-      # Action Complete a readable label instead of the raw true/false
-      data_for_display <- filtered_actions() |>
+    # Convert character columns to factors for select inputs, and give
+    # Action Complete a readable label instead of the raw true/false
+    display_data <- reactive({
+      filtered_actions() |>
         mutate(
           `Action Complete` = factor(
             `Action Complete`,
@@ -353,6 +348,30 @@ module_team_lead_actions_server <- function(id, db_con, db_updated = NULL) {
           ),
           across(where(is.character), as.factor)
         )
+    })
+
+    actions_proxy <- dataTableProxy("actions_table")
+
+    # Update table data in place so sorting, filters and paging are kept
+    observeEvent(
+      display_data(),
+      {
+        replaceData(
+          actions_proxy,
+          display_data(),
+          resetPaging = FALSE,
+          rownames = FALSE
+        )
+      },
+      ignoreInit = TRUE
+    )
+
+    # Render actions table ----
+    # Only re-renders when the team lead or completed switch changes
+    output$actions_table <- renderDT({
+      input$team_lead_choice
+      show_completed <- isTRUE(input$show_all_actions)
+      data_for_display <- isolate(display_data())
 
       dt <- datatable(
         data_for_display,
