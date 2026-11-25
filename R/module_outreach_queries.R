@@ -13,7 +13,7 @@ module_outreach_queries_ui <- function(id) {
           open = TRUE,
           selectizeInput(
             ns("query_choice"),
-            "Select query",
+            "Select Query",
             choices = c("", "Focal area outreach priorities"),
             multiple = FALSE
           ),
